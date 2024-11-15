@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+      "checkJs": true, // 启用 JavaScript 的类型检查
+      "noEmit": true ,  // 不生成编译输出（如果是 TypeScript 项目）
+      "jsx":"react"
+    },
+    "exclude": [
+      "react/**"  // 忽略整个目录
+    ]
+  }
+  

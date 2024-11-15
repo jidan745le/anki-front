@@ -1,0 +1,22 @@
+{
+    "presets": [
+        [
+            "@babel/preset-env",
+            {
+                "targets": {
+                    "ie": "11" // 确保支持IE11
+                },
+                "useBuiltIns": "usage",
+                // 使用核心库 usage直接编译使用到的polyfills
+
+                // entry需要手动引入polyfills,引用方式为
+                // import 'core-js/stable'; // 导入核心库的稳定版本
+                // import 'regenerator-runtime/runtime'; // 如果你使用 async/await
+
+                // false不编译polyfills(默认值)
+                "corejs": 3 // 如果需要使用core-js提供的polyfills
+            }
+        ],
+        "@babel/preset-react"
+    ]
+}

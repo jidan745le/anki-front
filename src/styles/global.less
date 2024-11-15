@@ -1,0 +1,51 @@
+// src/styles/global.less
+
+:root {
+  --primary-color: #1890ff;
+  --background-color: #ffffff;
+  --text-color: #333333;
+}
+
+[data-theme='dark'] {
+  --primary-color: #177ddc;
+  --background-color: #141414;
+  --text-color: #ffffff;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  transition: all 0.3s;
+}
+
+.button {
+  background-color: var(--primary-color);
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.container {
+  min-height: 100vh;
+  padding: 20px;
+  background-color: var(--background-color);
+}
+
+.card {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  padding: 20px;
+  border-radius: 8px;
+  margin: 20px 0;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}

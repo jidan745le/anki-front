@@ -1,0 +1,21 @@
+// mixins.less
+.theme(@rules) {
+    each(@themes, {
+        .theme-@{key} {
+            @theme: @value;
+            @rules();
+        }
+    });
+}
+
+.text-ellipsis() {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.flex-center() {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
