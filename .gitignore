@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 /react
+/dist
 /.pnp
 .pnp.js
 
