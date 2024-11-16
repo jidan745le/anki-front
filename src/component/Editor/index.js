@@ -167,6 +167,8 @@ function CardEditor({ value, isNew, onChange }) {
                     "bulletedList",
                     "|",
                     "bold",
+                    "underline",
+                    "italic",
                     "through",
                     "color",
                     "bgColor",
@@ -236,13 +238,13 @@ function CardEditor({ value, isNew, onChange }) {
             </div> */}
 
             <div style={{ border: '1px solid #ccc', zIndex: 100, marginTop: '15px', position: "relative" }}>
-                {/* <Toolbar
+                <Toolbar
 
                     editor={editor}
                     defaultConfig={toolbarConfig}
                     mode="default"
                     style={{ borderBottom: '1px solid #ccc' }}
-                /> */}
+                />
                 <Editor
                     defaultConfig={editorConfig}
                     // value={html}    

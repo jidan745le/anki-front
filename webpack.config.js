@@ -9,7 +9,7 @@ module.exports = {
         path: path.resolve(__dirname, 'dist'), // 输出目录
         filename: 'bundle.js', // 输出文件名        
         libraryTarget: "umd", // UMD library target
-        publicPath: '/', // 静态资源路径
+        publicPath: '/', // 静态资源路径        
     },
     mode: 'development', // 设置模式为开发模式
     // Source maps
