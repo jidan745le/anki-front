@@ -23,7 +23,7 @@ function AnkiCard({ flipped, onFlip, onNext, front, frontType, back,isNew, onCha
         < div style={{ display: "flex", justifyContent: "center", fontSize: "24px", fontWeight: "bold",padding:"12px" }}>
 
           {frontType === "audio" ? <audio ref={audioRef} controls>
-            <source src={`http://localhost:3000/anki/media/${front}`} type="audio/mpeg" />
+            <source src={`${front}`} type="audio/mpeg" />
             Your browser does not support the audio element.
           </audio> : front}
         </div >

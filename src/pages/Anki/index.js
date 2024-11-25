@@ -103,10 +103,12 @@ function Anki() {
     })
   }
 
+  const isNew = card["card_type"] === "new";
+
   return <Spin spinning={loading}>    
     <div style={{ display: "flex", justifyContent: "flex-end", background: "white" ,padding:"12px"}}>  
-      <Tag color="blue">New: {deckStats.newCards}</Tag>
-      <Tag color="green">Due: {deckStats.dueCards}</Tag>
+      <Tag style={isNew?{fontSize:"16px",fontWeight:"bold"}:null} color="blue">New: {deckStats.newCards}</Tag>
+      <Tag style={!isNew?{fontSize:"16px",fontWeight:"bold"}:null} color="green">Due: {deckStats.dueCards}</Tag>
     </div>
     <AnkiCard
       front={card["front"]}
@@ -114,7 +116,7 @@ function Anki() {
       frontType={card["frontType"]}
       key={card["id"]}
       onChange={(value) => updateCard(value)}
-      isNew={card["card_type"] === "new"}
+      isNew={isNew}
       flipped={flipped}
       onNext={(quality) => {
         setQualityForThisCardAndGetNext(params.deckId, quality)
