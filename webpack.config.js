@@ -4,8 +4,115 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const { SourceMap } = require('module');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 const CompressionPlugin = require('compression-webpack-plugin');
 const isDevelopment = process.env.NODE_ENV !== 'production';
+const optimaizationConfig = {
+    optimization: {
+        splitChunks: {
+            chunks: 'all',
+            maxInitialRequests: Infinity,
+            minSize: 20000,
+            cacheGroups: {
+                vendor: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name(module, chunks, cacheGroupKey) {
+                        // 安全的获取包名
+                        const getPackageName = module => {
+                            if (!module.context) return 'vendors';
+
+                            const match = module.context.match(
+                                /[\\/]node_modules[\\/](.*?)([\\/]|$)/
+                            );
+
+                            if (!match) return 'vendors';
+
+                            const packageName = match[1];
+                            return packageName
+                                .replace('@', '')
+                                .replace(/[\\/|]/g, '-');
+                        };
+
+                        const packageName = getPackageName(module);
+
+                        // 如果是node_modules直接引入的文件
+                        if (packageName === 'vendors') {
+                            return 'vendors';
+                        }
+
+                        // 正常的npm包
+                        return `npm.${packageName}`;
+                    },
+                    priority: -10,
+                    chunks: 'all',
+                    enforce: true
+                },
+                // 特定库的分割
+                react: {
+                    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+                    name: 'react',
+                    chunks: 'all',
+                    priority: 20
+                },
+                // antd单独打包
+                antd: {
+                    test: /[\\/]node_modules[\\/]antd[\\/]/,
+                    name: 'antd',
+                    chunks: 'all',
+                    priority: 15
+                },
+                // 公共模块
+                commons: {
+                    name: 'commons',
+                    minChunks: 2, // 最少被引用2次
+                    priority: -20
+                }
+            }
+        },
+        // 5. Tree Shaking 相关
+        usedExports: true,
+        sideEffects: true,
+
+        // 6. 模块连接
+        concatenateModules: true,
+        // 添加 minimizer 配置
+        minimizer: [
+            new TerserPlugin({
+                parallel: true, // 启用多进程并行运行
+                terserOptions: {
+                    parse: {
+                        // 我们想要尽可能解析 ECMAScript 规范
+                        ecma: 2017,
+                    },
+                    compress: {
+                        ecma: 5, // 指定压缩时的 ECMAScript 版本
+                        comparisons: false,
+                        inline: 2,
+                        drop_console: process.env.NODE_ENV === 'production', // 生产环境下移除 console
+                        drop_debugger: true, // 移除 debugger
+                        pure_funcs: process.env.NODE_ENV === 'production'
+                            ? ['console.log', 'console.info', 'console.debug']
+                            : [], // 移除指定函数
+                        pure_getters: true, // 优化 getter
+                        unsafe_math: true, // 优化数学表达式
+                        unsafe_methods: true, // 优化方法调用
+                        unsafe_proto: true, // 优化原型属性访问
+                        passes: 3, // 优化次数
+                    },
+                    mangle: {
+                        safari10: true, // 修复 Safari 10 循环迭代器 bug
+                    },
+                    output: {
+                        ecma: 5,
+                        comments: false, // 移除注释
+                        ascii_only: true, // 将 Unicode 字符转换为 ASCII
+                    },
+                },
+                extractComments: false, // 不将注释提取到单独的文件中
+            }),
+        ]
+    }
+}
 
 module.exports = {
     entry: './src/index.js', // 入口文件
@@ -35,7 +142,6 @@ module.exports = {
             progress: true, // 在浏览器中显示编译进度
             overlay: { // 在浏览器中显示编译错误
                 errors: true,
-                warnings: false,
             },
         },
         // 代理配置（如果需要的话）
@@ -169,72 +275,7 @@ module.exports = {
             algorithm: 'gzip',
         }),
     ].filter(Boolean),
-    optimization: {
-        splitChunks: {
-            chunks: 'all',
-            maxInitialRequests: Infinity,
-            minSize: 20000,
-            cacheGroups: {
-                vendor: {
-                    test: /[\\/]node_modules[\\/]/,
-                    name(module, chunks, cacheGroupKey) {
-                        // 安全的获取包名
-                        const getPackageName = module => {
-                            if (!module.context) return 'vendors';
-                            
-                            const match = module.context.match(
-                                /[\\/]node_modules[\\/](.*?)([\\/]|$)/
-                            );
-                            
-                            if (!match) return 'vendors';
-                            
-                            const packageName = match[1];
-                            return packageName
-                                .replace('@', '')
-                                .replace(/[\\/|]/g, '-');
-                        };
-    
-                        const packageName = getPackageName(module);
-                        
-                        // 如果是node_modules直接引入的文件
-                        if (packageName === 'vendors') {
-                            return 'vendors';
-                        }
-    
-                        // 正常的npm包
-                        return `npm.${packageName}`;
-                    },
-                    priority: -10,
-                    chunks: 'all',
-                    enforce: true
-                },
-                // 特定库的分割
-                react: {
-                    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-                    name: 'react',
-                    chunks: 'all',
-                    priority: 20
-                },
-                // antd单独打包
-                antd: {
-                    test: /[\\/]node_modules[\\/]antd[\\/]/,
-                    name: 'antd',
-                    chunks: 'all',
-                    priority: 15
-                },        
-                // 公共模块
-                commons: {
-                    name: 'commons',
-                    minChunks: 2, // 最少被引用2次
-                    priority: -20
-                }
-            }
-        },
-        // 5. Tree Shaking 相关
-        usedExports: true,
-        sideEffects: true,
+    ...(isDevelopment ? {
+    } : optimaizationConfig)
 
-        // 6. 模块连接
-        concatenateModules: true,
-    },
 };

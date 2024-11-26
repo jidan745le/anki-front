@@ -4,7 +4,6 @@ import apiClient from '../../common/http/apiClient';
 import { useNavigate, useParams } from 'react-router-dom';
 import FooterBar from '../../component/Footbar';
 import StreamingTooltip from '../../component/StreamingTooltip';
-import { render } from 'less';
 
 const Decks = () => {
     const [decks, setDecks] = useState([]);
@@ -112,7 +111,7 @@ const Decks = () => {
             formData.append('file', podcastFile);
         }
 
-        setAudioLoading(true);
+        setLoading(true);
         try {
             const response = await apiClient.post(
                 '/app/anki/createDeckWithPodcast',
@@ -130,7 +129,7 @@ const Decks = () => {
         } catch (error) {
             message.error('Failed to create podcast deck');
         } finally {
-            setAudioLoading(false);
+            setLoading(false);
         }
     };
 
