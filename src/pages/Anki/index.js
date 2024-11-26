@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { message, Spin,Tag } from 'antd';
-import { pick, update } from 'lodash';
 import {  useNavigate, useParams } from 'react-router-dom';
 import AnkiCard from '../../component/AnkiCard';
 import apiClient from '../../common/http/apiClient';

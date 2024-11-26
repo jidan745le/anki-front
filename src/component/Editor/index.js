@@ -1,7 +1,6 @@
 import { Editor, Toolbar } from '@wangeditor/editor-for-react'
 import { IDomEditor, IEditorConfig, IToolbarConfig, Boot, SlateTransforms, SlateEditor, SlatePath } from '@wangeditor/editor'
 import React, { useEffect, useState, useRef } from 'react'
-import { set } from 'lodash'
 import { addSpanBelowP } from "../../common/util/util"
 import { Modal } from 'antd'
 import StreamingTooltip from '../StreamingTooltip'

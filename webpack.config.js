@@ -2,20 +2,26 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin'); // Import the plugin
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const { SourceMap } = require('module');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const CompressionPlugin = require('compression-webpack-plugin');
+const isDevelopment = process.env.NODE_ENV !== 'production';
 
 module.exports = {
     entry: './src/index.js', // 入口文件
     output: {
         path: path.resolve(__dirname, 'dist'), // 输出目录
-        filename: 'bundle.js', // 输出文件名        
+        filename: '[name].[contenthash].js',  // 之前是 'bundle.js'
+        chunkFilename: '[name].[contenthash].js', // 非入口 chunk 的名称
+
         libraryTarget: "umd", // UMD library target
         publicPath: '/', // 静态资源路径        
     },
-    mode: 'development', // 设置模式为开发模式
+    mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
     // Source maps
     //eval-cheap-module-source-map vscode可以定位到源码，浏览器不行
     //cheap-module-source-map 浏览器，vscode都可以定位到源码
-    devtool: 'source-map',
+    devtool: process.env.NODE_ENV === 'production' ? false : 'source-map',
     devServer: {
         static: {
             directory: path.join(__dirname, 'dist'),
@@ -35,12 +41,13 @@ module.exports = {
         // 代理配置（如果需要的话）
 
         proxy: [
-            {   context: ['/app'],
+            {
+                context: ['/app'],
                 target: 'http://localhost:3000',
                 pathRewrite: (path) => {
                     return path.replace('/app', '')
                 },
-           
+
                 changeOrigin: true,
                 configure: (proxy, options) => {
                     proxy.on('proxyReq', (proxyReq, req, res) => {
@@ -48,7 +55,7 @@ module.exports = {
                         console.log('代理到:', proxyReq.path)
                     })
                 }
-            },{
+            }, {
                 context: ['/chat1'],
                 target: 'http://8.222.155.238:3001',
                 changeOrigin: true,
@@ -72,11 +79,11 @@ module.exports = {
                     proxyRes.headers['Cache-Control'] = 'no-cache';
                     proxyRes.headers['Content-Type'] = 'text/event-stream';
                     proxyRes.headers['Connection'] = 'keep-alive';
-                    
+
                     // 删除可能导致问题的头
                     delete proxyRes.headers['content-length'];
                     delete proxyRes.headers['transfer-encoding'];
-                    
+
                     console.log('代理响应头:', proxyRes.headers);
                 }
             },
@@ -86,7 +93,7 @@ module.exports = {
     },
     module: {
         rules: [
-            {
+            isDevelopment && {
                 test: /node_modules/,
                 loader: 'source-map-loader'
             },
@@ -101,7 +108,7 @@ module.exports = {
             {
                 test: /\.module\.css$/,
                 use: [
-                    "style-loader",
+                    isDevelopment ? 'style-loader' : MiniCssExtractPlugin.loader,
                     {
                         loader: "css-loader",
                         options: {
@@ -118,12 +125,12 @@ module.exports = {
             {
                 test: /\.css$/,
                 exclude: /\.module\.css$/,
-                use: ["style-loader", "css-loader"]
-            },,
+                use: [isDevelopment ? 'style-loader' : MiniCssExtractPlugin.loader, "css-loader"]
+            }, ,
             {
                 test: /\.less$/,
                 use: [
-                    'style-loader',
+                    isDevelopment ? 'style-loader' : MiniCssExtractPlugin.loader,
                     {
                         loader: 'css-loader',
                         options: {
@@ -142,7 +149,7 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ].filter(Boolean),
     },
     plugins: [
         new CleanWebpackPlugin({
@@ -152,5 +159,82 @@ module.exports = {
             template: './src/index.html', // Your HTML template file
             filename: './index.html', // Output HTML file name
         }),
-    ],
+        process.env.ANALYZE && new BundleAnalyzerPlugin(),
+        !isDevelopment && new MiniCssExtractPlugin({
+            filename: 'css/[name].[contenthash:8].css',
+            chunkFilename: 'css/[name].[contenthash:8].chunk.css',
+        }),
+        !isDevelopment && new CompressionPlugin({
+            test: /\.(js|css|html|svg)$/,
+            algorithm: 'gzip',
+        }),
+    ].filter(Boolean),
+    optimization: {
+        splitChunks: {
+            chunks: 'all',
+            maxInitialRequests: Infinity,
+            minSize: 20000,
+            cacheGroups: {
+                vendor: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name(module, chunks, cacheGroupKey) {
+                        // 安全的获取包名
+                        const getPackageName = module => {
+                            if (!module.context) return 'vendors';
+                            
+                            const match = module.context.match(
+                                /[\\/]node_modules[\\/](.*?)([\\/]|$)/
+                            );
+                            
+                            if (!match) return 'vendors';
+                            
+                            const packageName = match[1];
+                            return packageName
+                                .replace('@', '')
+                                .replace(/[\\/|]/g, '-');
+                        };
+    
+                        const packageName = getPackageName(module);
+                        
+                        // 如果是node_modules直接引入的文件
+                        if (packageName === 'vendors') {
+                            return 'vendors';
+                        }
+    
+                        // 正常的npm包
+                        return `npm.${packageName}`;
+                    },
+                    priority: -10,
+                    chunks: 'all',
+                    enforce: true
+                },
+                // 特定库的分割
+                react: {
+                    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+                    name: 'react',
+                    chunks: 'all',
+                    priority: 20
+                },
+                // antd单独打包
+                antd: {
+                    test: /[\\/]node_modules[\\/]antd[\\/]/,
+                    name: 'antd',
+                    chunks: 'all',
+                    priority: 15
+                },        
+                // 公共模块
+                commons: {
+                    name: 'commons',
+                    minChunks: 2, // 最少被引用2次
+                    priority: -20
+                }
+            }
+        },
+        // 5. Tree Shaking 相关
+        usedExports: true,
+        sideEffects: true,
+
+        // 6. 模块连接
+        concatenateModules: true,
+    },
 };

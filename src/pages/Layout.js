@@ -3,7 +3,6 @@ import {
   Link, useLocation, useNavigation, useNavigate
 } from "react-router-dom";
 import styles from './style.module.css';
-import { includes } from 'lodash';
 const Layout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();

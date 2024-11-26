@@ -3,7 +3,6 @@ import { message, Table, Button, Drawer, Form, Input, Upload, Tag, Modal, Radio,
 import apiClient from '../../common/http/apiClient';
 import { useNavigate, useParams } from 'react-router-dom';
 import FooterBar from '../../component/Footbar';
-import { get, set, values } from 'lodash';
 import StreamingTooltip from '../../component/StreamingTooltip';
 import { render } from 'less';
 
