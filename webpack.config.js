@@ -161,7 +161,14 @@ module.exports = {
                         console.log('代理到:', proxyReq.path)
                     })
                 }
-            }, {
+            },
+            {
+                context: ['/socket.io/'],
+                target: 'http://localhost:3000',
+                changeOrigin: true,
+                ws: true
+            },
+            {
                 context: ['/chat1'],
                 target: 'http://8.222.155.238:3001',
                 changeOrigin: true,

@@ -3,10 +3,31 @@ import {
   Link, useLocation, useNavigation, useNavigate
 } from "react-router-dom";
 import styles from './style.module.css';
+import wsClient from '../common/websocket/wsClient';
+import apiClient from '../common/http/apiClient';
+import { message } from 'antd';
 const Layout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   // const navigation = useNavigation();
+  const logout = async () => {
+    wsClient.disconnect();
+    await apiClient.post(`/app/user/logout`).then(res => {
+      const data = res.data
+      if (data.code === 200) {
+        if (data.success) {
+          message.success(data.data.toString())
+          navigate("/")
+        } else {
+          message.error(data.message)
+        }
+      }
+    }).catch(err => {
+      message.error(err.message)
+    })
+    localStorage.removeItem('token');
+    navigate("/login");
+  }
 
   return (
     <div >
@@ -31,7 +52,7 @@ const Layout = ({ children }) => {
             MyANKI
           </span>
         </div>
-        {["/login","/signup"].includes(location.pathname) ? null : <ul className={styles.navLeft}>
+        {["/login", "/signup"].includes(location.pathname) ? null : <ul className={styles.navLeft}>
           <li>
             <a onClick={() => navigate("/decks")}>decks</a>
           </li>
@@ -40,7 +61,7 @@ const Layout = ({ children }) => {
           </li>
         </ul>}
         <ul className={styles.navRight}>
-          {["/login","/signup"].includes(location.pathname) ?
+          {["/login", "/signup"].includes(location.pathname) ?
             <li>
               <a onClick={() => navigate("/signup")}>Sign Up</a>
             </li> :
@@ -48,10 +69,7 @@ const Layout = ({ children }) => {
               <a>Account</a>
             </li>
               <li>
-                <a onClick={() =>{
-                  localStorage.removeItem('token');
-                  navigate("/login");
-                }}>Log Out</a>
+                <a onClick={logout}>Log Out</a>
               </li></>}
         </ul>
         {/* <Link to="/decks">decks</Link>

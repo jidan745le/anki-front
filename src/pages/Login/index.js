@@ -3,24 +3,21 @@ import './style.less';
 import apiClient from '../../common/http/apiClient';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import wsClient from '../../common/websocket/wsClient';
 
 const Login = () => {
     const [userName, setUserName] = useState('');
     const [password, setPassword] = useState('');
-    const navigate = useNavigate()
+    const navigate = useNavigate();
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Handle login logic here
-        console.log('userName:', userName);
-        console.log('Password:', password);
         apiClient.post(`/app/user/login`, { username: userName, password: password }).then(res => {
             const data = res.data
             if (data.code === 200) {
                 if (data.success) {
-                    //处理登录逻辑
-                    console.log('Login successful:', data);
                     localStorage.setItem('token', res.headers.token);
+                    wsClient.connect();
                     message.success('Login successful')
                     navigate("/")
                 } else {

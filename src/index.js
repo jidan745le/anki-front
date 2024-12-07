@@ -5,6 +5,8 @@ import './styles/global.less';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import '@wangeditor/editor/dist/css/style.css' // 引入 css
 import AnkiCreate from './pages/AnkiCreate';
+// @ts-ignore
+import wsClient from './common/websocket/wsClient';
 
 const Anki = React.lazy(() => import('./pages/Anki'));
 const Decks = React.lazy(() => import('./pages/Decks'));
@@ -13,6 +15,14 @@ const Login = React.lazy(() => import('./pages/Login'));
 const Signup = React.lazy(() => import('./pages/Signup'));
 
 function App() {
+  useEffect(() => {
+    // Try to connect if token exists
+    wsClient.connect();
+    return () => {
+      wsClient.disconnect();
+    }
+  }, []);
+
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <Router>
@@ -21,10 +31,10 @@ function App() {
             <Route path="/" element={<Navigate to={"/decks"} replace />} />
             <Route path="/decks" element={<Decks />} />
             <Route path="/anki/:deckId" element={<Anki />} />
-            <Route  path="/anki/empty" element={<div>今日已学完</div>} />
-            <Route path="/anki/create/:deckId" element={<AnkiCreate/>} />
-            <Route path="/login" element={<Login/>} />
-            <Route path="/signup" element={<Signup/>} />
+            <Route path="/anki/empty" element={<div>今日已学完</div>} />
+            <Route path="/anki/create/:deckId" element={<AnkiCreate />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
           </Routes>
         </Layout>
       </Router>
@@ -35,7 +45,7 @@ function App() {
 function Index() {
   return <>
     <App />
-  </> 
+  </>
 }
 
 

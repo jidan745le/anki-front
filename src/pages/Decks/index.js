@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { message, Table, Button, Drawer, Form, Input, Upload, Tag, Modal, Radio, Select } from 'antd';
+import { message, Table, Button, Drawer, Form, Input, Upload, Tag, Modal, Radio, Select, Progress } from 'antd';
 import apiClient from '../../common/http/apiClient';
 import { useNavigate, useParams } from 'react-router-dom';
 import FooterBar from '../../component/Footbar';
 import StreamingTooltip from '../../component/StreamingTooltip';
+import useSocket from '../../common/hooks/useSocket';
 
 const Decks = () => {
     const [decks, setDecks] = useState([]);
@@ -17,24 +18,78 @@ const Decks = () => {
     const [deckType, setDeckType] = useState('normal'); // 'normal' or 'audio' or 'podcast'
     const [podcastFile, setPodcastFile] = useState(null);
     const [podcastMode, setPodcastMode] = useState('existing');
+    const { socket, emit, on, isConnected } = useSocket();
+    const [progresses, setProgresses] = useState({});
+    const [pendingTaskIds, setPendingTaskIds] = useState([]);
+
+
+    // useEffect(() => {
+
+    // }, []);
 
     useEffect(() => {
-        getDecks()
-    }, []);
+        if (!isConnected) {
+            return;
+        }
 
-    const getDecks = () => {
-        // Fetch decks
-        apiClient.get(`/app/anki/getDecks`).then(res => {
-            const data = res.data;
-            if (data.success) {
-                setDecks(data.data);
+        getDecks(true);
+
+        // 初始化任务
+        on('task-init', (data) => {
+            const { taskId } = data;
+            if (pendingTaskIds.includes(taskId)) {
                 return;
             }
-            message.error(data.message);
-        }).catch(err => {
-            console.log(err);
-        });
-    }
+            //已开多个浏览器TAB场景 需要重新拉取数据
+            getDecks();
+            setPendingTaskIds(prev => [...prev, taskId]);
+            socket.on(`task-${taskId}-pending`, (data) => {
+                if (data.progress == 100) {
+                    socket.off(`task-${taskId}-pending`);
+                    setPendingTaskIds(prev => prev.filter(id => id !== taskId));
+                    getDecks();
+                }
+                const { progress, message } = data;
+                setProgresses(prev => ({ ...prev, [taskId]: { progress, message } }));
+            })
+        })
+
+
+    }, [isConnected])
+
+    const getDecks = async (isInit = false) => {
+        const res = await apiClient.get(`/app/anki/getDecks`).catch(err => err.response);
+        const data = res.data;
+        if (data.success) {
+            const newDecks = data.data;
+            setDecks(newDecks);
+
+            if (isInit) {
+                // 等待 socket 连接就绪
+                if (!isConnected) {
+                    return;
+                }
+
+                newDecks.forEach(deck => {
+                    if (deck.status == "processing" && deck.taskId && !pendingTaskIds.includes(deck.taskId)) {
+                        setPendingTaskIds(prev => [...prev, deck.taskId]);
+                        on(`task-${deck.taskId}-pending`, (data) => {
+                            if (data.progress == 100) {
+                                socket.off(`task-${deck.taskId}-pending`);
+                                setPendingTaskIds(prev => prev.filter(id => id !== deck.taskId));
+                                getDecks();
+                            }
+                            const { progress, message } = data;
+                            setProgresses(prev => ({ ...prev, [deck.taskId]: { progress, message } }));
+                        });
+                    }
+                });
+            }
+            return newDecks;
+        }
+
+        message.error(data.message);
+    };
 
     const deleteDeck = (deckId) => {
         Modal.confirm({
@@ -74,7 +129,7 @@ const Decks = () => {
         formData.append('file', audioFile);
         formData.append('text', values.transcriptText);
         formData.append('name', values.name);
-        values.description &&  formData.append('description', values.description);
+        values.description && formData.append('description', values.description);
 
         setAudioLoading(true);
         try {
@@ -98,6 +153,9 @@ const Decks = () => {
         }
     };
 
+
+
+    // 播客模式提交
     const handlePodcastSubmit = async (values) => {
         const formData = new FormData();
         formData.append('name', values.name);
@@ -121,6 +179,21 @@ const Decks = () => {
 
             if (response.data.success) {
                 message.success('Podcast deck created successfully!');
+                const { taskId } = response.data.data;
+
+                // 等待 socket 连接
+
+                setPendingTaskIds(prev => [...prev, taskId]);
+                on(`task-${taskId}-pending`, (data) => {
+                    const { progress, message } = data;
+                    if (progress == 100) {
+                        socket.off(`task-${taskId}-pending`);
+                        setPendingTaskIds(prev => prev.filter(id => id !== taskId));
+                        getDecks();
+                    }
+                    setProgresses(prev => ({ ...prev, [taskId]: { progress, message } }));
+                });
+
                 handleClose();
                 getDecks();
             } else {
@@ -183,24 +256,44 @@ const Decks = () => {
             title: 'Name',
             dataIndex: 'name',
             key: 'name',
-            render: (text, row) => <a onClick={() => navigate(`/anki/${row.id}`)}>{text}</a>,
+            width: 200,
+            render: (text, row) => <div>
+                <a onClick={() => navigate(`/anki/${row.id}`)}>{text}</a>
+                {row.status == "processing" && row.taskId && <>
+                    <Progress percent={progresses[row.taskId]?.progress || 0} />
+                    <div>{progresses[row.taskId]?.message || ""}</div>
+                </>}
+                {row.status == "failed" && <div style={{ color: "red" }}>failed </div>}
+            </div>,
         },
         {
             title: 'Description',
             dataIndex: 'description',
             key: 'description',
+            width: 200,
             render: text => text || ""
         },
         {
-            title: 'Stats',
+            title: 'deckType',
+            dataIndex: 'deckType',
+            key: 'deckType',
+            width: 100,
+            render: text => text || ""
+        },
+        {
+            title: 'statistics',
             dataIndex: 'stats',
             key: 'stats',
+            width: 150,
             render: (text, row) => {
                 return <div>
-                    <Tag color="blue">New: {row.stats.newCards}</Tag>
-                    <Tag color="green">Due: {row.stats.dueCards}</Tag>
-                    <Tag color="red">Review: {row.stats.totalReviewCards}</Tag>
-                    <Tag color="pink">Total: {row.stats.totalCards}</Tag>
+                    <div>
+                        <Tag color="blue">New: {row.stats.newCards}</Tag>
+                        <Tag color="green">Due: {row.stats.dueCards}</Tag></div>
+                    <div style={{ marginTop: 4 }}>
+                        <Tag color="red">Review: {row.stats.totalReviewCards}</Tag>
+                        <Tag color="pink">Total: {row.stats.totalCards}</Tag>
+                    </div>
                 </div>
             }
 
@@ -208,13 +301,13 @@ const Decks = () => {
         {
             title: 'Action',
             key: 'action',
-            width: 500,
+            width: 150,
             render: (text, row) => (
                 <div>
-                    <Button type="link" onClick={() => navigate(`/anki/create/${row.id}`)}>
-                        Add Card
+                    <Button disabled={row.status == "processing"} type="link" onClick={() => navigate(`/anki/create/${row.id}`)}>
+                        Add
                     </Button>
-                    <Button danger type="link" onClick={() => deleteDeck(row.id)}>
+                    <Button disabled={row.status == "processing"} danger type="link" onClick={() => deleteDeck(row.id)}>
                         Delete
                     </Button>
                 </div>
@@ -245,19 +338,19 @@ const Decks = () => {
         return <Form form={form} layout="vertical" onFinish={handleSubmit} onValuesChange={changedValues => {
             if (changedValues.deckType) {
                 setDeckType(changedValues.deckType);
-                if(changedValues.deckType === "podcast"){
-                    form.setFieldsValue({podcastMode: "existing"})
-                    form.setFieldsValue({podcastType: "this american life"})
+                if (changedValues.deckType === "podcast") {
+                    form.setFieldsValue({ podcastMode: "existing" })
+                    form.setFieldsValue({ podcastType: "this american life" })
                 }
             }
 
-            if(changedValues.podcastMode){
-                setPodcastMode(changedValues.podcastMode);          
+            if (changedValues.podcastMode) {
+                setPodcastMode(changedValues.podcastMode);
             }
         }}>
             <Form.Item label="Deck Type" name="deckType">
                 <Radio.Group
-                    buttonStyle="solid"               
+                    buttonStyle="solid"
                 >
                     <Radio.Button value="normal">Normal Deck</Radio.Button>
                     <Radio.Button value="audio">Custom Audio Deck</Radio.Button>
@@ -286,7 +379,7 @@ const Decks = () => {
                         <Button>点击上传</Button>
                     </Upload>
                 </Form.Item>
-            ) : form.getFieldValue("deckType")=== 'audio' ? (
+            ) : form.getFieldValue("deckType") === 'audio' ? (
                 <>
                     <Form.Item label="Audio File">
                         <Upload
@@ -334,7 +427,7 @@ const Decks = () => {
                         </>
                     ) : (
                         <Form.Item label="Upload Podcast File" name="podcastFile">
-                            <Upload                                
+                            <Upload
                                 beforeUpload={(file) => {
                                     setPodcastFile(file);
                                     return false;
