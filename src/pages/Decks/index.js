@@ -37,12 +37,20 @@ const Decks = () => {
         // 初始化任务
         on('task-init', (data) => {
             const { taskId } = data;
-            if (pendingTaskIds.includes(taskId)) {
-                return;
-            }
-            //已开多个浏览器TAB场景 需要重新拉取数据
-            getDecks();
-            setPendingTaskIds(prev => [...prev, taskId]);
+
+            setPendingTaskIds(prevPendingTaskIds => {
+                // Check using the latest state value
+                if (prevPendingTaskIds.includes(taskId)) {
+                    return prevPendingTaskIds;
+                }
+
+                // Already opened in multiple browser tabs scenario - need to refresh data
+                getDecks();
+
+                // Add new taskId to the list
+                return [...prevPendingTaskIds, taskId];
+            });
+
             socket.on(`task-${taskId}-pending`, (data) => {
                 if (data.progress == 100) {
                     socket.off(`task-${taskId}-pending`);
@@ -51,7 +59,7 @@ const Decks = () => {
                 }
                 const { progress, message } = data;
                 setProgresses(prev => ({ ...prev, [taskId]: { progress, message } }));
-            })
+            });
         })
 
 
