@@ -63,7 +63,7 @@ const Layout = ({ children }) => {
         <ul className={styles.navRight}>
           {["/login", "/signup"].includes(location.pathname) ?
             <li>
-              <a onClick={() => navigate("/signup")}>Sign Up</a>
+              <a onClick={() => { navigate(location.pathname == "/signup" ? "/login" : "/signup") }}>{location.pathname == "/signup" ? "Login" : "Sign Up"}</a>
             </li> :
             <><li>
               <a>Account</a>

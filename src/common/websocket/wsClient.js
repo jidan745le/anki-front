@@ -11,6 +11,10 @@ class WebSocketClient {
         console.log(token, this.socket, "token")
 
         if (!token || this.socket) {
+            if (!token && !['/login', '/signup'].includes(window.location.pathname)) {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            }
             return;
         }
         console.log('connect token', token, this.socket)
