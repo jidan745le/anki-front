@@ -1,6 +1,8 @@
 import { Button } from 'antd';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
+import { marked } from 'marked';
+import './markdown.css'
 
 // 位置计算工具函数
 const calculatePosition = (anchorEl, placement = 'bottom') => {
@@ -68,7 +70,8 @@ const StreamingTooltip = ({
   prompt,
   apiEndpoint = '/chat',
   onClose,
-  onInsert
+  onInsert,
+  onInsertHtml
 }) => {
   const [content, setContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -160,6 +163,25 @@ const StreamingTooltip = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
+  // 将 Markdown 转换为安全的 HTML
+  const getHtmlContent = useCallback((markdownContent) => {
+    const rawHtml = marked(markdownContent);
+    return rawHtml;
+  }, []);
+
+  // 修改内容渲染部分
+  const renderContent = () => {
+    if (!content) return null;
+
+    const htmlContent = getHtmlContent(content);
+    return (
+      <div
+        className="markdown-content"
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+      />
+    );
+  };
+
   const tooltipContent = (
     <div
       ref={tooltipRef}
@@ -193,11 +215,7 @@ const StreamingTooltip = ({
           </div>
         )}
 
-        {content && (
-          <div style={{ whiteSpace: 'pre-wrap' }}>
-            {content}
-          </div>
-        )}
+        {content && renderContent()}
 
         {isLoading && content && (
           <div
@@ -212,7 +230,8 @@ const StreamingTooltip = ({
         )}
       </div>
       <Button style={{ position: "absolute" }} onClick={() => {
-        onInsert && onInsert(content)
+        // onInsert && onInsert(content)
+        onInsertHtml && onInsertHtml(getHtmlContent(content))
         onClose()
       }}>插入</Button>
     </div>

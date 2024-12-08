@@ -9,7 +9,7 @@ class MyMenuClass {
     constructor() {
         this.title = '✨',
             // this.iconSvg = '<svg>...</svg>'
-        this.tag = 'button'
+            this.tag = 'button'
         this.width = 30
     }
 
@@ -99,7 +99,7 @@ function CardEditor({ value, isNew, onChange }) {
     const [position, setPosition] = useState({ left: 0, top: 0 })
     const [showTooltip, setShowTooltip] = useState(false)
     const editorContainerRef = useRef(null)
-   
+
 
     const toolbarConfig = {
         insertKeys: {
@@ -109,7 +109,7 @@ function CardEditor({ value, isNew, onChange }) {
     }
     const editorConfig = {
         placeholder: '请输入内容...',
-    
+
         hoverbarKeys: {
             "link": {
                 "menuKeys": [
@@ -184,10 +184,12 @@ function CardEditor({ value, isNew, onChange }) {
 
             console.log(editor.getConfig(), editor.getConfig().hoverbarKeys, editor.getMenuConfig(), editor.getAllMenuKeys(), "1111111")
 
+            // 监听selection变化
+
 
         }
         return () => {
-            
+
             if (editor == null) return
             editor.destroy()
             console.log("destroy")
@@ -197,23 +199,57 @@ function CardEditor({ value, isNew, onChange }) {
 
     const insertTextBelow = (editor, text) => {
         const { selection } = editor
-        console.log(editor.restoreSelection, editor,"selection")
+        console.log(editor.restoreSelection, editor, "selection")
         if (!editor.restoreSelection) return
 
         // 获取当前行的路径
         const [node, path] = SlateEditor.node(editor, editor.restoreSelection || selection)
-        console.log(node, path,SlatePath.next(path),editor.children, "node, path")
+        console.log(node, path, SlatePath.next(path), editor.children, "node, path")
         // 创建新的段落节点
         const newNode = {
-          type: 'paragraph',
-          children: [{ text, fontSize: '22px' }]
+            type: 'paragraph',
+            children: [{ text, fontSize: '22px' }]
         }
 
         // 在下一行插入
         SlateTransforms.insertNodes(editor, newNode, {
-          at: [path[0]+1]
-        })                
-      }
+            at: [path[0] + 1]
+        })
+    }
+
+    const insertHtmlBelow = (editor, htmlContent) => {
+        const { selection } = editor
+        if (!editor.restoreSelection) return
+        console.log(editor.restoreSelection, selection, "editor.restoreSelection")
+
+        // Get current path
+        const [node, path] = SlateEditor.node(editor, editor.restoreSelection || selection)
+        const newNode = {
+            type: 'paragraph',
+            children: [{ text: '', fontSize: '22px' }]
+        }
+        SlateTransforms.insertNodes(editor, newNode, {
+            at: [path[0] + 1]
+        })
+        // SlateTransforms.select(editor, editor.restoreSelection)
+
+        SlateTransforms.select(editor, { anchor: { path: [path[0] + 1, 0], offset: 0 }, focus: { path: [path[0] + 1, 0], offset: 0 } })
+
+        console.log(node, path, "node, path")
+        // Move cursor to the end of current selection
+        // editor.select(editor.restoreSelection)
+
+        // Insert the HTML content below the current paragraph
+        editor.dangerouslyInsertHtml(htmlContent)
+        editor.select({ anchor: { path: [path[0] + 1, 0], offset: 0 }, focus: editor.selection["focus"] })
+        editor.addMark('fontSize', '22px');
+        editor.addMark('color', '#ff0000')      // 文字颜色
+
+        // console.log(editor.selection, "editor.selection")
+        // SlateTransforms.removeNodes(editor, {
+        //     at: [path[0] + 1]
+        // })
+    }
 
 
 
@@ -251,9 +287,9 @@ function CardEditor({ value, isNew, onChange }) {
                     onCreated={(editor) => {
                         setEditor(editor)
                         editorContainerRef.current = editor.getEditableContainer()
-                     
+
                         editor.setPosition = setPosition;
-                        editor.showTooltip = setShowTooltip;                        
+                        editor.showTooltip = setShowTooltip;
 
                         setTimeout(() => {
                             editor.dangerouslyInsertHtml(value)
@@ -262,7 +298,10 @@ function CardEditor({ value, isNew, onChange }) {
                         })
 
                     }}
+
                     onChange={editor => {
+                        console.log(editor.selection, "editor.selection")
+
                         if (initialFlag.current) {
                             preHtmlStr.current = editor.getHtml()
 
@@ -291,13 +330,14 @@ function CardEditor({ value, isNew, onChange }) {
                     style={{ height: '600px' }}
                 />
                 {showTooltip && (
-                    <StreamingTooltip     
-                        containerEl={editorContainerRef.current}            
+                    <StreamingTooltip
+                        containerEl={editorContainerRef.current}
                         position={position}
                         prompt={editor.lastSelectionText}
                         onClose={() => setShowTooltip(false)}
                         apiEndpoint='http://8.222.155.238:3001/chat'
-                        onInsert={(value) => {insertTextBelow(editor, value)}}
+                        onInsert={(value) => { insertTextBelow(editor, value) }}
+                        onInsertHtml={(value) => { insertHtmlBelow(editor, value) }}
                     />
                 )}
 

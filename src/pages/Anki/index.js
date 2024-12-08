@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { message, Spin,Tag } from 'antd';
-import {  useNavigate, useParams } from 'react-router-dom';
+import { message, Spin, Tag } from 'antd';
+import { useNavigate, useParams } from 'react-router-dom';
 import AnkiCard from '../../component/AnkiCard';
 import apiClient from '../../common/http/apiClient';
 import axios from 'axios';
@@ -30,7 +30,9 @@ function Anki() {
   }
 
   const updateQualityForThisCard = async (deckId, quality) => {
+    setLoading(true);
     return await apiClient.post(`/app/anki/updateCardWithSM2/${quality}`, { id: card.id, deckId, quality: quality }).then(res => {
+      setLoading(false);
       const data = res.data;
       if (data.success) {
         return;
@@ -104,10 +106,10 @@ function Anki() {
 
   const isNew = card["card_type"] === "new";
 
-  return <Spin spinning={loading}>    
-    <div style={{ display: "flex", justifyContent: "flex-end", background: "white" ,padding:"12px"}}>  
-      <Tag style={isNew?{fontSize:"16px",fontWeight:"bold"}:null} color="blue">New: {deckStats.newCards}</Tag>
-      <Tag style={!isNew?{fontSize:"16px",fontWeight:"bold"}:null} color="green">Due: {deckStats.dueCards}</Tag>
+  return <Spin spinning={loading}>
+    <div style={{ display: "flex", justifyContent: "flex-end", background: "white", padding: "12px" }}>
+      <Tag style={isNew ? { fontSize: "16px", fontWeight: "bold" } : null} color="blue">New: {deckStats.newCards}</Tag>
+      <Tag style={!isNew ? { fontSize: "16px", fontWeight: "bold" } : null} color="green">Due: {deckStats.dueCards}</Tag>
     </div>
     <AnkiCard
       front={card["front"]}
