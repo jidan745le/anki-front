@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { message, Table, Button, Drawer, Form, Input, Upload, Tag, Modal, Radio, Select, Progress } from 'antd';
+import { message, Table, Button, Drawer, Form, Input, Upload, Tag, Modal, Radio, Select, Progress, InputNumber } from 'antd';
 import apiClient from '../../common/http/apiClient';
 import { useNavigate, useParams } from 'react-router-dom';
 import FooterBar from '../../component/Footbar';
@@ -11,6 +11,7 @@ const Decks = () => {
     const [visible, setVisible] = useState(false);
     const [fileList, setFileList] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [decksLoading, setDecksLoading] = useState(false)
     const [form] = Form.useForm();
     const navigate = useNavigate();
     const [audioFile, setAudioFile] = useState(null);
@@ -21,6 +22,9 @@ const Decks = () => {
     const { socket, emit, on, isConnected } = useSocket();
     const [progresses, setProgresses] = useState({});
     const [pendingTaskIds, setPendingTaskIds] = useState([]);
+    const [deckConfigureVisible, setDeckConfigureVisible] = useState(false);
+    const [deckConfigureDeckId, setDeckConfigureDeckId] = useState(null);
+    const [configureForm] = Form.useForm();
 
 
     // useEffect(() => {
@@ -65,9 +69,29 @@ const Decks = () => {
 
     }, [isConnected])
 
+    useEffect(() => {
+        if (deckConfigureVisible && deckConfigureDeckId) {
+            // Load current configuration
+            apiClient.get(`/app/anki/getDeckConfig/${deckConfigureDeckId}`)
+                .then(response => {
+                    if (response.data.success) {
+                        configureForm.setFieldsValue({
+                            easyInterval: response.data.data.easyInterval,
+                            hardInterval: response.data.data.hardInterval
+                        });
+                    }
+                })
+                .catch(err => {
+                    message.error('Failed to load deck configuration');
+                });
+        }
+    }, [deckConfigureVisible, deckConfigureDeckId]);
+
     const getDecks = async (isInit = false) => {
+        setDecksLoading(true)
         const res = await apiClient.get(`/app/anki/getDecks`).catch(err => err.response);
         const data = res.data;
+        setDecksLoading(false)
         if (data.success) {
             const newDecks = data.data;
             setDecks(newDecks);
@@ -318,6 +342,12 @@ const Decks = () => {
                     <Button disabled={row.status == "processing"} danger type="link" onClick={() => deleteDeck(row.id)}>
                         Delete
                     </Button>
+                    <Button type="link" onClick={() => {
+                        setDeckConfigureVisible(true);
+                        setDeckConfigureDeckId(row.id);
+                    }}>
+                        Configure
+                    </Button>
                 </div>
 
             ),
@@ -467,7 +497,12 @@ const Decks = () => {
 
     return (
         <div style={{ padding: "12px" }}>
-            <Table dataSource={decks} rowKey={row => row.id} pagination={false} columns={columns} />
+            <Table
+                loading={decksLoading}
+                dataSource={decks}
+                rowKey={row => row.id}
+                pagination={false}
+                columns={columns} />
             <FooterBar>
                 <Button danger type="primary" onClick={handleAddDeck} >
                     添加 Deck
@@ -482,6 +517,62 @@ const Decks = () => {
                 width={600}
             >
                 {renderDrawerContent()}
+            </Drawer>
+            <Drawer
+                title="Configure Deck"
+                placement="right"
+                onClose={() => {
+                    setDeckConfigureVisible(false);
+                    setDeckConfigureDeckId(null);
+                    configureForm.resetFields();
+                }}
+                open={deckConfigureVisible}
+                width={400}
+            >
+                <Form
+                    form={configureForm}
+                    layout="vertical"
+                    onFinish={async (values) => {
+                        const response = await apiClient.post(`/app/anki/configureDeck/${deckConfigureDeckId}`, values)
+                            .catch(err => err.response);
+                        
+                        if (response.data.success) {
+                            message.success('Deck configured successfully!');
+                            setDeckConfigureVisible(false);
+                            getDecks();
+                        } else {
+                            message.error(response.data.message);
+                        }
+                    }}
+                >
+                    <Form.Item
+                        label="Easy Interval (minutes)"
+                        name="easyInterval"
+                        rules={[
+                            { required: true, message: 'Please input easy interval!' },
+                            { type: 'number', min: 1, message: 'Must be greater than 0!' }
+                        ]}
+                    >
+                        <InputNumber/>
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Hard Interval (minutes)"
+                        name="hardInterval"
+                        rules={[
+                            { required: true, message: 'Please input hard interval!' },
+                            { type: 'number', min: 1, message: 'Must be greater than 0!' }
+                        ]}
+                    >
+                        <InputNumber />
+                    </Form.Item>
+
+                    <Form.Item>
+                        <Button type="primary" htmlType="submit">
+                            Save Configuration
+                        </Button>
+                    </Form.Item>
+                </Form>
             </Drawer>
 
         </div>
