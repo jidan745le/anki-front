@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react"
 import { Button, Modal, Spin, Card } from "antd"
 import FooterBar from "../Footbar"
 import MyEditor from "../Editor"
+import "./ankicard.less"
 
-function AnkiCard({ flipped, onFlip, onNext, front, frontType, back, isNew, onChange }) {
+function AnkiCard({ config,flipped, onFlip, onNext, front, frontType, back, isNew, onChange }) {
   const audioRef = React.useRef(null);
 
   // 添加键盘事件监听
@@ -94,7 +95,8 @@ function AnkiCard({ flipped, onFlip, onNext, front, frontType, back, isNew, onCh
   }, [front, frontType]);
 
   return <>
-    <Card
+    <Card   
+      className="anki-card" 
       bordered={false}
       title={
         <div style={{ display: "flex", justifyContent: "center", fontSize: "24px", fontWeight: "bold", padding: "12px" }}>
@@ -104,7 +106,7 @@ function AnkiCard({ flipped, onFlip, onNext, front, frontType, back, isNew, onCh
           </audio> : front}
         </div>
       }>
-      {flipped ? <div><MyEditor onChange={onChange} isNew={isNew} value={`${back}`} /></div> :
+      {flipped ? <div><MyEditor config={config} title={frontType !== "audio" ? front : undefined} onChange={onChange} isNew={isNew} value={`${back}`} /></div> :
         <div style={{ display: "flex", justifyContent: "center" }}>点击下方按钮或按空格键查看答案</div>}
     </Card>
     <FooterBar>

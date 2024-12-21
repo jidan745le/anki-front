@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { message, Spin, Tag } from 'antd';
+import { message, Spin, Switch, Tag } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import AnkiCard from '../../component/AnkiCard';
 import apiClient from '../../common/http/apiClient';
@@ -14,6 +14,7 @@ function Anki() {
   const [loading, setLoading] = useState(false);
   const [deckStats, setDeckStats] = useState({});
   const params = useParams();
+  const [config, setConfig] = useState({});
   console.log(params, "params")
 
   useEffect(() => {
@@ -107,11 +108,19 @@ function Anki() {
   const isNew = card["card_type"] === "new";
 
   return <Spin spinning={loading}>
-    <div style={{ display: "flex", justifyContent: "flex-end", background: "white", padding: "12px" }}>
-      <Tag style={isNew ? { fontSize: "16px", fontWeight: "bold" } : null} color="blue">New: {deckStats.newCards}</Tag>
-      <Tag style={!isNew ? { fontSize: "16px", fontWeight: "bold" } : null} color="green">Due: {deckStats.dueCards}</Tag>
+    <div style={{ display: "flex", justifyContent: "space-between", background: "white", padding: "12px" }}>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <span style={{ marginRight: "8px" }}>{config.autoMarkTitle ? "autoMatchTitle" : "noAutoMatchTitle"} </span> 
+        <Switch checked={config.autoMarkTitle} onChange={(value) => setConfig({...config, autoMarkTitle: value})} >
+        </Switch>
+      </div>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <Tag style={isNew ? { fontSize: "16px", fontWeight: "bold" } : null} color="blue">New: {deckStats.newCards}</Tag>
+        <Tag style={!isNew ? { fontSize: "16px", fontWeight: "bold" } : null} color="green">Due: {deckStats.dueCards}</Tag>
+      </div>
     </div>
     <AnkiCard
+      config={config}    
       front={card["front"]}
       back={card["back"]}
       frontType={card["frontType"]}

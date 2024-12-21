@@ -90,7 +90,7 @@ const myMenuConf = {
 
 Boot.registerMenu(myMenuConf)
 
-function CardEditor({ value, isNew, onChange }) {
+function CardEditor({ title, value, isNew, onChange,config = {} }) {
     const [editor, setEditor] = useState(null) // 存储 editor 实例
     const [html, setHtml] = useState("")
     const initialFlag = useRef(false)
@@ -99,6 +99,61 @@ function CardEditor({ value, isNew, onChange }) {
     const [position, setPosition] = useState({ left: 0, top: 0 })
     const [showTooltip, setShowTooltip] = useState(false)
     const editorContainerRef = useRef(null)
+    const {autoMarkTitle = false } = config 
+    const autoMarkTitleRef = useRef(autoMarkTitle)
+
+    useEffect(() => {
+        if(autoMarkTitleRef.current !== autoMarkTitle){
+            autoMarkTitleRef.current = autoMarkTitle
+            if (title) {
+                try {
+                    // First deselect any existing selection
+                    // editor.deselect();
+                    if(!autoMarkTitle){
+                        editor.children.forEach((node,index) => {
+                            if(node.children){
+                                node.children.forEach((child,childIndex) => {
+                                    console.log(child,childIndex, "child")
+                                    if(child.text === title){
+                                        console.log(child,childIndex, "child1")
+
+                                        SlateTransforms.select(editor, {
+                                            anchor: { path: [index, childIndex], offset: 0 },
+                                            focus: { path: [index, childIndex], offset: title.length}
+                                        });
+                                        editor.removeMark('bgColor')
+                                        editor.deselect()
+                                    }
+                                })
+                            }
+                        })
+                    }else{
+                    // Find the title text and highlight it
+                    editor.children.forEach((node, index) => {
+                        if (node.children) {
+                            node.children.forEach((child,childIndex) => {
+                                const titleIndex = child.text.indexOf(title);
+                                if (titleIndex !== -1) {
+                                    // Select the title text
+                                    SlateTransforms.select(editor, {
+                                        anchor: { path: [index, childIndex], offset: titleIndex },
+                                        focus: { path: [index, childIndex], offset: titleIndex + title.length }
+                                    });
+                                    // Add background color mark
+                                    editor.addMark('bgColor', 'rgb(255, 251, 143)');
+                                    // Deselect after highlighting
+                                    editor.deselect();
+                                }                                
+                            })
+                        
+                        }
+                    })};
+                } catch (error) {
+                    console.error('Error highlighting title:', error);
+                }
+            }
+        }
+    }, [autoMarkTitle])
 
 
     const toolbarConfig = {
@@ -304,9 +359,40 @@ function CardEditor({ value, isNew, onChange }) {
 
                         if (initialFlag.current) {
                             preHtmlStr.current = editor.getHtml()
+                            console.log(preHtmlStr.current, editor.children, "editor.getHtml() titleLocation")
+                            if (title && autoMarkTitle) {
+                                try {
+                                    // First deselect any existing selection
+                                    editor.deselect();
+                                    
+                                    // Find the title text and highlight it
+                                    editor.children.forEach((node, index) => {
+                                        if (node.children) {
+                                            node.children.forEach((child,childIndex) => {
+                                                const titleIndex = child.text.indexOf(title);
+                                                if (titleIndex !== -1) {
+                                                    // Select the title text
+                                                    SlateTransforms.select(editor, {
+                                                        anchor: { path: [index, childIndex], offset: titleIndex },
+                                                        focus: { path: [index, childIndex], offset: titleIndex + title.length }
+                                                    });
+                                                    // Add background color mark
+                                                    editor.addMark('bgColor', 'rgb(255, 251, 143)');
+                                                    // Deselect after highlighting
+                                                    editor.deselect();
+                                                }                                
+                                            })
+                                        
+                                        }
+                                    })
+                                } catch (error) {
+                                    console.error('Error highlighting title:', error);
+                                }
+                            }
 
                             //第一次有意义赋值
                             if (isNew) {
+                                // alert("isNew")
                                 //innerdangerouslyInsertHtmlC初始化
                                 console.log(html, editor, editor.marks, editor.getHtml(), "initial3")
                                 editor.selectAll();
@@ -324,6 +410,8 @@ function CardEditor({ value, isNew, onChange }) {
                                 preHtmlStr.current = curHtmlStr  // setHtml(addSpanBelowP(editor.getHtml()))
                                 onChange && onChange(curHtmlStr)
                             }
+                            console.log(curHtmlStr, editor.children, "editor.getHtml()")
+
                         }
                     }}
                     mode="default"
