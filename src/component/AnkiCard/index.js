@@ -10,7 +10,40 @@ function AnkiCard({ config,flipped, onFlip, onNext, front, frontType, back, isNe
   // 添加键盘事件监听
   useEffect(() => {
     const handleKeyPress = (event) => {
+
       const isCtrlPressed = event.ctrlKey || event.metaKey;
+
+      // Audio control shortcuts
+      if (frontType === "audio" && audioRef.current) {
+        if (isCtrlPressed) {
+          switch (event.code) {
+            case 'Space':
+              event.preventDefault();
+              if (audioRef.current.paused) {
+                audioRef.current.play();
+              } else {
+                audioRef.current.pause();
+              }
+              return;
+            case 'ArrowDown':
+              event.preventDefault();
+                if (audioRef.current.paused) {
+                  audioRef.current.play();
+                } else {
+                  audioRef.current.pause();
+                }
+                return;
+            case 'ArrowLeft':
+              event.preventDefault();
+              audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 3);
+              return;
+            case 'ArrowRight':
+              event.preventDefault();
+              audioRef.current.currentTime = Math.min(audioRef.current.duration, audioRef.current.currentTime + 3);
+              return;
+          }
+        }
+      }
 
       // Ctrl + 数字键组合不受编辑器状态影响
       if (isCtrlPressed && flipped) {
@@ -41,12 +74,12 @@ function AnkiCard({ config,flipped, onFlip, onNext, front, frontType, back, isNe
       // 如果事件来自编辑器或其他可编辑元素，不处理普通快捷键
       if (event.target.contentEditable === 'true' ||
         event.target.tagName === 'INPUT' ||
-        event.target.tagName === 'TEXTAREA') {
-        return;
+        event.target.tagName === 'TEXTAREA') {         
+          return;
       }
 
-      if (!flipped) {
-        // 未翻转状态：空格键显示答案
+      if (!flipped && !isCtrlPressed) {
+        // 未翻转状态：空格键显示答案（仅在没有按下 Ctrl 时）
         if (event.code === 'Space') {
           event.preventDefault();
           onFlip && onFlip(true);
