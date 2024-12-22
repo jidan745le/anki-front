@@ -423,7 +423,7 @@ function CardEditor({ title, value, isNew, onChange,config = {} }) {
                         position={position}
                         prompt={editor.lastSelectionText}
                         onClose={() => setShowTooltip(false)}
-                        apiEndpoint='http://8.222.155.238:3001/chat'
+                        apiEndpoint='/chat'
                         onInsert={(value) => { insertTextBelow(editor, value) }}
                         onInsertHtml={(value) => { insertHtmlBelow(editor, value) }}
                     />
