@@ -149,10 +149,11 @@ module.exports = {
         proxy: [
             {
                 context: ['/app'],
-                target: 'http://localhost:3000',
-                pathRewrite: (path) => {
-                    return path.replace('/app', '')
-                },
+                // target: 'http://localhost:3000',
+                target: 'https://www.myanki.cc',
+                // pathRewrite: (path) => {
+                //     return path.replace('/app', '')
+                // },
 
                 changeOrigin: true,
                 configure: (proxy, options) => {
@@ -164,13 +165,15 @@ module.exports = {
             },
             {
                 context: ['/socket.io/'],
-                target: 'http://localhost:3000',
+                // target: 'http://localhost:3000',
+                target: 'https://www.myanki.cc',
                 changeOrigin: true,
                 ws: true
             },
             {
-                context: ['/chat1'],
-                target: 'http://8.222.155.238:3001',
+                context: ['/chat'],
+                // target: 'http://8.222.155.238:3001',
+                target: 'https://www.myanki.cc',
                 changeOrigin: true,
                 // 关键配置项
                 timeout: 0,  // 禁用超时
@@ -271,6 +274,7 @@ module.exports = {
         new HtmlWebpackPlugin({ // Use the plugin
             template: './src/index.html', // Your HTML template file
             filename: './index.html', // Output HTML file name
+            favicon: './src/favicon.ico'  // 添加这一行
         }),
         process.env.ANALYZE && new BundleAnalyzerPlugin(),
         !isDevelopment && new MiniCssExtractPlugin({
