@@ -26,6 +26,7 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
       console.log(event,"event")
 
       const isCtrlPressed = event.ctrlKey || event.metaKey;
+      const isShiftPressed = event.shiftKey;
 
       // Audio control shortcuts
       if (frontType === "audio" && audioRef.current) {
@@ -72,7 +73,6 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
               return;
             case 'Digit4':
             case 'Numpad4':
-            case 'Space':
               event.preventDefault();
               onNext && onNext(3); // Easy
               return;
@@ -85,7 +85,7 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
       if (event.target.contentEditable === 'true' ||
         event.target.tagName === 'INPUT' ||
         event.target.tagName === 'TEXTAREA') {
-          if(event.code === 'Space' && isCtrlPressed){
+          if(event.code === 'Space' && isShiftPressed){
             event.preventDefault();
             onNext && onNext(3);
           }
