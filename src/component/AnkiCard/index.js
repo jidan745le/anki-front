@@ -53,7 +53,7 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
       }
 
       // Ctrl + 数字键组合不受编辑器状态影响
-      if (flipped) {
+      if (flipped) {      
         if (isCtrlPressed) {
           switch (event.code) {
             case 'Digit1':
@@ -78,7 +78,10 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
               return;
           }
         } 
-
+        if(event.code === 'Space' && isShiftPressed){
+          event.preventDefault();
+          onNext && onNext(3);
+        } 
       }
 
       // 如果事件来自编辑器或其他可编辑元素，不处理普通快捷键
