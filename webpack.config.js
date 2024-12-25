@@ -149,11 +149,11 @@ module.exports = {
         proxy: [
             {
                 context: ['/app'],
-                // target: 'http://localhost:3000',
-                target: 'https://www.myanki.cc',
-                // pathRewrite: (path) => {
-                //     return path.replace('/app', '')
-                // },
+                target: 'http://localhost:3000',
+                // target: 'https://www.myanki.cc',
+                pathRewrite: (path) => {
+                    return path.replace('/app', '')
+                },
 
                 changeOrigin: true,
                 configure: (proxy, options) => {
@@ -165,8 +165,8 @@ module.exports = {
             },
             {
                 context: ['/socket.io/'],
-                // target: 'http://localhost:3000',
-                target: 'https://www.myanki.cc',
+                target: 'http://localhost:3000',
+                // target: 'https://www.myanki.cc',
                 changeOrigin: true,
                 ws: true
             },

@@ -30,7 +30,7 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <div >
+    <div>
       <nav className={styles.navbar}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div

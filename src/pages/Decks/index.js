@@ -496,7 +496,7 @@ const Decks = () => {
 
 
     return (
-        <div style={{ padding: "12px" }}>
+        <div style={{ padding: "12px",marginBottom:"64px" }}>
             <Table
                 loading={decksLoading}
                 dataSource={decks}

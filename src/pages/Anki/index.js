@@ -107,8 +107,9 @@ function Anki() {
 
   const isNew = card["card_type"] === "new";
 
-  return <Spin spinning={loading}>
-    <div style={{ display: "flex", justifyContent: "space-between", background: "white", padding: "12px" }}>
+  return <Spin spinning={loading} >
+    <div style={{marginBottom:"64px"}}>
+    <div style={{ display: "flex", justifyContent: "space-between", background: "white", padding: "12px"}}>
       <div style={{ display: "flex", alignItems: "center" }}>
         <span style={{ marginRight: "8px" }}>{config.autoMarkTitle ? "autoMatchTitle" : "noAutoMatchTitle"} </span> 
         <Switch checked={config.autoMarkTitle} onChange={(value) => setConfig({...config, autoMarkTitle: value})} >
@@ -132,6 +133,7 @@ function Anki() {
         setQualityForThisCardAndGetNext(params.deckId, quality)
       }}
       onFlip={(action) => setFlipped(action)} />
+    </div>
   </Spin>
 }
 
