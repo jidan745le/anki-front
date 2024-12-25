@@ -31,14 +31,6 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
       if (frontType === "audio" && audioRef.current) {
         if (isCtrlPressed) {
           switch (event.code) {
-            case 'Space':
-              event.preventDefault();
-              if (audioRef.current.paused) {
-                audioRef.current.play();
-              } else {
-                audioRef.current.pause();
-              }
-              return;
             case 'ArrowDown':
               event.preventDefault();
               if (audioRef.current.paused) {
