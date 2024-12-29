@@ -12,7 +12,7 @@ const Layout = ({ children }) => {
   // const navigation = useNavigation();
   const logout = async () => {
     wsClient.disconnect();
-    await apiClient.post(`/app/user/logout`).then(res => {
+    await apiClient.post(`/user/logout`).then(res => {
       const data = res.data
       if (data.code === 200) {
         if (data.success) {
@@ -26,6 +26,7 @@ const Layout = ({ children }) => {
       message.error(err.message)
     })
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     navigate("/login");
   }
 

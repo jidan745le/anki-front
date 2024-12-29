@@ -148,20 +148,20 @@ module.exports = {
 
         proxy: [
             {
-                context: ['/app'],
+                context: ['/api'],
                 target: 'http://localhost:3000',
                 // target: 'https://www.myanki.cc',
                 pathRewrite: (path) => {
-                    return path.replace('/app', '')
+                    return path.replace('/api', '')
                 },
 
                 changeOrigin: true,
-                configure: (proxy, options) => {
-                    proxy.on('proxyReq', (proxyReq, req, res) => {
-                        console.log('原始请求:', req.url)
-                        console.log('代理到:', proxyReq.path)
-                    })
-                }
+                // configure: (proxy, options) => {
+                //     proxy.on('proxyReq', (proxyReq, req, res) => {
+                //         console.log('原始请求:', req.url)
+                //         console.log('代理到:', proxyReq.path)
+                //     })
+                // }
             },
             {
                 context: ['/socket.io/'],

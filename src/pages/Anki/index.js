@@ -32,7 +32,7 @@ function Anki() {
 
   const updateQualityForThisCard = async (deckId, quality) => {
     setLoading(true);
-    return await apiClient.post(`/app/anki/updateCardWithSM2/${quality}`, { id: card.id, deckId, quality: quality }).then(res => {
+    return await apiClient.post(`/anki/updateCardWithSM2/${quality}`, { id: card.id, deckId, quality: quality }).then(res => {
       setLoading(false);
       const data = res.data;
       if (data.success) {
@@ -47,7 +47,7 @@ function Anki() {
   }
 
   const getDeckStats = (deckId) => {
-    apiClient.get(`/app/anki/getDeckStats?deckId=${deckId}`).then(res => {
+    apiClient.get(`/anki/getDeckStats?deckId=${deckId}`).then(res => {
       const data = res.data;
       if (data.success) {
         setDeckStats(data.data)
@@ -65,7 +65,7 @@ function Anki() {
     setFlipped(false);
     setLoading(true);
     getDeckStats(deckId);
-    apiClient.get(`/app/anki/getNextCard?deckId=${deckId}`).then(res => {
+    apiClient.get(`/anki/getNextCard?deckId=${deckId}`).then(res => {
       setLoading(false);
       const data = res.data;
       if (data.success) {
@@ -93,7 +93,7 @@ function Anki() {
 
   const updateCard = (value) => {
     console.log({ id: card.id, back: value });
-    apiClient.post(`/app/anki/updateCard`, { id: card.id, back: value }).then(res => {
+    apiClient.post(`/anki/updateCard`, { id: card.id, back: value }).then(res => {
       // const data = res.data;
       // if (data.success) {
       //   setCard(data.data)

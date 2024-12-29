@@ -45,7 +45,7 @@ const Register = () => {
             // Handle registration logic here
             console.log('Registration successful:', formData);
             setSubmitLoading(true);
-            axios.post(`/app/user/register`, { username: formData.username, password: formData.password }).then(res => {
+            axios.post(`/user/register`, { username: formData.username, password: formData.password }).then(res => {
                 const data = res.data
                 console.log(res.headers,"header")
                 setSubmitLoading(false);
@@ -59,6 +59,7 @@ const Register = () => {
                         });
                         //处理登录逻辑
                         localStorage.setItem('token', res.headers.token);
+                        localStorage.setItem('refreshToken', res.headers.refreshtoken);
                         navigate('/decks')
                         return;
                     }

@@ -14,7 +14,7 @@ function AnkiCreate() {
     const [refresh, setRefresh] = useState(Date.now());
 
     const createCard = () => {
-        apiClient.post(`/app/anki/addCard`, { ...createParamsRef.current, deckId: Number(params.deckId) }).then(res => {
+        apiClient.post(`/anki/addCard`, { ...createParamsRef.current, deckId: Number(params.deckId) }).then(res => {
             const data = res.data;
             if (data.success) {
                 console.log(data)

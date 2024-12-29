@@ -88,10 +88,10 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
       if (event.target.contentEditable === 'true' ||
         event.target.tagName === 'INPUT' ||
         event.target.tagName === 'TEXTAREA') {
-          if(event.code === 'Space' && isShiftPressed){
-            event.preventDefault();
-            onNext && onNext(3);
-          }
+          // if(event.code === 'Space' && isShiftPressed){
+          //   event.preventDefault();
+          //   onNext && onNext(3);
+          // }
         return;
       }
 

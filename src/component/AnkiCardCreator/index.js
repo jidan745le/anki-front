@@ -19,7 +19,7 @@ function AnkiCardCreator({ onChange }) {
 
     const uploadProps = {
         name: 'file',
-        action: '/app/file/upload-temp',
+        action: '/api/file/upload-temp',
         headers: {
             authorization: `Bearer ${token}`,
         },

@@ -12,11 +12,12 @@ const Login = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        apiClient.post(`/app/user/login`, { username: userName, password: password }).then(res => {
+        apiClient.post(`/user/login`, { username: userName, password: password }).then(res => {
             const data = res.data
             if (data.code === 200) {
                 if (data.success) {
                     localStorage.setItem('token', res.headers.token);
+                    localStorage.setItem('refreshToken', res.headers.refreshtoken);
                     wsClient.connect();
                     message.success('Login successful')
                     navigate("/")

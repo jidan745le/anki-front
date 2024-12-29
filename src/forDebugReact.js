@@ -261,7 +261,7 @@ function Index() {
     <Test>
       <div>嘿嘿</div>
       <div onClick={() => {
-        axios.get("/app/user").then(res => {
+        axios.get("/user").then(res => {
           console.log(res)
         })
       }}>嘻嘻</div>
@@ -299,7 +299,7 @@ function AnkiIndex() {
   const getNextCard = () => {
     setFlipped(false);
     setLoading(true);
-    axios.get("/app/anki/getNextCard?deck=1").then(res => {
+    axios.get("/anki/getNextCard?deck=1").then(res => {
       setLoading(false);
       setCard(res.data)
       console.log(res)

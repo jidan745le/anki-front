@@ -72,7 +72,7 @@ const Decks = () => {
     useEffect(() => {
         if (deckConfigureVisible && deckConfigureDeckId) {
             // Load current configuration
-            apiClient.get(`/app/anki/getDeckConfig/${deckConfigureDeckId}`)
+            apiClient.get(`/anki/getDeckConfig/${deckConfigureDeckId}`)
                 .then(response => {
                     if (response.data.success) {
                         configureForm.setFieldsValue({
@@ -89,7 +89,7 @@ const Decks = () => {
 
     const getDecks = async (isInit = false) => {
         setDecksLoading(true)
-        const res = await apiClient.get(`/app/anki/getDecks`).catch(err => err.response);
+        const res = await apiClient.get(`/anki/getDecks`).catch(err => err.response);
         const data = res.data;
         setDecksLoading(false)
         if (data.success) {
@@ -131,7 +131,7 @@ const Decks = () => {
             okType: 'danger',
             cancelText: 'No',
             async onOk() {
-                const response = await apiClient.post(`/app/anki/deleteDeck/${deckId}`).catch(err => err.response);
+                const response = await apiClient.post(`/anki/deleteDeck/${deckId}`).catch(err => err.response);
                 if (response.data.success) {
                     message.success('Deck deleted successfully!')
                     getDecks();
@@ -166,7 +166,7 @@ const Decks = () => {
         setAudioLoading(true);
         try {
             const response = await apiClient.post(
-                '/app/anki/createDeckWithAudio',
+                '/anki/createDeckWithAudio',
                 formData,
                 { headers: { 'Content-Type': 'multipart/form-data' } }
             );
@@ -204,7 +204,7 @@ const Decks = () => {
         setLoading(true);
         try {
             const response = await apiClient.post(
-                '/app/anki/createDeckWithPodcast',
+                '/anki/createDeckWithPodcast',
                 formData,
                 { headers: { 'Content-Type': 'multipart/form-data' } }
             );
@@ -264,7 +264,7 @@ const Decks = () => {
         }
         setLoading(true);
         const response = await apiClient.post(
-            '/app/anki/addDeck',
+            '/anki/addDeck',
             formData,
             { headers: { 'Content-Type': 'multipart/form-data' } }
         ).catch(err => err.response);
@@ -533,7 +533,7 @@ const Decks = () => {
                     form={configureForm}
                     layout="vertical"
                     onFinish={async (values) => {
-                        const response = await apiClient.post(`/app/anki/configureDeck/${deckConfigureDeckId}`, values)
+                        const response = await apiClient.post(`/anki/configureDeck/${deckConfigureDeckId}`, values)
                             .catch(err => err.response);
                         
                         if (response.data.success) {
