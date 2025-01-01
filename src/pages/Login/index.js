@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './style.less';
 import apiClient from '../../common/http/apiClient';
 import { message } from 'antd';
@@ -31,6 +31,63 @@ const Login = () => {
         })
     };
 
+    useEffect(() => {
+        console.log("useEffect login")
+    }, []);
+
+
+    const handleMessage = useCallback((event) => {
+        if (event.data && event.data.isOAuthVerified) {
+            window.removeEventListener('message', handleMessage);
+
+            console.log(event, event.data)
+            if (event.data.needRegister) {
+                navigate("/oauth/register", {
+                    state: { email: event.data.email, authUserId: event.data.authUserId }
+                });
+                return;
+            }
+
+            if (event.data.token) {
+                console.log(event.data)
+                // 存储 token
+                localStorage.setItem('token', event.data.token);
+                localStorage.setItem('refreshToken', event.data.refreshToken);
+
+                // 连接 WebSocket
+                wsClient.connect();
+
+                // 跳转到首页
+                message.success('Login successful');
+                navigate("/");
+
+                // 清理事件监听器
+            }
+        }
+
+    }, []);
+
+    const handleGoogleLogin = () => {
+        // 计算窗口位置，使其居中
+        const width = 500;
+        const height = 600;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+
+        // 打开一个新窗口进行 Google 登录
+        const popup = window.open(
+            '/api/oauth/google',  // 你的后端 Google 登录 URL
+            'Google Login',
+            `width=${width},height=${height},left=${left},top=${top}`
+        );
+
+        popup.addEventListener('beforeunload', () => {
+            window.removeEventListener('message', handleMessage);
+        });
+
+        window.addEventListener('message', handleMessage);
+    };
+
     return (
         <div className="login-container">
             <h2>Login</h2>
@@ -56,6 +113,21 @@ const Login = () => {
                     />
                 </div>
                 <button type="submit">Login</button>
+
+                {/* Google 登录按钮 */}
+                <div className="social-login">
+                    <button
+                        type="button"
+                        className="google-login-btn"
+                        onClick={handleGoogleLogin}
+                    >
+                        <img
+                            src="https://developers.google.com/identity/images/g-logo.png"
+                            alt="Google logo"
+                        />
+                        Sign in with Google
+                    </button>
+                </div>
             </form>
         </div>
     );

@@ -13,6 +13,7 @@ const Decks = React.lazy(() => import('./pages/Decks'));
 const Layout = React.lazy(() => import('./pages/Layout'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Signup = React.lazy(() => import('./pages/Signup'));
+const OAuthRegister = React.lazy(() => import('./pages/OAuthRegister'));
 
 function App() {
   useEffect(() => {
@@ -35,6 +36,7 @@ function App() {
             <Route path="/anki/create/:deckId" element={<AnkiCreate />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/oauth/register" element={<OAuthRegister />} />
           </Routes>
         </Layout>
       </Router>
