@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './style.less';
 import apiClient from '../../common/http/apiClient';
 import { message } from 'antd';
@@ -9,6 +9,7 @@ const Login = () => {
     const [userName, setUserName] = useState('');
     const [password, setPassword] = useState('');
     const navigate = useNavigate();
+    const popupRef = useRef(null);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -39,6 +40,7 @@ const Login = () => {
     const handleMessage = useCallback((event) => {
         message.info(JSON.stringify(event.data))
         if (event.data && event.data.isOAuthVerified) {
+            popupRef.current.close();
             window.removeEventListener('message', handleMessage);
 
             console.log(event, event.data)
@@ -76,13 +78,13 @@ const Login = () => {
         const top = window.screen.height / 2 - height / 2;
 
         // 打开一个新窗口进行 Google 登录
-        const popup = window.open(
+        popupRef.current = window.open(
             '/api/oauth/google',  // 你的后端 Google 登录 URL
             'Google Login',
             `width=${width},height=${height},left=${left},top=${top}`
         );
 
-        popup.addEventListener('beforeunload', () => {
+        popupRef.current.addEventListener('beforeunload', () => {
             window.removeEventListener('message', handleMessage);
         });
 
