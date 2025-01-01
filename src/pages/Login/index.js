@@ -38,7 +38,6 @@ const Login = () => {
 
 
     const handleMessage = useCallback((event) => {
-        message.info(JSON.stringify(event.data))
         if (event.data && event.data.isOAuthVerified) {
             popupRef.current.close();
             window.removeEventListener('message', handleMessage);
