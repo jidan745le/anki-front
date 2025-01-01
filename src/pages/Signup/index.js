@@ -45,7 +45,7 @@ const Register = () => {
             // Handle registration logic here
             console.log('Registration successful:', formData);
             setSubmitLoading(true);
-            axios.post(`/user/register`, { username: formData.username, password: formData.password }).then(res => {
+            axios.post(`/api/user/register`, { username: formData.username, password: formData.password }).then(res => {
                 const data = res.data
                 console.log(res.headers,"header")
                 setSubmitLoading(false);
