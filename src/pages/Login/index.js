@@ -37,6 +37,7 @@ const Login = () => {
 
 
     const handleMessage = useCallback((event) => {
+        message.info(JSON.stringify(event.data))
         if (event.data && event.data.isOAuthVerified) {
             window.removeEventListener('message', handleMessage);
 
