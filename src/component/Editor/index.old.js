@@ -5,13 +5,33 @@ import { addSpanBelowP } from "../../common/util/util"
 import { Modal } from 'antd'
 import StreamingTooltip from '../StreamingTooltip'
 
-class AiExplain {
+class MyMenuClass {
     constructor() {
         this.title = '✨',
             // this.iconSvg = '<svg>...</svg>'
             this.tag = 'button'
         this.width = 30
     }
+
+    getOptions(editor) {
+        const options = [
+            { value: 'beijing', text: '北京', styleForRenderMenuList: { 'font-size': '32px', 'font-weight': 'bold' } },
+            { value: 'shanghai', text: '上海', selected: true },
+            { value: 'shenzhen', text: '深圳' }
+        ]
+        return options
+    }
+
+    getValue(editor) {
+        return 'shanghai' // 匹配 options 其中一个 value
+    }
+    isActive(editor) {
+
+        return false // or true
+    }
+    isDisabled(editor) {
+        return false // or true
+    }
     exec(editor, value) {
         editor.restoreSelection = editor.selection;
         editor.lastSelectionText = editor.getSelectionText();        
@@ -23,51 +43,56 @@ class AiExplain {
         console.log(editor.selection, editor.promptData, editor.children, editor.operations, "editor.getSelectionText(),editor.getSelectionPosition()")
         editor.setPosition(editor.getSelectionPosition())
         editor.showTooltip(true)
+
+        // Modal.info({
+        //     title: 'This is a notification message',
+        //     mask: false,
+        //     content: (
+        //         <div>
+        //             <p>Value: {value}</p>
+        //             <p>editor.getSelectionText(): {editor.getSelectionText()}</p>
+        //             <p>editor.getSelectionPosition(): </p>
+        //         </div>
+        //     ),
+        //     onOk() { 
+        //         const insertTextBelow = (editor, text) => {
+        //             const { selection } = editor
+        //             console.log(restoreSelection, editor,"selection")
+        //             if (!restoreSelection) return
+
+        //             // 获取当前行的路径
+        //             const [node, path] = SlateEditor.node(editor, restoreSelection)
+        //             console.log(node, path,SlatePath.next(path),editor.children, "node, path")
+        //             // 创建新的段落节点
+        //             const newNode = {
+        //               type: 'paragraph',
+        //               children: [{ text }]
+        //             }
+
+        //             // 在下一行插入
+        //             SlateTransforms.insertNodes(editor, newNode, {
+        //               at: [path[0]+1]
+        //             })                
+        //           }
+        //           insertTextBelow(editor, 'hello')
+        //     },
+        // })
         editor.deselect()
-        editor.insertText(value) // value 即 this.getValue(editor) 的返回值
-        editor.insertText(' ')
+        // editor.insertText(' ')
+        // return false;
+        // editor.insertText(value) // value 即 this.getValue(editor) 的返回值
+        // editor.insertText(' ')
     }
 }
 
-class AiAsk {
-    constructor() {
-        this.title = '💬',
-            // this.iconSvg = '<svg>...</svg>'
-            this.tag = 'button'
-        this.width = 30
-    }
-
-    
-    exec(editor, value) {
-        editor.restoreSelection = editor.selection;
-        editor.lastSelectionText = editor.getSelectionText();        
-        editor.promptData = {   
-            localContextHtml: editor.getHtml(),
-            selectionText: editor.getSelectionText()
-        }
-        console.log(editor.getSelectionPosition(), "editor.getSelectionText(),editor.getSelectionPosition()")
-        console.log(editor.selection, editor.promptData, editor.children, editor.operations, "editor.getSelectionText(),editor.getSelectionPosition()")
-        editor.setPosition(editor.getSelectionPosition())
-        editor.showTooltip(true)
-        editor.deselect()
-        editor.insertText(value) // value 即 this.getValue(editor) 的返回值
-        editor.insertText(' ')
-    }
-}
 const myMenuConf = {
-    key: 'aiExplain',
+    key: 'myMenu',
     factory() {
-        return new AiExplain()
+        return new MyMenuClass()
     }
 }
-const myMenuConf2 = {
-    key: 'aiAsk',
-    factory() {
-        return new AiAsk()
-    }
-}
+
 Boot.registerMenu(myMenuConf)
-Boot.registerMenu(myMenuConf2)
 
 function CardEditor({ title, value,cardUUID, isNew, onChange, showAIChatSidebar, config = {} }) {
     const [editor, setEditor] = useState(null) // 存储 editor 实例
@@ -139,7 +164,7 @@ function CardEditor({ title, value,cardUUID, isNew, onChange, showAIChatSidebar,
     const toolbarConfig = {
         insertKeys: {
             index: 0,
-            keys: ['aiExplain', 'aiAsk'], // show menu in toolbar
+            keys: ['myMenu'], // show menu in toolbar
         }
     }
     const editorConfig = {
@@ -195,8 +220,7 @@ function CardEditor({ title, value,cardUUID, isNew, onChange, showAIChatSidebar,
             },
             "text": {
                 "menuKeys": [
-                    "aiExplain",
-                    "aiAsk",
+                    "myMenu",
                     "headerSelect",
                     "insertLink",
                     "bulletedList",
