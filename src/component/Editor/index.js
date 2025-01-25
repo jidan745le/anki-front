@@ -1,17 +1,21 @@
 import { Editor, Toolbar } from '@wangeditor/editor-for-react'
 import { IDomEditor, IEditorConfig, IToolbarConfig, Boot, SlateTransforms, SlateEditor, SlatePath } from '@wangeditor/editor'
 import React, { useEffect, useState, useRef } from 'react'
+
 import { addSpanBelowP } from "../../common/util/util"
 import { Modal } from 'antd'
 import StreamingTooltip from '../StreamingTooltip'
 
-class AiExplain {
+class AiExplain  {
     constructor() {
-        this.title = '✨',
-            // this.iconSvg = '<svg>...</svg>'
-            this.tag = 'button'
-        this.width = 30
+        this.title = '✨';
+        this.tag = 'button';
+        this.width = 30;
     }
+
+    getValue(editor) { return ''; }
+    isActive(editor) { return false; }
+    isDisabled(editor) { return false; }
     exec(editor, value) {
         editor.restoreSelection = editor.selection;
         editor.lastSelectionText = editor.getSelectionText();        
@@ -31,27 +35,27 @@ class AiExplain {
 
 class AiAsk {
     constructor() {
-        this.title = '💬',
-            // this.iconSvg = '<svg>...</svg>'
-            this.tag = 'button'
-        this.width = 30
+        this.title = '💬';
+        this.tag = 'button';
+        this.width = 30;
     }
 
-    
+    getValue(editor) { return ''; }
+    isActive(editor) { return false; }
+    isDisabled(editor) { return false; }
     exec(editor, value) {
         editor.restoreSelection = editor.selection;
         editor.lastSelectionText = editor.getSelectionText();        
         editor.promptData = {   
             localContextHtml: editor.getHtml(),
-            selectionText: editor.getSelectionText()
+            selectionText: editor.getSelectionText(),
+            isAskMode: true // 添加标识区分是ASK模式
         }
-        console.log(editor.getSelectionPosition(), "editor.getSelectionText(),editor.getSelectionPosition()")
-        console.log(editor.selection, editor.promptData, editor.children, editor.operations, "editor.getSelectionText(),editor.getSelectionPosition()")
-        editor.setPosition(editor.getSelectionPosition())
-        editor.showTooltip(true)
-        editor.deselect()
-        editor.insertText(value) // value 即 this.getValue(editor) 的返回值
-        editor.insertText(' ')
+        
+        const position = editor.getSelectionPosition();
+        editor.setPosition(position);
+        editor.showTooltip(true);
+        editor.deselect();
     }
 }
 const myMenuConf = {

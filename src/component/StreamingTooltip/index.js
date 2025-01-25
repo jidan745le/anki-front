@@ -67,8 +67,12 @@ const calculateChildPositionByContainer = (containerEl, childRelativePosition) =
 
 
 const generatePrompt = (promptData) => {
-  const { localContextHtml, selectionText } = promptData;
-  return "please explain selected part below：html structure context:" + localContextHtml + "selectionText:" + selectionText;
+  const { localContextHtml, selectionText, isAskMode, question } = promptData;
+  if (isAskMode) {
+    return "please answer the question: \"" + question + "\" based on the selectionText below：\nselectionText:" + selectionText + "\n which is in the html structure context:" + localContextHtml;
+  } else {
+    return "please explain selected part below：html structure context:" + localContextHtml + "selectionText:" + selectionText;
+  }
 }
 
 const StreamingTooltip = ({
@@ -90,32 +94,40 @@ const StreamingTooltip = ({
   const [showActionMenu, setShowActionMenu] = useState(false);
   const chatMessageRef = useRef(null);
   const [chatId, setChatId] = useState(null);
+  const [isAskMode, setIsAskMode] = useState(!!promptData.isAskMode)
+  console.log(promptData, "isAskMode")
 
-  const fetchData = useCallback(async (content,isChat) => {
+  const fetchData = useCallback(async (content, isChat, isAskMode) => {
     try {
       setIsLoading(true);
       setError(null);
-      const requestData = {      
+      const requestData = {
         content,
         model: 'gpt-3.5-turbo'
       }
-      if(isChat){
-        requestData.chatId = chatId
-      }else{
+
+      if (isChat) {
+        if (isAskMode) {
+          requestData.cardId = cardId
+          requestData.content = generatePrompt({ ...promptData, isAskMode, question: content })
+        } else {
+          requestData.chatId = chatId
+        }
+      } else {
         requestData.cardId = cardId
       }
 
       const response = await apiClient.post('/aichat/message', requestData);
-      console.log(response,"response")
+      console.log(response, "response")
 
       if (response.data.success) {
-        const { aiMessage: { content,chat:{uuid} } } = response.data.data;
-        if(!isChat){
+        const { aiMessage: { content, chat: { uuid } } } = response.data.data;
+        if (!isChat) {
           setContent(content);
           setShowActionMenu(true);
           setChatId(uuid)
         }
-        return response.data?.data;   
+        return response.data?.data;
       } else {
         setError(response.data.message || 'Request failed');
       }
@@ -128,7 +140,10 @@ const StreamingTooltip = ({
   }, [promptData, cardId, chatId]);
 
   useEffect(() => {
-    fetchData(generatePrompt(promptData));
+    console.log(promptData, isAskMode, "promptData")
+    if (!isAskMode) {
+      fetchData(generatePrompt(promptData));
+    }
   }, []);
 
   // 计算位置
@@ -137,18 +152,18 @@ const StreamingTooltip = ({
   // 点击外部关闭
   const tooltipRef = useRef(null);
 
-  // useEffect(() => {
-  //   console.log(tooltipRef.current, "tooltipRef.current")
-  //   const handleClickOutside = (event) => {
-  //     if (tooltipRef.current &&
-  //       !tooltipRef.current.contains(event.target)) {
-  //       onClose();
-  //     }
-  //   };
+  useEffect(() => {
+    console.log(tooltipRef.current, "tooltipRef.current")
+    const handleClickOutside = (event) => {
+      if (tooltipRef.current &&
+        !tooltipRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
 
-  //   document.addEventListener('mousedown', handleClickOutside);
-  //   return () => document.removeEventListener('mousedown', handleClickOutside);
-  // }, [onClose]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
 
   // 将 Markdown 转换为安全的 HTML
   const getHtmlContent = useCallback((markdownContent) => {
@@ -182,7 +197,7 @@ const StreamingTooltip = ({
       }}
     >
       <div style={{ backgroundColor: "white", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
-        <div className="streaming-tooltip-content">
+        {!isAskMode && <div className="streaming-tooltip-content">
           {isLoading && content === '' && (
             <div className="streaming-tooltip-loading">
               <div className="loading-spinner" />
@@ -201,9 +216,9 @@ const StreamingTooltip = ({
           {isLoading && content && (
             <span className="streaming-tooltip-cursor" />
           )}
-        </div>
+        </div>}
 
-        {showActionMenu && <div className="streaming-tooltip-footer">
+        {(showActionMenu || isAskMode) && <div className="streaming-tooltip-footer">
           <div style={{ flex: 1, display: "flex", position: 'relative' }}>
             <Input
               onChange={(e) => {
@@ -213,7 +228,7 @@ const StreamingTooltip = ({
               style={{ flex: 1 }}
             />
             <Button onClick={async () => {
-             const latestChatData = await fetchData(chatMessageRef.current,true)
+              const latestChatData = await fetchData(chatMessageRef.current, true, isAskMode)
               //to do 出现一个聊天侧边栏
               onClose()
               showAIChatSidebar(latestChatData);
@@ -221,7 +236,7 @@ const StreamingTooltip = ({
           </div>
         </div>}
       </div>
-      {showActionMenu && <div style={{ width: "40%", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", marginTop: "2px" }}>
+      {showActionMenu && !isAskMode && <div style={{ width: "40%", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", marginTop: "2px" }}>
         <Menu style={{ width: "100%" }}>
           <Menu.Item key="1" onClick={() => {
             onInsertHtml && onInsertHtml(getHtmlContent(content));
@@ -231,7 +246,7 @@ const StreamingTooltip = ({
           </Menu.Item>
           <Menu.Item key="2">Try again</Menu.Item>
           <Menu.Item key="3" onClick={onClose}>
-            Close       
+            Close
           </Menu.Item>
         </Menu>
       </div>}
