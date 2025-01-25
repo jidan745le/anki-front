@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import AnkiCard from '../../component/AnkiCard';
 import apiClient from '../../common/http/apiClient';
 import axios from 'axios';
-import { CaretDownOutlined, SendOutlined, PaperClipOutlined, CloseOutlined } from '@ant-design/icons';
+import { CaretDownOutlined, SendOutlined, PaperClipOutlined, CloseOutlined, HighlightOutlined, MessageOutlined } from '@ant-design/icons';
 import './style.less';
 
 
@@ -116,6 +116,7 @@ function Anki() {
       const data = res.data;
       if (data.success) {
         if (Object.keys(data.data || {}).length > 0) {
+          chatIdRef.current = data.data.chat?.uuid
           setCard(data.data)
         } else {
           if (data.data === null) {
@@ -165,9 +166,27 @@ function Anki() {
     <div style={{ marginBottom: "0px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", background: "white", padding: "12px" }}>
         <div style={{ display: "flex", alignItems: "center" }}>
-          <span style={{ marginRight: "8px" }}>{config.autoMarkTitle ? "autoMatchTitle" : "noAutoMatchTitle"} </span>
-          <Switch checked={config.autoMarkTitle} onChange={(value) => setConfig({ ...config, autoMarkTitle: value })} >
-          </Switch>
+          <span 
+            style={{ cursor: 'pointer', marginRight: "8px" }}
+            onClick={() => setConfig({ ...config, autoMarkTitle: !config.autoMarkTitle })}
+          >
+            {config.autoMarkTitle ? (
+              <HighlightOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
+            ) : (
+              <HighlightOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
+            )}
+          </span>
+          {chatIdRef.current && (
+            <span 
+              style={{ cursor: 'pointer', marginRight: "8px" }}
+              onClick={() => {
+                setAiChatVisible(true);
+                getAIChat(chatIdRef.current);
+              }}
+            >
+              <MessageOutlined style={{ fontSize: '16px', color:aiChatVisible ? '#1890ff' : '#d9d9d9' }} />
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center" }}>
           <Tag style={isNew ? { fontSize: "16px", fontWeight: "bold" } : null} color="blue">New: {deckStats.newCards}</Tag>
