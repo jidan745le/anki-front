@@ -149,7 +149,7 @@ module.exports = {
         proxy: [
             {
                 context: ['/api'],
-                target: 'http://localhost:3000',
+                target: 'http://127.0.0.1:3000',
                 // target: 'https://www.myanki.cc',
                 pathRewrite: (path) => {
                     return path.replace('/api', '')
@@ -165,7 +165,7 @@ module.exports = {
             },
             {
                 context: ['/socket.io/'],
-                target: 'http://localhost:3000',
+                target: 'http://127.0.0.1:3000',
                 // target: 'https://www.myanki.cc',
                 changeOrigin: true,
                 ws: true
@@ -174,34 +174,34 @@ module.exports = {
                 context: ['/chat'],
                 // target: 'http://8.222.155.238:3001',
                 target: 'https://www.myanki.cc',
-                changeOrigin: true,
-                // 关键配置项
-                timeout: 0,  // 禁用超时
-                proxyTimeout: 0,  // 禁用代理超时
-                // 启用 WebSocket 支持
-                ws: true,
-                headers: {
-                    'Connection': 'keep-alive',
-                    'Accept': 'text/event-stream'
-                },
-                onProxyReq: (proxyReq, req, res) => {
-                    // 设置请求头
-                    proxyReq.setHeader('Connection', 'keep-alive');
-                    proxyReq.setHeader('Cache-Control', 'no-cache');
-                    proxyReq.setHeader('Accept', 'text/event-stream');
-                },
-                onProxyRes: (proxyRes, req, res) => {
-                    // 确保响应头正确设置
-                    proxyRes.headers['Cache-Control'] = 'no-cache';
-                    proxyRes.headers['Content-Type'] = 'text/event-stream';
-                    proxyRes.headers['Connection'] = 'keep-alive';
+                // changeOrigin: true,
+                // // 关键配置项
+                // timeout: 0,  // 禁用超时
+                // proxyTimeout: 0,  // 禁用代理超时
+                // // 启用 WebSocket 支持
+                // ws: true,
+                // headers: {
+                //     'Connection': 'keep-alive',
+                //     'Accept': 'text/event-stream'
+                // },
+                // onProxyReq: (proxyReq, req, res) => {
+                //     // 设置请求头
+                //     proxyReq.setHeader('Connection', 'keep-alive');
+                //     proxyReq.setHeader('Cache-Control', 'no-cache');
+                //     proxyReq.setHeader('Accept', 'text/event-stream');
+                // },
+                // onProxyRes: (proxyRes, req, res) => {
+                //     // 确保响应头正确设置
+                //     proxyRes.headers['Cache-Control'] = 'no-cache';
+                //     proxyRes.headers['Content-Type'] = 'text/event-stream';
+                //     proxyRes.headers['Connection'] = 'keep-alive';
 
-                    // 删除可能导致问题的头
-                    delete proxyRes.headers['content-length'];
-                    delete proxyRes.headers['transfer-encoding'];
+                //     // 删除可能导致问题的头
+                //     delete proxyRes.headers['content-length'];
+                //     delete proxyRes.headers['transfer-encoding'];
 
-                    console.log('代理响应头:', proxyRes.headers);
-                }
+                //     console.log('代理响应头:', proxyRes.headers);
+                // }
             },
 
         ],

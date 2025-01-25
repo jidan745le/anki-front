@@ -1,8 +1,12 @@
-import { Button } from 'antd';
+import { Button, Input, Card, Space, Dropdown, Menu } from 'antd';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { MessageOutlined, LikeOutlined, DislikeOutlined, QuestionCircleOutlined, DownOutlined } from '@ant-design/icons';
+import apiClient from '../../common/http/apiClient';
 import ReactDOM from 'react-dom';
 import { marked } from 'marked';
 import './markdown.css'
+import './style.less'
+
 
 // 位置计算工具函数
 const calculatePosition = (anchorEl, placement = 'bottom') => {
@@ -61,107 +65,90 @@ const calculateChildPositionByContainer = (containerEl, childRelativePosition) =
   return newChildRelativePosition;
 }
 
+
+const generatePrompt = (promptData) => {
+  const { localContextHtml, selectionText } = promptData;
+  return "please explain selected part below：html structure context:" + localContextHtml + "selectionText:" + selectionText;
+}
+
 const StreamingTooltip = ({
-  anchorEl,
+  // anchorEl,
   containerEl,
-  editorContainerRef,
+  // editorContainerRef,
   placement = 'bottom',
   position: childPosition,
-  prompt,
-  apiEndpoint = '/chat',
+  promptData,
   onClose,
-  onInsert,
-  onInsertHtml
+  // onInsert,
+  onInsertHtml,
+  showAIChatSidebar,
+  cardId
 }) => {
   const [content, setContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const esController = useRef(null);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const chatMessageRef = useRef(null);
+  const [chatId, setChatId] = useState(null);
 
-  const fetchStreamData = useCallback(() => {
+  const fetchData = useCallback(async (content,isChat) => {
     try {
-      // 清理之前的连接
-      if (esController.current) {
-        esController.current.close();
+      setIsLoading(true);
+      setError(null);
+      const requestData = {      
+        content,
+        model: 'gpt-3.5-turbo'
+      }
+      if(isChat){
+        requestData.chatId = chatId
+      }else{
+        requestData.cardId = cardId
       }
 
-      const url = new URL(apiEndpoint, window.location.href);
-      url.searchParams.set('prompt', "explain the following text:" + prompt)
+      const response = await apiClient.post('/aichat/message', requestData);
+      console.log(response,"response")
 
-
-
-      // 创建新的 EventSource 连接
-      esController.current = new EventSource(url);
-
-      // 处理消息
-      esController.current.onmessage = (event) => {
-        const data = event.data;
-
-        if (data === '[DONE]') {
-          esController.current.close();
-          setIsLoading(false);
-          return;
+      if (response.data.success) {
+        const { aiMessage: { content,chat:{uuid} } } = response.data.data;
+        if(!isChat){
+          setContent(content);
+          setShowActionMenu(true);
+          setChatId(uuid)
         }
-
-        try {
-          const obj = JSON.parse(data);
-          const content = obj.choices[0].delta.content;
-
-          if (content == null) {
-            esController.current.close();
-            setIsLoading(false);
-            return;
-          }
-
-          setContent(prev => prev + content);
-        } catch (err) {
-          setError('Failed to parse response data');
-          esController.current.close();
-          setIsLoading(false);
-        }
-      };
-
-      // 处理错误
-      esController.current.onerror = (error) => {
-        setError('EventSource failed: ' + error.message);
-        esController.current.close();
-        setIsLoading(false);
-      };
+        return response.data?.data;   
+      } else {
+        setError(response.data.message || 'Request failed');
+      }
 
     } catch (err) {
       setError(err.message);
+    } finally {
       setIsLoading(false);
     }
-  }, [prompt, apiEndpoint]);
+  }, [promptData, cardId, chatId]);
 
   useEffect(() => {
-    fetchStreamData();
-
-    return () => {
-      if (esController.current) {
-        esController.current.close();
-      }
-    };
-  }, [fetchStreamData]);
+    fetchData(generatePrompt(promptData));
+  }, []);
 
   // 计算位置
-  const position = anchorEl ? calculatePosition(anchorEl, placement) : calculateChildPositionByContainer(containerEl, childPosition);
+  const position = calculateChildPositionByContainer(containerEl, childPosition);
 
   // 点击外部关闭
   const tooltipRef = useRef(null);
 
-  useEffect(() => {
-    console.log(tooltipRef.current, "tooltipRef.current")
-    const handleClickOutside = (event) => {
-      if (tooltipRef.current &&
-        !tooltipRef.current.contains(event.target)) {
-        onClose();
-      }
-    };
+  // useEffect(() => {
+  //   console.log(tooltipRef.current, "tooltipRef.current")
+  //   const handleClickOutside = (event) => {
+  //     if (tooltipRef.current &&
+  //       !tooltipRef.current.contains(event.target)) {
+  //       onClose();
+  //     }
+  //   };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+  //   document.addEventListener('mousedown', handleClickOutside);
+  //   return () => document.removeEventListener('mousedown', handleClickOutside);
+  // }, [onClose]);
 
   // 将 Markdown 转换为安全的 HTML
   const getHtmlContent = useCallback((markdownContent) => {
@@ -185,55 +172,70 @@ const StreamingTooltip = ({
   const tooltipContent = (
     <div
       ref={tooltipRef}
+      className="streaming-tooltip-container"
       style={{
         position: 'fixed',
         ...position,
-        backgroundColor: 'white',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+
         zIndex: 1000,
-        minWidth: "400px"
+        // minWidth: "400px"
       }}
     >
-      <div style={{
-        borderRadius: '4px',
-        padding: '12px 16px',
-        maxWidth: '600px',
-        fontSize: '18px',
-        maxHeight: '400px',
-        overflow: 'auto',
-      }}>
-        {isLoading && content === '' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="loading-spinner" />
-            加载中...
+      <div style={{ backgroundColor: "white", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+        <div className="streaming-tooltip-content">
+          {isLoading && content === '' && (
+            <div className="streaming-tooltip-loading">
+              <div className="loading-spinner" />
+              加载中...
+            </div>
+          )}
+
+          {error && (
+            <div className="streaming-tooltip-error">
+              错误: {error}
+            </div>
+          )}
+
+          {content && renderContent()}
+
+          {isLoading && content && (
+            <span className="streaming-tooltip-cursor" />
+          )}
+        </div>
+
+        {showActionMenu && <div className="streaming-tooltip-footer">
+          <div style={{ flex: 1, display: "flex", position: 'relative' }}>
+            <Input
+              onChange={(e) => {
+                chatMessageRef.current = e.target.value;
+              }}
+              placeholder="Ask AI anything..."
+              style={{ flex: 1 }}
+            />
+            <Button onClick={async () => {
+             const latestChatData = await fetchData(chatMessageRef.current,true)
+              //to do 出现一个聊天侧边栏
+              onClose()
+              showAIChatSidebar(latestChatData);
+            }} style={{ width: "40px" }} type="text" icon={<MessageOutlined />} />
           </div>
-        )}
-
-        {error && (
-          <div style={{ color: 'red' }}>
-            错误: {error}
-          </div>
-        )}
-
-        {content && renderContent()}
-
-        {isLoading && content && (
-          <div
-            style={{
-              width: '8px',
-              height: '16px',
-              background: '#333',
-              display: 'inline-block',
-              animation: 'blink 1s infinite'
-            }}
-          />
-        )}
+        </div>}
       </div>
-      <Button style={{ position: "absolute" }} onClick={() => {
-        // onInsert && onInsert(content)
-        onInsertHtml && onInsertHtml(getHtmlContent(content))
-        onClose()
-      }}>插入</Button>
+      {showActionMenu && <div style={{ width: "40%", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", marginTop: "2px" }}>
+        <Menu style={{ width: "100%" }}>
+          <Menu.Item key="1" onClick={() => {
+            onInsertHtml && onInsertHtml(getHtmlContent(content));
+            onClose();
+          }}>
+            Insert below
+          </Menu.Item>
+          <Menu.Item key="2">Try again</Menu.Item>
+          <Menu.Item key="3" onClick={onClose}>
+            Close       
+          </Menu.Item>
+        </Menu>
+      </div>}
+
     </div>
   );
 

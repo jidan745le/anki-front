@@ -4,7 +4,18 @@ import FooterBar from "../Footbar"
 import MyEditor from "../Editor"
 import "./ankicard.less"
 
-function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isNew, onChange }) {
+function AnkiCard({
+  config,
+  flipped,
+  onFlip,
+  onNext,
+  front,
+  frontType,
+  back,
+  isNew,
+  onChange,
+  cardUUID,
+  showAIChatSidebar }) {
   const audioRef = React.useRef(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -23,7 +34,7 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
   // 添加键盘事件监听
   useEffect(() => {
     const handleKeyPress = (event) => {
-      console.log(event,"event")
+      console.log(event, "event")
 
       const isCtrlPressed = event.ctrlKey || event.metaKey;
       const isShiftPressed = event.shiftKey;
@@ -53,7 +64,7 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
       }
 
       // Ctrl + 数字键组合不受编辑器状态影响
-      if (flipped) {      
+      if (flipped) {
         if (isCtrlPressed) {
           switch (event.code) {
             case 'Digit1':
@@ -77,21 +88,21 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
               onNext && onNext(3); // Easy
               return;
           }
-        } 
-        if(event.code === 'Space' && isShiftPressed){
+        }
+        if (event.code === 'Space' && isShiftPressed) {
           event.preventDefault();
           onNext && onNext(3);
-        } 
+        }
       }
 
       // 如果事件来自编辑器或其他可编辑元素，不处理普通快捷键
       if (event.target.contentEditable === 'true' ||
         event.target.tagName === 'INPUT' ||
         event.target.tagName === 'TEXTAREA') {
-          // if(event.code === 'Space' && isShiftPressed){
-          //   event.preventDefault();
-          //   onNext && onNext(3);
-          // }
+        // if(event.code === 'Space' && isShiftPressed){
+        //   event.preventDefault();
+        //   onNext && onNext(3);
+        // }
         return;
       }
 
@@ -130,14 +141,14 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
           </audio> : front}
         </div>
       }>
-      {flipped ? 
+      {flipped ?
         <div>
-          {isMobile ? 
+          {isMobile ?
             // 移动端显示只读内容
-            <div 
+            <div
               className="mobile-content"
               dangerouslySetInnerHTML={{ __html: back }}
-              style={{ 
+              style={{
                 padding: '10px',
                 fontSize: '16px',
                 lineHeight: '1.5',
@@ -146,18 +157,20 @@ function AnkiCard({ config, flipped, onFlip, onNext, front, frontType, back, isN
                 whiteSpace: "pre-wrap",
                 maxWidth: "100%",
               }}
-            /> 
-            : 
+            />
+            :
             // PC端显示编辑器
-            <MyEditor 
-              config={config} 
-              title={frontType !== "audio" ? front : undefined} 
-              onChange={onChange} 
-              isNew={isNew} 
-              value={`${back}`} 
+            <MyEditor
+              showAIChatSidebar={showAIChatSidebar}
+              cardUUID={cardUUID}
+              config={config}
+              title={frontType !== "audio" ? front : undefined}
+              onChange={onChange}
+              isNew={isNew}
+              value={`${back}`}
             />
           }
-        </div> 
+        </div>
         :
         <div style={{ display: "flex", justifyContent: "center" }}>
           点击下方按钮或按空格键查看答案

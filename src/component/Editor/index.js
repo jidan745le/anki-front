@@ -34,9 +34,13 @@ class MyMenuClass {
     }
     exec(editor, value) {
         editor.restoreSelection = editor.selection;
-        editor.lastSelectionText = editor.getSelectionText();
+        editor.lastSelectionText = editor.getSelectionText();        
+        editor.promptData = {   
+            localContextHtml: editor.getHtml(),
+            selectionText: editor.getSelectionText()
+        }
         console.log(editor.getSelectionPosition(), "editor.getSelectionText(),editor.getSelectionPosition()")
-        console.log(editor.selection, editor.operations, "editor.getSelectionText(),editor.getSelectionPosition()")
+        console.log(editor.selection, editor.promptData, editor.children, editor.operations, "editor.getSelectionText(),editor.getSelectionPosition()")
         editor.setPosition(editor.getSelectionPosition())
         editor.showTooltip(true)
 
@@ -90,7 +94,7 @@ const myMenuConf = {
 
 Boot.registerMenu(myMenuConf)
 
-function CardEditor({ title, value, isNew, onChange,config = {} }) {
+function CardEditor({ title, value,cardUUID, isNew, onChange, showAIChatSidebar, config = {} }) {
     const [editor, setEditor] = useState(null) // 存储 editor 实例
     const [html, setHtml] = useState("")
     const initialFlag = useRef(false)
@@ -99,27 +103,27 @@ function CardEditor({ title, value, isNew, onChange,config = {} }) {
     const [position, setPosition] = useState({ left: 0, top: 0 })
     const [showTooltip, setShowTooltip] = useState(false)
     const editorContainerRef = useRef(null)
-    const {autoMarkTitle = false } = config 
+    const { autoMarkTitle = false } = config
     const autoMarkTitleRef = useRef(autoMarkTitle)
 
     useEffect(() => {
-        if(autoMarkTitleRef.current !== autoMarkTitle){
+        if (autoMarkTitleRef.current !== autoMarkTitle) {
             autoMarkTitleRef.current = autoMarkTitle
             if (title) {
                 try {
                     // First deselect any existing selection
                     // editor.deselect();
-                    if(!autoMarkTitle){
-                        editor.children.forEach((node,index) => {
-                            if(node.children){
-                                node.children.forEach((child,childIndex) => {
-                                    console.log(child,childIndex, "child")
-                                    if(child.text === title){
-                                        console.log(child,childIndex, "child1")
+                    if (!autoMarkTitle) {
+                        editor.children.forEach((node, index) => {
+                            if (node.children) {
+                                node.children.forEach((child, childIndex) => {
+                                    console.log(child, childIndex, "child")
+                                    if (child.text === title) {
+                                        console.log(child, childIndex, "child1")
 
                                         SlateTransforms.select(editor, {
                                             anchor: { path: [index, childIndex], offset: 0 },
-                                            focus: { path: [index, childIndex], offset: title.length}
+                                            focus: { path: [index, childIndex], offset: title.length }
                                         });
                                         editor.removeMark('bgColor')
                                         editor.deselect()
@@ -127,27 +131,28 @@ function CardEditor({ title, value, isNew, onChange,config = {} }) {
                                 })
                             }
                         })
-                    }else{
-                    // Find the title text and highlight it
-                    editor.children.forEach((node, index) => {
-                        if (node.children) {
-                            node.children.forEach((child,childIndex) => {
-                                const titleIndex = child.text.indexOf(title);
-                                if (titleIndex !== -1) {
-                                    // Select the title text
-                                    SlateTransforms.select(editor, {
-                                        anchor: { path: [index, childIndex], offset: titleIndex },
-                                        focus: { path: [index, childIndex], offset: titleIndex + title.length }
-                                    });
-                                    // Add background color mark
-                                    editor.addMark('bgColor', 'rgb(255, 251, 143)');
-                                    // Deselect after highlighting
-                                    editor.deselect();
-                                }                                
-                            })
-                        
-                        }
-                    })};
+                    } else {
+                        // Find the title text and highlight it
+                        editor.children.forEach((node, index) => {
+                            if (node.children) {
+                                node.children.forEach((child, childIndex) => {
+                                    const titleIndex = child.text.indexOf(title);
+                                    if (titleIndex !== -1) {
+                                        // Select the title text
+                                        SlateTransforms.select(editor, {
+                                            anchor: { path: [index, childIndex], offset: titleIndex },
+                                            focus: { path: [index, childIndex], offset: titleIndex + title.length }
+                                        });
+                                        // Add background color mark
+                                        editor.addMark('bgColor', 'rgb(255, 251, 143)');
+                                        // Deselect after highlighting
+                                        editor.deselect();
+                                    }
+                                })
+
+                            }
+                        })
+                    };
                 } catch (error) {
                     console.error('Error highlighting title:', error);
                 }
@@ -337,6 +342,7 @@ function CardEditor({ title, value, isNew, onChange,config = {} }) {
                 />
                 <Editor
                     defaultConfig={editorConfig}
+
                     // value={html}    
 
                     onCreated={(editor) => {
@@ -355,7 +361,7 @@ function CardEditor({ title, value, isNew, onChange,config = {} }) {
                     }}
 
                     onChange={editor => {
-                        console.log(editor.selection, "editor.selection")
+                        console.log(editor, editor.selection, "editor.selection")
 
                         if (initialFlag.current) {
                             preHtmlStr.current = editor.getHtml()
@@ -364,11 +370,11 @@ function CardEditor({ title, value, isNew, onChange,config = {} }) {
                                 try {
                                     // First deselect any existing selection
                                     editor.deselect();
-                                    
+
                                     // Find the title text and highlight it
                                     editor.children.forEach((node, index) => {
                                         if (node.children) {
-                                            node.children.forEach((child,childIndex) => {
+                                            node.children.forEach((child, childIndex) => {
                                                 const titleIndex = child.text.indexOf(title);
                                                 if (titleIndex !== -1) {
                                                     // Select the title text
@@ -380,9 +386,9 @@ function CardEditor({ title, value, isNew, onChange,config = {} }) {
                                                     editor.addMark('bgColor', 'rgb(255, 251, 143)');
                                                     // Deselect after highlighting
                                                     editor.deselect();
-                                                }                                
+                                                }
                                             })
-                                        
+
                                         }
                                     })
                                 } catch (error) {
@@ -418,13 +424,14 @@ function CardEditor({ title, value, isNew, onChange,config = {} }) {
                     style={{ height: '600px' }}
                 />
                 {showTooltip && (
-                    <StreamingTooltip
+                    <StreamingTooltip                     
+                        showAIChatSidebar={showAIChatSidebar}
                         containerEl={editorContainerRef.current}
                         position={position}
-                        prompt={editor.lastSelectionText}
+                        promptData={editor.promptData}
                         onClose={() => setShowTooltip(false)}
-                        apiEndpoint='/chat'
-                        onInsert={(value) => { insertTextBelow(editor, value) }}
+                        cardId={cardUUID}
+                        // onInsert={(value) => { insertTextBelow(editor, value) }}
                         onInsertHtml={(value) => { insertHtmlBelow(editor, value) }}
                     />
                 )}
