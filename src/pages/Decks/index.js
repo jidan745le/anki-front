@@ -339,7 +339,7 @@ const Decks = () => {
                     <Button disabled={row.status == "processing"} type="link" onClick={() => navigate(`/anki/create/${row.id}`)}>
                         Add
                     </Button>
-                    <Button disabled={row.status == "processing"} danger type="link" onClick={() => deleteDeck(row.id)}>
+                    <Button disabled={false && row.status == "processing"} danger type="link" onClick={() => deleteDeck(row.id)}>
                         Delete
                     </Button>
                     <Button type="link" onClick={() => {
