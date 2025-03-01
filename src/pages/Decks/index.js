@@ -166,7 +166,7 @@ const Decks = () => {
         setAudioLoading(true);
         try {
             const response = await apiClient.post(
-                '/anki/createDeckWithAudio',
+                '/anki/createAdvancedDeckWithAudio',
                 formData,
                 { headers: { 'Content-Type': 'multipart/form-data' } }
             );
