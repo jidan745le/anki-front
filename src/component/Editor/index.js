@@ -33,6 +33,35 @@ class AiExplain  {
     }
 }
 
+class AiGlobalExplain  {
+    constructor() {
+        this.title = '💡';
+        this.tag = 'button';
+        this.width = 30;
+    }
+
+    getValue(editor) { return ''; }
+    isActive(editor) { return false; }
+    isDisabled(editor) { return false; }
+    exec(editor, value) {
+        editor.restoreSelection = editor.selection;
+        editor.lastSelectionText = editor.getSelectionText();        
+        editor.promptData = {   
+            localContextHtml: editor.getHtml(),
+            selectionText: editor.getSelectionText(),
+            isAskMode: false,
+            isGlobalExplain: true
+        }
+        console.log(editor.getSelectionPosition(), "editor.getSelectionText(),editor.getSelectionPosition()")
+        console.log(editor.selection, editor.promptData, editor.children, editor.operations, "editor.getSelectionText(),editor.getSelectionPosition()")
+        editor.setPosition(editor.getSelectionPosition())
+        editor.showTooltip(true)
+        editor.deselect()
+        editor.insertText(value) // value 即 this.getValue(editor) 的返回值
+        editor.insertText(' ')
+    }
+}
+
 class AiAsk {
     constructor() {
         this.title = '💬';
@@ -58,20 +87,27 @@ class AiAsk {
         editor.deselect();
     }
 }
-const myMenuConf = {
+const aiExplain = {
     key: 'aiExplain',
     factory() {
         return new AiExplain()
     }
 }
-const myMenuConf2 = {
+const aiAsk = {
     key: 'aiAsk',
     factory() {
         return new AiAsk()
     }
 }
-Boot.registerMenu(myMenuConf)
-Boot.registerMenu(myMenuConf2)
+const aiGlobalExplain = {
+    key: 'aiGlobalExplain',
+    factory() {
+        return new AiGlobalExplain()
+    }
+}
+Boot.registerMenu(aiExplain)
+Boot.registerMenu(aiAsk)
+Boot.registerMenu(aiGlobalExplain)
 
 function CardEditor({ title, value,cardUUID, isNew, onChange, showAIChatSidebar, config = {} }) {
     const [editor, setEditor] = useState(null) // 存储 editor 实例
@@ -143,7 +179,7 @@ function CardEditor({ title, value,cardUUID, isNew, onChange, showAIChatSidebar,
     const toolbarConfig = {
         insertKeys: {
             index: 0,
-            keys: ['aiExplain', 'aiAsk'], // show menu in toolbar
+            keys: ['aiExplain', 'aiAsk', 'aiGlobalExplain'], // show menu in toolbar
         }
     }
     const editorConfig = {
@@ -201,6 +237,7 @@ function CardEditor({ title, value,cardUUID, isNew, onChange, showAIChatSidebar,
                 "menuKeys": [
                     "aiExplain",
                     "aiAsk",
+                    "aiGlobalExplain",
                     "headerSelect",
                     "insertLink",
                     "bulletedList",

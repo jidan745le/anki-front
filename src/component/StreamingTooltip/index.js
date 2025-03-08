@@ -67,11 +67,15 @@ const calculateChildPositionByContainer = (containerEl, childRelativePosition) =
 
 
 const generatePrompt = (promptData) => {
-  const { localContextHtml, selectionText, isAskMode, question } = promptData;
+  const { localContextHtml, selectionText, isAskMode, question, isGlobalExplain } = promptData;
   if (isAskMode) {
     return "please answer the question: \"" + question + "\" based on the selectionText below：\nselectionText:" + selectionText + "\n which is in the html structure context:" + localContextHtml;
   } else {
-    return "please explain selected part below：html structure context:" + localContextHtml + "selectionText:" + selectionText;
+    if (isGlobalExplain) {
+      return "please explain selected text '" + selectionText + "' according to context:" + localContextHtml;
+    } else {
+      return "please explain selected part below：html structure context:" + localContextHtml + "selectionText:" + selectionText;
+    }
   }
 }
 
@@ -97,24 +101,28 @@ const StreamingTooltip = ({
   const [isAskMode, setIsAskMode] = useState(!!promptData.isAskMode)
   console.log(promptData, "isAskMode")
 
-  const fetchData = useCallback(async (content, isChat, isAskMode) => {
+  const fetchData = useCallback(async (content, isChat, isAskMode, isGlobalExplain) => {
     try {
       setIsLoading(true);
       setError(null);
       const requestData = {
         content,
-        model: 'gpt-3.5-turbo'
+        model: 'deepseek-chat'
       }
 
       if (isChat) {
+        //进入侧边栏问答
         if (isAskMode) {
           requestData.cardId = cardId
-          requestData.content = generatePrompt({ ...promptData, isAskMode, question: content })
         } else {
           requestData.chatId = chatId
         }
       } else {
         requestData.cardId = cardId
+      }
+
+      if (isGlobalExplain) {
+        requestData.mode = "global"
       }
 
       const response = await apiClient.post('/aichat/message', requestData);
@@ -142,7 +150,15 @@ const StreamingTooltip = ({
   useEffect(() => {
     console.log(promptData, isAskMode, "promptData")
     if (!isAskMode) {
-      fetchData(generatePrompt(promptData));
+      //explain mode
+      if (promptData.isGlobalExplain) {
+        //global explain mode
+        fetchData(generatePrompt(promptData), false, false, true);
+      } else {
+        //local explain mode
+        fetchData(generatePrompt(promptData), false, false, false);
+
+      }
     }
   }, []);
 
@@ -228,7 +244,7 @@ const StreamingTooltip = ({
               style={{ flex: 1 }}
             />
             <Button onClick={async () => {
-              const latestChatData = await fetchData(chatMessageRef.current, true, isAskMode)
+              const latestChatData = await fetchData(generatePrompt({ ...promptData, isAskMode, question: chatMessageRef.current }), true, isAskMode)
               //to do 出现一个聊天侧边栏
               onClose()
               showAIChatSidebar(latestChatData);

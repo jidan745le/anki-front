@@ -50,7 +50,7 @@ function Anki() {
       chatId: chatIdRef.current,
       // cardId: card.uuid,
       content: message,
-      model: 'gpt-3.5-turbo'
+      model: 'deepseek-chat'
     });
 
     if (response.data.success) {
