@@ -30,16 +30,29 @@ function withChatChunk(editor) {
 function renderChatChunk(elem, children, editor) {
   const { chunkId = '' } = elem
 
-  // 创建撤销类型按钮
+  // 不再使用 h 函数创建 SVG
+  // 而是直接使用 HTML 字符串
+  const svgHtml = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:block">
+      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path>
+      <path d="M0 0h24v24H0z" fill="none"></path>
+    </svg>
+  `;
+
+  // 创建撤销类型按钮 (using HTML string)
   const removeTypeBtn = h(
     'span',
     {
       style: {
-        marginLeft: '8px',
         color: '#ff4d4f',
         cursor: 'pointer',
-        padding: '2px 4px',
-        borderRadius: '2px'
+        padding: '2px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+      props: {
+        innerHTML: svgHtml  // 直接嵌入 HTML
       },
       on: {
         click: (e) => {
@@ -50,93 +63,119 @@ function renderChatChunk(elem, children, editor) {
             const eventCurrent = e.currentTarget
             // 使编辑器获得焦点
             setTimeout(() => {
+              if (!(eventCurrent instanceof Element)) return; // Add check
 
-              const chatchunkElement = eventCurrent.closest('[data-chunk-id]')
-              if (!chatchunkElement) return
+              const chatchunkContainer = eventCurrent.closest('[data-chunk-id]'); // Find parent container
+              if (!chatchunkContainer) return
+
+              // Find the element with data-chunk-id, which should be the container itself in this structure
+              const chunkElementWithId = chatchunkContainer;
+              // const chunkElementWithId = chatchunkContainer.querySelector('[data-chunk-id]') || chatchunkContainer; // Alternative if id is nested
 
               // 选中该元素
               // 为了选中该元素，我们可以先设置一个临时 DOM 选区
               const domSelection = window.getSelection()
+              if (!domSelection) return; // Add null check for getSelection
               const range = document.createRange()
 
               // 将范围设置为整个 chatchunk 元素
-              range.selectNodeContents(chatchunkElement)
+              range.selectNodeContents(chunkElementWithId)
               domSelection.removeAllRanges()
               domSelection.addRange(range)
 
               // 通知编辑器更新 Slate 选区
-              const sel = editor.selection
-              console.log('已选中元素，当前选区:', sel, domSelection, chatchunkElement, "domSelection")
+              // const sel = editor.selection // Keep track if needed
+              console.log('已选中元素，准备 unwrap:', domSelection, chunkElementWithId)
               setTimeout(() => {
+                // Use the original unwrap logic based on selection/match
                 SlateTransforms.unwrapNodes(editor, {
                   match: n => SlateElement.isElement(n) && n.type === 'chatchunk',
                   mode: "all",
                 })
               }, 100)
 
-              // domSelection.removeAllRanges()
+              // domSelection.removeAllRanges() // Consider if needed after unwrap
 
             }, 100)
 
-
-            // const matchingNodeEntries = Array.from(
-            //   SlateEditor.nodes(editor, {
-            //     at: [], // 在整个文档中搜索
-            //     match: n => SlateElement.isElement(n) && n.type === 'chatchunk'
-            //   })
-            // );
-            // console.log(matchingNodeEntries,"dd")
-            // 此时元素已被选中，可以进行其他操作
-            // 例如，稍后可以调用 unwrapNodes 移除包装
-            // SlateTransforms.unwrapNodes(editor, {
-            //   at: [chatchunkElement.key],
-            //   match: n => SlateElement.isElement(n) && n.type === 'chatchunk'
-            // })
           } catch (error) {
             console.error('选中节点时出错:', error)
           }
         }
       }
     },
-    [
-      "删除"
-    ]
+    [] // 空子元素数组，因为我们使用 innerHTML
   )
 
   // 创建操作按钮容器
   const actionButtons = h(
     'span',
     {
-      props: { contentEditable: false },
+      props: { contentEditable: false, className: 'chat-chunk-actions' },
+      class: { 'chat-chunk-actions': true }, // Class for targeting
       style: {
+        position: 'absolute',
+        top: '-25px', // Position above the element
+        left: '50%',
+        transform: 'translateX(-50%)',
         display: 'inline-flex',
         alignItems: 'center',
-        marginLeft: 'auto',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)', // Semi-transparent background
+        color: 'white',
+        padding: '3px 5px',
+        borderRadius: '3px',
+        opacity: '0', // Initially hidden
+        visibility: 'hidden',
+        transition: 'opacity 0.2s, visibility 0.2s',
+        whiteSpace: 'nowrap', // Prevent wrapping
+        zIndex: '10', // Ensure it's above other content
+        // Removed marginLeft: 'auto'
       }
     },
-    [removeTypeBtn]
+    [removeTypeBtn /* Add other buttons here if needed */]
   )
 
-  // 完整的元素，包含内容和两个操作按钮
+  // 完整的元素，包含内容和操作按钮
   return h(
     'span',
     {
       attrs: { 'data-chunk-id': chunkId },
       props: { contentEditable: true },
+      class: { 'chat-chunk-container': true }, // Add class for hover targeting
       on: {
         click: () => {
           editor.getChatMessageAndShowSidebar && editor.getChatMessageAndShowSidebar(chunkId)
+        },
+        // Add mouseenter/mouseleave to show/hide actions
+        mouseenter: (e) => {
+          // No type assertion needed, querySelector works on EventTarget if it's an Element
+          const target = e.currentTarget;
+          if (target instanceof Element) { // Add check
+            const actions = target.querySelector('.chat-chunk-actions');
+            if (actions instanceof HTMLElement) { // Check if actions is HTMLElement
+              actions.style.opacity = '1';
+              actions.style.visibility = 'visible';
+            }
+          }
+        },
+        mouseleave: (e) => {
+          const target = e.currentTarget;
+          if (target instanceof Element) { // Add check
+            const actions = target.querySelector('.chat-chunk-actions');
+            if (actions instanceof HTMLElement) { // Check if actions is HTMLElement
+              actions.style.opacity = '0';
+              actions.style.visibility = 'hidden';
+            }
+          }
         }
       },
       style: {
-        display: 'inline-flex', // 改为 inline-flex
+        position: 'relative', // Needed for absolute positioning of children
+        display: 'inline-flex',
         alignItems: 'center',
-        padding: '2px 4px', // 减小内边距
-        margin: '0 2px', // 减小外边距
-        backgroundColor: 'yellow',
+        backgroundColor: 'rgba(255, 204, 153)',
         border: '1px solid #e8e8e8',
         lineHeight: '1.5',
-        verticalAlign: 'middle' // 确保垂直对齐     
       }
     },
     [
@@ -144,11 +183,11 @@ function renderChatChunk(elem, children, editor) {
       h('span', {
         style: {
           flex: '1',
-          minWidth: '30px'
+          minWidth: '30px' // Ensure some minimum width
         }
       }, children || []),
 
-      // 操作按钮
+      // 操作按钮 (absolutely positioned, visibility controlled by hover)
       actionButtons
     ]
   )
@@ -181,12 +220,8 @@ function renderAiLoadingChunk(elem, children, editor) {
       style: {
         display: 'inline-flex',
         alignItems: 'center',
-        padding: '2px 4px',
-        margin: '0 2px',
         backgroundColor: 'yellow',
-        border: '1px solid #e8e8e8',
         lineHeight: '1.5',
-        verticalAlign: 'middle',
         animation: 'background-flash 1.5s infinite' // 添加背景闪烁动画
       }
     },

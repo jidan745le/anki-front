@@ -4,7 +4,8 @@ import apiClient from 'src/common/http/apiClient'
 
 class AiExplain {
     constructor() {
-        this.title = '';
+        this.title = 'explain';
+        this.iconSvg = '<svg viewBox="0 0 1024 1024"><path d="M832 64H192c-35.2 0-64 28.8-64 64v768c0 35.2 28.8 64 64 64h640c35.2 0 64-28.8 64-64V128c0-35.2-28.8-64-64-64zM640 640H384c-17.6 0-32-14.4-32-32s14.4-32 32-32h256c17.6 0 32 14.4 32 32s-14.4 32-32 32zm128-256H384c-17.6 0-32-14.4-32-32s14.4-32 32-32h384c17.6 0 32 14.4 32 32s-14.4 32-32 32z"></path></svg>'
         this.tag = 'select';
         this.width = 30;
     }
@@ -21,32 +22,16 @@ class AiExplain {
     getValue(editor) { return '✨'; }
     isActive(editor) { return false; }
     isDisabled(editor) { return false; }
-    // exec(editor, value) {
-    //     editor.restoreSelection = editor.selection;
-    //     editor.lastSelectionText = editor.getSelectionText();
-    //     editor.promptData = {
-    //         localContextHtml: editor.getHtml(),
-    //         selectionText: editor.getSelectionText()
-    //     }
-    //     console.log(editor.getSelectionPosition(), "editor.getSelectionText(),editor.getSelectionPosition()")
-    //     console.log(editor.selection, editor.promptData, editor.children, editor.operations, "editor.getSelectionText(),editor.getSelectionPosition()")
-    //     editor.setPosition(editor.getSelectionPosition())
-    //     editor.showTooltip(true)
-    //     editor.deselect()
-    //     editor.insertText(value) // value 即 this.getValue(editor) 的返回值
-    //     editor.insertText(' ')
-    // }
-    // 执行命令
+ 
     async exec(editor, value) {
         const selectedText = editor.getSelectionText().trim()
         if (!selectedText) return
 
 
-        // 创建一个模拟文件
-        await this.convertTextToChatChunk(editor)
+        await this.convertTextToChatChunk(editor, value)
     }
 
-    async convertTextToChatChunk(editor) {
+    async convertTextToChatChunk(editor, contextType) {
         const { selection } = editor
         if (!selection) return
 
@@ -64,35 +49,17 @@ class AiExplain {
         const properties = omit(textNode, ['children', 'text'])
 
         try {
-            // 创建唯一的 chunkId (实际应用中可能是后端生成)
-            // const chunkId = 'chunk_' + Date.now()
 
-            // // 创建对话块节点
-            // const chatChunkNode = {
-            //   type: 'chatchunk',
-            //   chunkId,
-            //   children: [{...properties, text}]
-            // }
-
-            // // 删除选中文本
-            // editor.deleteFragment()
-
-            // // 插入新节点
-            // editor.insertNode(chatChunkNode)
-            const generatePrompt = (promptData) => {
-                return "please explain selected part below：html structure context:" + promptData.localContextHtml + "selectionText:" + promptData.selectionText;
-            }
             const promptData = {
                 localContextHtml: editor.getHtml(),
                 selectionText: editor.getSelectionText()
             }
-            const prompt = generatePrompt(promptData)
             const fetchData = async () => {
                 try {
 
                     const requestData = {
                         chunkId,
-                        chatcontext: "Card",
+                        chatcontext: contextType === "deck" ? "Deck" : "Card",
                         contextContent: promptData.localContextHtml,
                         selectionText: promptData.selectionText,
                         chattype: "Explain",
@@ -107,7 +74,6 @@ class AiExplain {
 
                     if (response.data.success) {
                         const { aiMessage: { content, chat: { uuid } } } = response.data.data;
-
                         return response.data?.data;
                     } else {
                     }
@@ -118,18 +84,9 @@ class AiExplain {
                 }
             }
             const chunkId = 'chunk_' + Date.now()
-            const recordSelection = editor.selection
             SlateTransforms.wrapNodes(editor, { type: 'ailoadingchunk', chunkId, children: [] }, { split: true })
-            // SlateTransforms.unwrapNodes(editor, {
-            //   match: n => SlateElement.isElement(n) && n.type === 'ailoadingchunk' && n.chunkId === chunkId,
-            // })
             await fetchData()
-
             SlateTransforms.setNodes(editor, { type: 'chatchunk' }, { split: true, at: [], match: n => SlateElement.isElement(n) && n.type === 'ailoadingchunk' && n.chunkId === chunkId })
-
-            // SlateTransforms.wrapNodes(editor, { type: 'chatchunk', chunkId, children: [{ ...properties, text }] }, { split: true,match: n => SlateElement.isElement(n) && n.type === 'ailoadingchunk' && n.chunkId === chunkId })
-            // editor.deselect();
-
 
 
         } catch (error) {

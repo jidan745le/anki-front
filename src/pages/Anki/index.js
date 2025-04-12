@@ -20,9 +20,10 @@ function Anki() {
   const [aiChatVisible, setAiChatVisible] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
-  const chatIdRef = useRef(null);
+  const cardIdRef = useRef(null);
   const aiChatPromptRef = useRef(null);
   const aiChatMessagesRef = useRef(null);
+  const [chunkId, setChunkId] = useState(null);
   console.log(params, "params")
 
   useEffect(() => {
@@ -49,17 +50,20 @@ function Anki() {
   }
 
   const sendAiChatMessage = async (message) => {
-    setChatMessages([...chatMessages, { role: 'user', content: message }, { role: "assistant", pending: true }]);
+    const pendingMessages = [...chatMessages, { role: 'user', content: message }]
+    setChatMessages([...pendingMessages, { role: "assistant", pending: true }])
     const response = await apiClient.post('/aichat/message', {
-      chatId: chatIdRef.current,
-      // cardId: card.uuid,
-      content: message,
+      cardId: cardIdRef.current,
+      chatcontext: "None",
+      chattype: "Generic",
+      chunkId,
+      question: message,
       model: 'deepseek-chat'
     });
 
     if (response.data.success) {
       const aiData = response.data.data;
-      setChatMessages([...chatMessages, aiData.userMessage, aiData.aiMessage]);
+      setChatMessages([...pendingMessages, aiData.aiMessage]);
     } else {
       message.error(response.data.message || 'Request failed');
     }
@@ -120,7 +124,7 @@ function Anki() {
       const data = res.data;
       if (data.success) {
         if (Object.keys(data.data || {}).length > 0) {
-          chatIdRef.current = data.data?.uuid
+          cardIdRef.current = data.data?.uuid
           setCard(data.data)
         } else {
           if (data.data === null) {
@@ -156,17 +160,11 @@ function Anki() {
     })
   }
 
-  const showAIChatSidebar = (chatData) => {
-    const { aiMessage: { content, chat: { uuid } }, userMessage } = chatData;
-    setChatMessages([userMessage, chatData.aiMessage])
-    setAiChatVisible(true)
-    chatIdRef.current = uuid;
-
-  };
 
   const getChatMessageAndShowSidebar = (chunkId) => {
     setAiChatVisible(true)
-    getAIChat(chatIdRef.current, chunkId)
+    setChunkId(chunkId)
+    getAIChat(cardIdRef.current, chunkId)
   }
 
   // 将 Markdown 转换为安全的 HTML
@@ -204,12 +202,13 @@ function Anki() {
               <HighlightOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
             )}
           </span>
-          {chatIdRef.current && (
+          {cardIdRef.current && (
             <span
               style={{ cursor: 'pointer', marginRight: "8px" }}
               onClick={() => {
+                setChunkId(undefined)
                 setAiChatVisible(true);
-                getAIChat(chatIdRef.current);
+                getAIChat(cardIdRef.current);
               }}
             >
               <MessageOutlined style={{ fontSize: '16px', color: aiChatVisible ? '#1890ff' : '#d9d9d9' }} />
@@ -234,7 +233,6 @@ function Anki() {
         onNext={(quality) => {
           setQualityForThisCardAndGetNext(params.deckId, quality)
         }}
-        showAIChatSidebar={showAIChatSidebar}
         getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
         onFlip={(action) => setFlipped(action)} />
       <Drawer
@@ -242,7 +240,7 @@ function Anki() {
           <div className="ai-chat-header">
             <span className="alpha-tag">AI Chat</span>
             <Button type="link" variant="text" onClick={() => {
-              getAIChat(chatIdRef.current)
+              getAIChat(cardIdRef.current)
             }}>view history</Button>
           </div>
         }
