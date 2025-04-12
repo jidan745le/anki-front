@@ -156,6 +156,7 @@ module.exports = {
                 },
 
                 changeOrigin: true,
+                secure: false,  // 禁用 SSL 证书验证
                 // configure: (proxy, options) => {
                 //     proxy.on('proxyReq', (proxyReq, req, res) => {
                 //         console.log('原始请求:', req.url)
@@ -167,6 +168,7 @@ module.exports = {
                 context: ['/socket.io/'],
                 target: 'http://127.0.0.1:3000',
                 // target: 'https://www.myanki.cc',
+                secure: false,  // 禁用 SSL 证书验证
                 changeOrigin: true,
                 ws: true
             },
@@ -211,8 +213,10 @@ module.exports = {
         rules: [
             isDevelopment && {
                 test: /node_modules/,
-                loader: 'source-map-loader'
+                loader: 'source-map-loader',
+
             },
+
             {
                 test: /\.jsx?$/,
                 include: [path.resolve(__dirname, './src')],
@@ -287,6 +291,13 @@ module.exports = {
         }),
     ].filter(Boolean),
     ...(isDevelopment ? {
-    } : optimaizationConfig)
-
+    } : optimaizationConfig),
+    stats: {
+        warningsFilter: [/Failed to parse source map/]
+    },
+    resolve: {
+        alias: {
+            src: path.resolve(__dirname, 'src')
+        }
+    }
 };

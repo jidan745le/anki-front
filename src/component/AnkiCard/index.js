@@ -15,7 +15,9 @@ function AnkiCard({
   isNew,
   onChange,
   cardUUID,
-  showAIChatSidebar }) {
+  showAIChatSidebar,
+  getChatMessageAndShowSidebar
+}) {
   const audioRef = React.useRef(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -161,6 +163,7 @@ function AnkiCard({
             :
             // PC端显示编辑器
             <MyEditor
+              getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
               showAIChatSidebar={showAIChatSidebar}
               cardUUID={cardUUID}
               config={config}

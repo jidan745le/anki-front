@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { message, Spin, Switch, Tag, Drawer, Input, Space,Button } from 'antd';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { message, Spin, Switch, Tag, Drawer, Input, Space, Button } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import AnkiCard from '../../component/AnkiCard';
 import apiClient from '../../common/http/apiClient';
 import axios from 'axios';
 import { CaretDownOutlined, SendOutlined, PaperClipOutlined, CloseOutlined, HighlightOutlined, MessageOutlined } from '@ant-design/icons';
 import './style.less';
-
+import { marked } from 'marked';
 
 
 function Anki() {
@@ -19,7 +19,7 @@ function Anki() {
   const [config, setConfig] = useState({});
   const [aiChatVisible, setAiChatVisible] = useState(false);
   const [selectedText, setSelectedText] = useState('');
-  const [chatMessage, setChatMessage] = useState([]);
+  const [chatMessages, setChatMessages] = useState([]);
   const chatIdRef = useRef(null);
   const aiChatPromptRef = useRef(null);
   const aiChatMessagesRef = useRef(null);
@@ -36,16 +36,20 @@ function Anki() {
   }, [aiChatVisible])
 
 
-  const getAIChat = (chatId) => {
-    apiClient.get(`/aichat/${chatId}/messages`).then(res => {
+  const getAIChat = (chatId, chunkId) => {
+    let paramsStr = ''
+    if (chunkId) {
+      paramsStr = `?chunkId=${chunkId}`
+    }
+    apiClient.get(`/aichat/${chatId}/messages${paramsStr}`).then(res => {
       const data = res.data.data;
-      setChatMessage(data.messages.map(item => ({ role: item.role, content: item.content})).reverse());
+      setChatMessages(data.messages.map(item => ({ role: item.role, content: item.content })).reverse());
       // console.log(res)
     })
   }
 
   const sendAiChatMessage = async (message) => {
-    setChatMessage([...chatMessage, { role: 'user', content: message }, { role: "assistant", pending: true }]);
+    setChatMessages([...chatMessages, { role: 'user', content: message }, { role: "assistant", pending: true }]);
     const response = await apiClient.post('/aichat/message', {
       chatId: chatIdRef.current,
       // cardId: card.uuid,
@@ -55,7 +59,7 @@ function Anki() {
 
     if (response.data.success) {
       const aiData = response.data.data;
-      setChatMessage([...chatMessage, aiData.userMessage, aiData.aiMessage]);
+      setChatMessages([...chatMessages, aiData.userMessage, aiData.aiMessage]);
     } else {
       message.error(response.data.message || 'Request failed');
     }
@@ -65,7 +69,7 @@ function Anki() {
     if (aiChatMessagesRef.current) {
       aiChatMessagesRef.current.scrollTo({ top: aiChatMessagesRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [chatMessage])
+  }, [chatMessages])
 
   const setQualityForThisCardAndGetNext = async (deckId, quality) => {
     try {
@@ -116,7 +120,7 @@ function Anki() {
       const data = res.data;
       if (data.success) {
         if (Object.keys(data.data || {}).length > 0) {
-          chatIdRef.current = data.data.chat?.uuid
+          chatIdRef.current = data.data?.uuid
           setCard(data.data)
         } else {
           if (data.data === null) {
@@ -154,10 +158,34 @@ function Anki() {
 
   const showAIChatSidebar = (chatData) => {
     const { aiMessage: { content, chat: { uuid } }, userMessage } = chatData;
-    setChatMessage([userMessage, chatData.aiMessage])
+    setChatMessages([userMessage, chatData.aiMessage])
     setAiChatVisible(true)
     chatIdRef.current = uuid;
 
+  };
+
+  const getChatMessageAndShowSidebar = (chunkId) => {
+    setAiChatVisible(true)
+    getAIChat(chatIdRef.current, chunkId)
+  }
+
+  // 将 Markdown 转换为安全的 HTML
+  const getHtmlContent = useCallback((markdownContent) => {
+    const rawHtml = marked(markdownContent);
+    return rawHtml;
+  }, []);
+
+  // 修改内容渲染部分
+  const renderContent = (content) => {
+    if (!content) return null;
+
+    const htmlContent = getHtmlContent(content);
+    return (
+      <div
+        className="markdown-content"
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+      />
+    );
   };
 
   const isNew = card["card_type"] === "new";
@@ -166,7 +194,7 @@ function Anki() {
     <div style={{ marginBottom: "0px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", background: "white", padding: "12px" }}>
         <div style={{ display: "flex", alignItems: "center" }}>
-          <span 
+          <span
             style={{ cursor: 'pointer', marginRight: "8px" }}
             onClick={() => setConfig({ ...config, autoMarkTitle: !config.autoMarkTitle })}
           >
@@ -177,14 +205,14 @@ function Anki() {
             )}
           </span>
           {chatIdRef.current && (
-            <span 
+            <span
               style={{ cursor: 'pointer', marginRight: "8px" }}
               onClick={() => {
                 setAiChatVisible(true);
                 getAIChat(chatIdRef.current);
               }}
             >
-              <MessageOutlined style={{ fontSize: '16px', color:aiChatVisible ? '#1890ff' : '#d9d9d9' }} />
+              <MessageOutlined style={{ fontSize: '16px', color: aiChatVisible ? '#1890ff' : '#d9d9d9' }} />
             </span>
           )}
         </div>
@@ -207,6 +235,7 @@ function Anki() {
           setQualityForThisCardAndGetNext(params.deckId, quality)
         }}
         showAIChatSidebar={showAIChatSidebar}
+        getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
         onFlip={(action) => setFlipped(action)} />
       <Drawer
         title={
@@ -226,14 +255,13 @@ function Anki() {
         closeIcon={<CloseOutlined />}
       >
         <div className="ai-chat-container">
-
           <div className="ai-chat-messages" ref={aiChatMessagesRef}>
-            {chatMessage.map((message, index) => (
+            {chatMessages.map((message, index) => (
               <div key={message.uuid}
                 className={`chat-message ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}
               >
                 <div className="message-content">
-                  {message.pending ? "thinking..." : message.content}
+                  {message.pending ? "thinking..." : message.role === 'user' ? message.content : renderContent(message.content)}
                 </div>
               </div>
             ))}
@@ -246,7 +274,7 @@ function Anki() {
               suffix={
                 <Space>
                   <SendOutlined onClick={() => {
-                    if (chatMessage[chatMessage.length - 1].pending) {
+                    if (chatMessages[chatMessages.length - 1].pending) {
                       return;
                     }
                     sendAiChatMessage(aiChatPromptRef.current)
