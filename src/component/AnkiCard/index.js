@@ -136,7 +136,7 @@ function AnkiCard({
       className="anki-card"
       bordered={false}
       title={
-        <div style={{ display: "flex", justifyContent: "center", fontSize: "24px", fontWeight: "bold", padding: "12px" }}>
+        <div style={{ height: "63px", boxSizing: "border-box", display: "flex", justifyContent: "center", fontSize: "24px", fontWeight: "bold", padding: "12px" }}>
           {frontType === "audio" ? <audio ref={audioRef} controls>
             <source src={`${front}`} type="audio/mpeg" />
             Your browser does not support the audio element.

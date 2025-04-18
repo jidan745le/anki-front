@@ -87,7 +87,10 @@ function CardEditor({ title, value, cardUUID, isNew, onChange, showAIChatSidebar
         insertKeys: {
             index: 0,
             keys: ['aiExplain', 'aiAsk'], // 添加 attachment 菜单
-        }
+        },
+        excludeKeys: [
+            'todo', 'redo', 'undo', 'fullScreen'
+        ]
     }
     const editorConfig = {
         placeholder: '请输入内容...',

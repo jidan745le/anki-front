@@ -22,7 +22,7 @@ class AiExplain {
     getValue(editor) { return '✨'; }
     isActive(editor) { return false; }
     isDisabled(editor) { return false; }
- 
+
     async exec(editor, value) {
         const selectedText = editor.getSelectionText().trim()
         if (!selectedText) return
@@ -73,7 +73,7 @@ class AiExplain {
                     console.log(response, "response")
 
                     if (response.data.success) {
-                        const { aiMessage: { content, chat: { uuid } } } = response.data.data;
+                        const { aiMessage: { content } } = response.data.data;
                         return response.data?.data;
                     } else {
                     }
@@ -87,6 +87,7 @@ class AiExplain {
             SlateTransforms.wrapNodes(editor, { type: 'ailoadingchunk', chunkId, children: [] }, { split: true })
             await fetchData()
             SlateTransforms.setNodes(editor, { type: 'chatchunk' }, { split: true, at: [], match: n => SlateElement.isElement(n) && n.type === 'ailoadingchunk' && n.chunkId === chunkId })
+            editor.getChatMessageAndShowSidebar && editor.getChatMessageAndShowSidebar(chunkId)
 
 
         } catch (error) {

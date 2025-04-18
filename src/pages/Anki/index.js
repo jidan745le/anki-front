@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { message, Spin, Switch, Tag, Drawer, Input, Space, Button } from 'antd';
+import { message, Spin, Switch, Tag, Input, Space, Button } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import AnkiCard from '../../component/AnkiCard';
 import apiClient from '../../common/http/apiClient';
@@ -162,7 +162,9 @@ function Anki() {
 
 
   const getChatMessageAndShowSidebar = (chunkId) => {
-    setAiChatVisible(true)
+    if (!aiChatVisible) {
+      setAiChatVisible(true)
+    }
     setChunkId(chunkId)
     getAIChat(cardIdRef.current, chunkId)
   }
@@ -188,7 +190,7 @@ function Anki() {
 
   const isNew = card["card_type"] === "new";
 
-  return <Spin spinning={loading} >
+  return <Spin spinning={loading}>
     <div style={{ marginBottom: "0px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", background: "white", padding: "12px" }}>
         <div style={{ display: "flex", alignItems: "center" }}>
@@ -207,8 +209,10 @@ function Anki() {
               style={{ cursor: 'pointer', marginRight: "8px" }}
               onClick={() => {
                 setChunkId(undefined)
-                setAiChatVisible(true);
-                getAIChat(cardIdRef.current);
+                setAiChatVisible(!aiChatVisible);
+                if (!aiChatVisible) {
+                  getAIChat(cardIdRef.current);
+                }
               }}
             >
               <MessageOutlined style={{ fontSize: '16px', color: aiChatVisible ? '#1890ff' : '#d9d9d9' }} />
@@ -220,69 +224,102 @@ function Anki() {
           <Tag style={!isNew ? { fontSize: "16px", fontWeight: "bold" } : null} color="green">Due: {deckStats.dueCards}</Tag>
         </div>
       </div>
-      <AnkiCard
-        config={config}
-        front={card["front"]}
-        back={card["back"]}
-        frontType={card["frontType"]}
-        key={card["id"]}
-        cardUUID={card["uuid"]}
-        onChange={(value) => updateCard(value)}
-        isNew={isNew}
-        flipped={flipped}
-        onNext={(quality) => {
-          setQualityForThisCardAndGetNext(params.deckId, quality)
-        }}
-        getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
-        onFlip={(action) => setFlipped(action)} />
-      <Drawer
-        title={
-          <div className="ai-chat-header">
-            <span className="alpha-tag">AI Chat</span>
-            <Button type="link" variant="text" onClick={() => {
-              getAIChat(cardIdRef.current)
-            }}>view history</Button>
-          </div>
-        }
-        placement="right"
-        width={400}
-        onClose={() => setAiChatVisible(false)}
-        open={aiChatVisible}
-        destroyOnClose
-        className="ai-chat-drawer"
-        closeIcon={<CloseOutlined />}
-      >
-        <div className="ai-chat-container">
-          <div className="ai-chat-messages" ref={aiChatMessagesRef}>
-            {chatMessages.map((message, index) => (
-              <div key={message.uuid}
-                className={`chat-message ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}
-              >
-                <div className="message-content">
-                  {message.pending ? "thinking..." : message.role === 'user' ? message.content : renderContent(message.content)}
-                </div>
-              </div>
-            ))}
-          </div>
 
-          <div className="ai-chat-input">
-            <Input
-              placeholder="Ask AI anything..."
-              onChange={(e) => aiChatPromptRef.current = e.target.value}
-              suffix={
-                <Space>
-                  <SendOutlined onClick={() => {
-                    if (chatMessages[chatMessages.length - 1].pending) {
+      <div style={{ display: "flex", height: "calc(100vh - 120px)" }}>
+        <div style={{ width: aiChatVisible ? "75%" : "100%", transition: "width 0.3s" }}>
+          <AnkiCard
+            config={config}
+            front={card["front"]}
+            back={card["back"]}
+            frontType={card["frontType"]}
+            key={card["id"]}
+            cardUUID={card["uuid"]}
+            onChange={(value) => updateCard(value)}
+            isNew={isNew}
+            flipped={flipped}
+            onNext={(quality) => {
+              setQualityForThisCardAndGetNext(params.deckId, quality)
+            }}
+            getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
+            onFlip={(action) => setFlipped(action)}
+          />
+        </div>
+
+        {aiChatVisible && (
+          <div
+            className="side-chat-container"
+            style={{
+              width: "25%",
+              borderLeft: "1px solid #f0f0f0",
+              display: "flex",
+              flexDirection: "column",
+              height: "100%"
+            }}
+          >
+            <div className="ai-chat-header" style={{ padding: "16px", boxSizing: "border-box", height: "64px", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span className="alpha-tag" style={{ fontSize: "12px", padding: "2px 6px", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>AI Chat</span>
+              <div>
+                <Button type="link" onClick={() => getAIChat(cardIdRef.current)}>View history</Button>
+                <Button type="text" icon={<CloseOutlined />} onClick={() => setAiChatVisible(false)} />
+              </div>
+            </div>
+
+            <div className="ai-chat-container" style={{ display: "flex", flexDirection: "column", height: "calc(100% - 125px)", overflow: "hidden" }}>
+              <div className="ai-chat-messages" ref={aiChatMessagesRef} style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto", flex: 1 }}>
+                {chatMessages.map((message, index) => (
+                  <div key={index}
+                    className={`chat-message ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}
+                    style={{ maxWidth: "80%", alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start' }}
+                  >
+                    <div
+                      className="message-content"
+                      style={{
+                        padding: "12px 16px",
+                        borderRadius: "12px",
+                        fontSize: "14px",
+                        lineHeight: "1.5",
+                        backgroundColor: message.role === 'user' ? '#1890ff' : '#f5f5f5',
+                        color: message.role === 'user' ? 'white' : 'rgba(0, 0, 0, 0.85)'
+                      }}
+                    >
+                      {message.pending ? "thinking..." : message.role === 'user' ? message.content : renderContent(message.content)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="ai-chat-input" style={{ padding: "16px", borderTop: "1px solid #f0f0f0", background: "white" }}>
+                <Input
+                  placeholder="Ask AI anything..."
+                  onChange={(e) => aiChatPromptRef.current = e.target.value}
+                  onPressEnter={() => {
+                    if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].pending) {
                       return;
                     }
-                    sendAiChatMessage(aiChatPromptRef.current)
-                  }} />
-                </Space>
-              }
-            />
+                    if (aiChatPromptRef.current) {
+                      sendAiChatMessage(aiChatPromptRef.current);
+                      aiChatPromptRef.current = '';
+                    }
+                  }}
+                  suffix={
+                    <Space>
+                      <SendOutlined onClick={() => {
+                        if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].pending) {
+                          return;
+                        }
+                        if (aiChatPromptRef.current) {
+                          sendAiChatMessage(aiChatPromptRef.current);
+                          aiChatPromptRef.current = '';
+                        }
+                      }} />
+                    </Space>
+                  }
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </Drawer>
+        )}
+      </div>
     </div>
   </Spin>
 }

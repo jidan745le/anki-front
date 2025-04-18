@@ -7,14 +7,14 @@ import React, { useState, useEffect } from 'react'
 import '@wangeditor/editor/dist/css/style.css'
 import { Editor, Toolbar } from '@wangeditor/editor-for-react'
 
-function CreationEditor({onChange}) {
+function CreationEditor({ onChange }) {
     const [editor, setEditor] = useState(null) // 存储 editor 实例
     const [html, setHtml] = useState('')
 
     // 模拟 ajax 请求，异步设置 html
 
 
-    const toolbarConfig = { }
+    const toolbarConfig = {}
     const editorConfig = {
         placeholder: '请输入内容...',
     }
@@ -38,10 +38,10 @@ function CreationEditor({onChange}) {
         console.log(editor.getHtml())
     }
 
-    return ( 
-        <>   
+    return (
+        <>
 
-            <div style={{ border: '1px solid #ccc', zIndex: 100}}>
+            <div style={{ border: '1px solid #ccc', zIndex: 100 }}>
                 <Toolbar
                     editor={editor}
                     defaultConfig={toolbarConfig}
@@ -53,14 +53,14 @@ function CreationEditor({onChange}) {
                     value={html}
                     onCreated={setEditor}
                     onChange={
-                        editor => onChange&& onChange(editor.getHtml())
+                        editor => onChange && onChange(editor.getHtml())
 
                     }
                     mode="default"
                     style={{ height: '500px' }}
                 />
             </div>
-   
+
         </>
     )
 }

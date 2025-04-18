@@ -373,7 +373,7 @@ class TextToChatChunkMenu {
           console.log(response, "response")
 
           if (response.data.success) {
-            const { aiMessage: { content, chat: { uuid } } } = response.data.data;
+            const { aiMessage: { content } } = response.data.data;
 
             return response.data?.data;
           } else {
@@ -393,7 +393,7 @@ class TextToChatChunkMenu {
       await fetchData()
 
       SlateTransforms.setNodes(editor, { type: 'chatchunk' }, { split: true, at: [], match: n => SlateElement.isElement(n) && n.type === 'ailoadingchunk' && n.chunkId === chunkId })
-
+      editor.getChatMessageAndShowSidebar && editor.getChatMessageAndShowSidebar(chunkId)
       // SlateTransforms.wrapNodes(editor, { type: 'chatchunk', chunkId, children: [{ ...properties, text }] }, { split: true,match: n => SlateElement.isElement(n) && n.type === 'ailoadingchunk' && n.chunkId === chunkId })
       // editor.deselect();
 
