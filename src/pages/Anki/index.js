@@ -87,6 +87,7 @@ function Anki() {
 
   const setQualityForThisCardAndGetNext = async (deckId, quality) => {
     try {
+      setAiChatVisible(false);
       await updateQualityForThisCard(deckId, quality);
       getNextCard(deckId);
     } catch (e) {
