@@ -1,33 +1,33 @@
 // Card/index.less
-@import "../../styles/variables.less";
-@import "../../styles/mixins.less";
+@import '../../styles/variables.less';
+@import '../../styles/mixins.less';
 
 .card {
-    // .theme({
-    //     background-color: @theme[@bg-color];
-    //     color: @theme[@text-color];
-    //     border: 1px solid @theme[@border-color];
-    //     box-shadow: @theme[@box-shadow];
-    // });
+  // .theme({
+  //     background-color: @theme[@bg-color];
+  //     color: @theme[@text-color];
+  //     border: 1px solid @theme[@border-color];
+  //     box-shadow: @theme[@box-shadow];
+  // });
 
-    // padding: 16px;
-    // margin: 8px;
-    // border-radius: 4px;
+  // padding: 16px;
+  // margin: 8px;
+  // border-radius: 4px;
 
-    // .card-title {
-    //     .theme({
-    //         color: @theme[@text-color];
-    //     });
-    //     font-size: 16px;
-    //     font-weight: 500;
-    //     margin-bottom: 8px;
-    // }
+  // .card-title {
+  //     .theme({
+  //         color: @theme[@text-color];
+  //     });
+  //     font-size: 16px;
+  //     font-weight: 500;
+  //     margin-bottom: 8px;
+  // }
 
-    // .card-content {
-    //     .theme({
-    //         color: @theme[@text-color-secondary];
-    //     });
-    // }
+  // .card-content {
+  //     .theme({
+  //         color: @theme[@text-color-secondary];
+  //     });
+  // }
 }
 
 // .card {
@@ -38,31 +38,30 @@
 //         box-shadow: @theme[@box-shadow];
 //     });
 
-
 // }
 .generateTheme(@theme, @name) {
-    .theme-@{name} {
-        .card {
-            background-color: @theme[bg-color];
-            color: @theme[text-color];
-            border: 1px solid @theme[border-color];
-            box-shadow: @theme[box-shadow];
-            padding: 16px;
-            margin: 8px;
-            border-radius: 4px;
-        }
-
-        .card-title {
-            color: @theme[text-color];
-            font-size: 16px;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .card-content {
-            color: @theme[text-color-secondary];
-        }
+  .theme-@{name} {
+    .card {
+      background-color: @theme[bg-color];
+      color: @theme[text-color];
+      border: 1px solid @theme[border-color];
+      box-shadow: @theme[box-shadow];
+      padding: 16px;
+      margin: 8px;
+      border-radius: 4px;
     }
+
+    .card-title {
+      color: @theme[text-color];
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .card-content {
+      color: @theme[text-color-secondary];
+    }
+  }
 }
 .generateTheme(@theme-default, default);
 .generateTheme(@theme-dark, dark);
@@ -76,8 +75,6 @@
 //         margin: 8px;
 //         border-radius: 4px;
 //     }
-
-
 
 //     .card-title {
 //         color: @theme[text-color];

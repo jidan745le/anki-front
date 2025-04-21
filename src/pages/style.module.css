@@ -1,90 +1,88 @@
 .navbar {
-    display: flex;
-    /* 使用 Flexbox 布局 */
-    justify-content: space-between;
-    /* 在容器内均匀分配空间 */
-    background-color: #eee;
-    padding: 10px;
-    /* 添加内边距 */
-    font-family: Arial, sans-serif;
-    flex-wrap: wrap;
+  display: flex;
+  /* 使用 Flexbox 布局 */
+  justify-content: space-between;
+  /* 在容器内均匀分配空间 */
+  background-color: #eee;
+  padding: 10px;
+  /* 添加内边距 */
+  font-family: Arial, sans-serif;
+  flex-wrap: wrap;
 }
 
 .navbar ul {
-    list-style-type: none;
-    /* 去掉默认列表样式 */
-    padding: 0;
-    /* 去掉默认内边距 */
-    margin: 0;
-    /* 去掉默认外边距 */
-    display: flex;
-    /* 使 ul 内的 li 横向排列 */
+  list-style-type: none;
+  /* 去掉默认列表样式 */
+  padding: 0;
+  /* 去掉默认内边距 */
+  margin: 0;
+  /* 去掉默认外边距 */
+  display: flex;
+  /* 使 ul 内的 li 横向排列 */
 }
 
 .navbar .navLeft {
-    margin-right: auto;
+  margin-right: auto;
 }
 
 .navbar .navRight {
-    margin-left: auto;
+  margin-left: auto;
 }
 
 .navbar li {
-    margin: 0 10px;
-    /* 添加 li 之间的间距 */
+  margin: 0 10px;
+  /* 添加 li 之间的间距 */
 }
-
-
-
-
 
 /* a 元素样式 */
 .navbar a {
-    float: left;
-    display: block;
-    color: #0007;
-    text-align: center;
-    padding: 14px 20px;
-    /* text-decoration: none; */
-    font-size: 17px;
-    cursor:pointer;
-    transition: background-color 0.3s, color 0.3s; /* 动画效果 */
+  float: left;
+  display: block;
+  color: #0007;
+  text-align: center;
+  padding: 14px 20px;
+  /* text-decoration: none; */
+  font-size: 17px;
+  cursor: pointer;
+  transition:
+    background-color 0.3s,
+    color 0.3s; /* 动画效果 */
 }
 
 .navbar a:hover {
-    background-color: #ff6f61; /* hover 时的背景颜色 */
-    color: white; /* hover 时的文本颜色 */
+  background-color: #ff6f61; /* hover 时的背景颜色 */
+  color: white; /* hover 时的文本颜色 */
 }
 
 .navbar .icon {
+  display: none;
+}
+
+@media screen and (max-width: 600px) {
+  .navbar a:not(:first-child) {
     display: none;
+  }
+
+  .navbar a.icon {
+    float: right;
+    display: block;
+  }
 }
 
 @media screen and (max-width: 600px) {
-    .navbar a:not(:first-child) {
-        display: none;
-    }
+  .navbar.responsive {
+    position: relative;
+  }
 
-    .navbar a.icon {
-        float: right;
-        display: block;
-    }
-}
+  .navbar.responsive .icon {
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
 
-@media screen and (max-width: 600px) {
-    .navbar.responsive {
-        position: relative;
-    }
-
-    .navbar.responsive .icon {
-        position: absolute;
-        right: 0;
-        top: 0;
-    }
-
-    .navbar.responsive a {
-        float: none;
-        display: block;
-        text-align: left;
-    }
+  .navbar.responsive a {
+    float: none;
+    display: block;
+    text-align: left;
+  }
 }

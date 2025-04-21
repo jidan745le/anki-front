@@ -1,77 +1,70 @@
 /* styles.css */
 
 .register-container {
-    max-width: 400px;
-    margin: 50px auto;
-    padding: 20px;
-    background-color: #ffffff; /* 背景颜色 */
-    border-radius: 10px; /* 圆角 */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* 阴影 */
-    text-align: center; /* 中心对齐 */
-    h2 {
-        color: #ff6f61; /* 标题颜色 */
-        margin-bottom: 20px; /* 下边距 */
+  max-width: 400px;
+  margin: 50px auto;
+  padding: 20px;
+  background-color: #ffffff; /* 背景颜色 */
+  border-radius: 10px; /* 圆角 */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* 阴影 */
+  text-align: center; /* 中心对齐 */
+  h2 {
+    color: #ff6f61; /* 标题颜色 */
+    margin-bottom: 20px; /* 下边距 */
+  }
+
+  form {
+    div {
+      text-align: left; /* 左对齐 */
+      span {
+        color: red; /* 错误消息颜色 */
+        font-size: 0.875em; /* 字号 */
+        position: relative;
+        bottom: 10px;
+      }
     }
 
-    form {
-        div {
-            text-align: left; /* 左对齐 */
-            span {
-                color: red; /* 错误消息颜色 */
-                font-size: 0.875em; /* 字号 */           
-                position: relative;
-                bottom:10px;
-               
-            }
-        }
-
-        label {
-            display: block; /* 块级元素 */
-            margin-bottom: 5px; /* 下边距 */
-            color: #333; /* 标签颜色 */
-        }
-        
-        input[type="text"],
-        input[type="password"] {
-            width: calc(100% - 20px); /* 宽度 */
-            padding: 10px; /* 内边距 */
-            border: 2px solid #ff6f61; /* 边框颜色 */
-            border-radius: 5px; /* 圆角 */
-            transition: border-color 0.3s; /* 动画效果 */
-            margin-bottom: 10px; /* 下边距 */
-        }
-        
-        input[type="text"]:focus,
-        input[type="password"]:focus {
-            border-color: #ff3b30; /* 聚焦时边框颜色 */
-            outline: none; /* 去掉默认轮廓 */
-        }
-        
-        
-        
-        .button {
-            width: 100%; /* 按钮宽度 */
-            padding: 10px; /* 内边距 */
-            background-color: #ff6f61; /* 按钮背景颜色 */
-            color: white; /* 按钮文字颜色 */
-            border: none; /* 去掉边框 */
-            border-radius: 5px; /* 圆角 */
-            cursor: pointer; /* 手型光标 */
-            transition: background-color 0.3s; /* 动画效果 */
-        }
-        
-        .button:hover {
-            background-color: #ff3b30 !important; /* hover 时按钮颜色 */
-            color: white !important; /* 按钮文字颜色 */
-
-        }
-        
-        .button:disabled {
-            background-color: #ccc; /* 禁用时按钮颜色 */
-            cursor: not-allowed; /* 不可点击的光标 */
-        }
+    label {
+      display: block; /* 块级元素 */
+      margin-bottom: 5px; /* 下边距 */
+      color: #333; /* 标签颜色 */
     }
-    
-   
+
+    input[type='text'],
+    input[type='password'] {
+      width: calc(100% - 20px); /* 宽度 */
+      padding: 10px; /* 内边距 */
+      border: 2px solid #ff6f61; /* 边框颜色 */
+      border-radius: 5px; /* 圆角 */
+      transition: border-color 0.3s; /* 动画效果 */
+      margin-bottom: 10px; /* 下边距 */
+    }
+
+    input[type='text']:focus,
+    input[type='password']:focus {
+      border-color: #ff3b30; /* 聚焦时边框颜色 */
+      outline: none; /* 去掉默认轮廓 */
+    }
+
+    .button {
+      width: 100%; /* 按钮宽度 */
+      padding: 10px; /* 内边距 */
+      background-color: #ff6f61; /* 按钮背景颜色 */
+      color: white; /* 按钮文字颜色 */
+      border: none; /* 去掉边框 */
+      border-radius: 5px; /* 圆角 */
+      cursor: pointer; /* 手型光标 */
+      transition: background-color 0.3s; /* 动画效果 */
+    }
+
+    .button:hover {
+      background-color: #ff3b30 !important; /* hover 时按钮颜色 */
+      color: white !important; /* 按钮文字颜色 */
+    }
+
+    .button:disabled {
+      background-color: #ccc; /* 禁用时按钮颜色 */
+      cursor: not-allowed; /* 不可点击的光标 */
+    }
+  }
 }
-

@@ -1,9 +1,9 @@
 import React, { useState, useTransition, useDeferredValue, useEffect, Suspense } from 'react';
 import ReactDOM from 'react-dom';
-import { createRoot } from "react-dom/client";
+import { createRoot } from 'react-dom/client';
 import './styles/global.less';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import '@wangeditor/editor/dist/css/style.css' // 引入 css
+import '@wangeditor/editor/dist/css/style.css'; // 引入 css
 import AnkiCreate from './pages/AnkiCreate';
 // @ts-ignore
 import wsClient from './common/websocket/wsClient';
@@ -21,7 +21,7 @@ function App() {
     wsClient.connect();
     return () => {
       wsClient.disconnect();
-    }
+    };
   }, []);
 
   return (
@@ -29,7 +29,7 @@ function App() {
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={<Navigate to={"/decks"} replace />} />
+            <Route path="/" element={<Navigate to={'/decks'} replace />} />
             <Route path="/decks" element={<Decks />} />
             <Route path="/anki/:deckId" element={<Anki />} />
             <Route path="/anki/empty" element={<div>今日已学完</div>} />
@@ -45,11 +45,12 @@ function App() {
 }
 
 function Index() {
-  return <>
-    <App />
-  </>
+  return (
+    <>
+      <App />
+    </>
+  );
 }
-
 
 const container = document.getElementById('root');
 

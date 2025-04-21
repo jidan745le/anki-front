@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react"
-import { Button, Modal, Spin, Card } from "antd"
-import FooterBar from "../Footbar"
-import MyEditor from "../Editor"
-import "./ankicard.less"
+import React, { useEffect, useState } from 'react';
+import { Button, Modal, Spin, Card } from 'antd';
+import FooterBar from '../Footbar';
+import MyEditor from '../Editor';
+import './ankicard.less';
 
 function AnkiCard({
   config,
@@ -16,7 +16,7 @@ function AnkiCard({
   onChange,
   cardUUID,
   showAIChatSidebar,
-  getChatMessageAndShowSidebar
+  getChatMessageAndShowSidebar,
 }) {
   const audioRef = React.useRef(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -35,14 +35,14 @@ function AnkiCard({
 
   // 添加键盘事件监听
   useEffect(() => {
-    const handleKeyPress = (event) => {
-      console.log(event, "event")
+    const handleKeyPress = event => {
+      console.log(event, 'event');
 
       const isCtrlPressed = event.ctrlKey || event.metaKey;
       const isShiftPressed = event.shiftKey;
 
       // Audio control shortcuts
-      if (frontType === "audio" && audioRef.current) {
+      if (frontType === 'audio' && audioRef.current) {
         if (isCtrlPressed) {
           switch (event.code) {
             case 'ArrowDown':
@@ -59,7 +59,10 @@ function AnkiCard({
               return;
             case 'ArrowRight':
               event.preventDefault();
-              audioRef.current.currentTime = Math.min(audioRef.current.duration, audioRef.current.currentTime + 3);
+              audioRef.current.currentTime = Math.min(
+                audioRef.current.duration,
+                audioRef.current.currentTime + 3
+              );
               return;
           }
         }
@@ -72,35 +75,37 @@ function AnkiCard({
             case 'Digit1':
             case 'Numpad1':
               event.preventDefault();
-              onNext && onNext(0); // Again
+              onNext && onNext(1); // Again
               return;
             case 'Digit2':
             case 'Numpad2':
               event.preventDefault();
-              onNext && onNext(1); // Hard
+              onNext && onNext(2); // Hard
               return;
             case 'Digit3':
             case 'Numpad3':
               event.preventDefault();
-              onNext && onNext(2); // Good
+              onNext && onNext(3); // Good
               return;
             case 'Digit4':
             case 'Numpad4':
               event.preventDefault();
-              onNext && onNext(3); // Easy
+              onNext && onNext(4); // Easy
               return;
           }
         }
         if (event.code === 'Space' && isShiftPressed) {
           event.preventDefault();
-          onNext && onNext(3);
+          onNext && onNext(4);
         }
       }
 
       // 如果事件来自编辑器或其他可编辑元素，不处理普通快捷键
-      if (event.target.contentEditable === 'true' ||
+      if (
+        event.target.contentEditable === 'true' ||
         event.target.tagName === 'INPUT' ||
-        event.target.tagName === 'TEXTAREA') {
+        event.target.tagName === 'TEXTAREA'
+      ) {
         // if(event.code === 'Space' && isShiftPressed){
         //   event.preventDefault();
         //   onNext && onNext(3);
@@ -124,74 +129,136 @@ function AnkiCard({
   }, [flipped, onFlip, onNext]);
 
   useEffect(() => {
-    if (frontType === "audio" && audioRef.current) {
+    if (frontType === 'audio' && audioRef.current) {
       audioRef.current.play().catch(e => {
-        console.log("自动播放失败:", e);
+        console.log('自动播放失败:', e);
       });
     }
   }, [front, frontType]);
 
-  return <>
-    <Card
-      className="anki-card"
-      bordered={false}
-      title={
-        <div style={{ height: "63px", boxSizing: "border-box", display: "flex", justifyContent: "center", fontSize: "24px", fontWeight: "bold", padding: "12px" }}>
-          {frontType === "audio" ? <audio ref={audioRef} controls>
-            <source src={`${front}`} type="audio/mpeg" />
-            Your browser does not support the audio element.
-          </audio> : front}
-        </div>
-      }>
-      {flipped ?
-        <div>
-          {isMobile ?
-            // 移动端显示只读内容
-            <div
-              className="mobile-content"
-              dangerouslySetInnerHTML={{ __html: back }}
-              style={{
-                padding: '10px',
-                fontSize: '16px',
-                lineHeight: '1.5',
-                wordBreak: "break-word",
-                overflowWrap: "break-word",
-                whiteSpace: "pre-wrap",
-                maxWidth: "100%",
+  return (
+    <>
+      <Card
+        className="anki-card"
+        bordered={false}
+        title={
+          <div
+            style={{
+              height: '63px',
+              boxSizing: 'border-box',
+              display: 'flex',
+              justifyContent: 'center',
+              fontSize: '24px',
+              fontWeight: 'bold',
+              padding: '12px',
+            }}
+          >
+            {frontType === 'audio' ? (
+              <audio ref={audioRef} controls>
+                <source src={`${front}`} type="audio/mpeg" />
+                Your browser does not support the audio element.
+              </audio>
+            ) : (
+              front
+            )}
+          </div>
+        }
+      >
+        {flipped ? (
+          <div>
+            {isMobile ? (
+              // 移动端显示只读内容
+              <div
+                className="mobile-content"
+                dangerouslySetInnerHTML={{ __html: back }}
+                style={{
+                  padding: '10px',
+                  fontSize: '16px',
+                  lineHeight: '1.5',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  whiteSpace: 'pre-wrap',
+                  maxWidth: '100%',
+                }}
+              />
+            ) : (
+              // PC端显示编辑器
+              <MyEditor
+                getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
+                showAIChatSidebar={showAIChatSidebar}
+                cardUUID={cardUUID}
+                config={config}
+                title={frontType !== 'audio' ? front : undefined}
+                onChange={onChange}
+                isNew={isNew}
+                value={`${back}`}
+              />
+            )}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            点击下方按钮或按空格键查看答案
+          </div>
+        )}
+      </Card>
+      <FooterBar>
+        {flipped ? (
+          [
+            <Button
+              key="1"
+              color="danger"
+              variant="solid"
+              onClick={() => {
+                onNext && onNext(1);
               }}
-            />
-            :
-            // PC端显示编辑器
-            <MyEditor
-              getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
-              showAIChatSidebar={showAIChatSidebar}
-              cardUUID={cardUUID}
-              config={config}
-              title={frontType !== "audio" ? front : undefined}
-              onChange={onChange}
-              isNew={isNew}
-              value={`${back}`}
-            />
-          }
-        </div>
-        :
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          点击下方按钮或按空格键查看答案
-        </div>
-      }
-    </Card>
-    <FooterBar>
-      {
-        flipped ? [
-          <Button key="1" color="danger" variant="solid" onClick={() => { onNext && onNext(0) }}>Again (1)</Button>,
-          <Button key="2" color="primary" variant="solid" onClick={() => { onNext && onNext(1) }}>Hard (2)</Button>,
-          <Button key="3" color="danger" variant="solid" onClick={() => { onNext && onNext(2) }}>Good (3)</Button>,
-          <Button key="4" color="default" variant="solid" onClick={() => { onNext && onNext(3) }}>Easy (4)</Button>
-        ] :
-          <Button danger type="primary" onClick={() => { onFlip && onFlip(true) }}>展示答案 (Space)</Button>
-      }
-    </FooterBar>
-  </>;
+            >
+              Again (1)
+            </Button>,
+            <Button
+              key="2"
+              color="primary"
+              variant="solid"
+              onClick={() => {
+                onNext && onNext(2);
+              }}
+            >
+              Hard (2)
+            </Button>,
+            <Button
+              key="3"
+              color="danger"
+              variant="solid"
+              onClick={() => {
+                onNext && onNext(3);
+              }}
+            >
+              Good (3)
+            </Button>,
+            <Button
+              key="4"
+              color="default"
+              variant="solid"
+              onClick={() => {
+                onNext && onNext(4);
+              }}
+            >
+              Easy (4)
+            </Button>,
+          ]
+        ) : (
+          <Button
+            danger
+            type="primary"
+            onClick={() => {
+              onFlip && onFlip(true);
+            }}
+          >
+            展示答案 (Space)
+          </Button>
+        )}
+      </FooterBar>
+    </>
+  );
 }
 
 export default AnkiCard;
