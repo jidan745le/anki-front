@@ -98,19 +98,19 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
     let baseColorHex;
     switch (state) {
       case 0: // New card
-        baseColorHex = '#1890ff'; // Blue
+        baseColorHex = '#8CB9DE'; // Soft Blue
         break;
       case 1: // Learning
-        baseColorHex = '#ff4d4f'; // Red
+        baseColorHex = '#F4A9A8'; // Soft Red/Pink
         break;
       case 2: // Review
-        baseColorHex = '#52c41a'; // Green
+        baseColorHex = '#A8D8B9'; // Soft Green
         break;
       case 3: // Relearning
-        baseColorHex = '#faad14'; // Yellow/Orange
+        baseColorHex = '#FDDDA0'; // Soft Orange/Peach
         break;
       default:
-        baseColorHex = '#d9d9d9'; // Gray for unknown states
+        baseColorHex = '#D3D3D3'; // Light Gray
     }
     const rgb = hexToRgb(baseColorHex);
     if (!rgb) {
@@ -199,8 +199,8 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
 
     // 安全检查
     if (!dueDate) {
-      if (debugMode) logWarning('计算透明度：没有到期日期', { dueDate });
-      return 0.2; // 如果没有到期日期，视为已到期
+      if (debugMode) logWarning('计算透明度：没有到期日期', { dueDate, opacity: 0.0 });
+      return 0.0; // 如果没有到期日期，视为完全透明
     }
 
     const dueTime = new Date(dueDate).getTime();
@@ -208,48 +208,33 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
 
     // 确保日期有效
     if (isNaN(dueTime)) {
-      if (debugMode) logError('计算透明度：无效的到期日期格式', { dueDate });
-      return 0.2;
+      if (debugMode) logError('计算透明度：无效的到期日期格式', { dueDate, opacity: 0.0 });
+      return 0.0; // 无效日期，视为完全透明
     }
 
     // 检查是否已到期
     if (dueTime <= currentTime) {
-      if (debugMode) logInfo('计算透明度：卡片已到期', { dueDate, opacity: 0.2 });
-      return 0.2;
+      if (debugMode) logInfo('计算透明度：卡片已到期', { dueDate, opacity: 0.0 });
+      return 0.0; // 已到期卡片，视为完全透明
     }
 
     // 如果没有上次复习时间，或者上次复习时间无效，则视为记忆最强或根据情况处理
-    // For now, let's assume if lastReviewDate is not present, it's a new-ish card or we default to a higher opacity.
-    // However, the formula requires lastReviewDate. If it's absolutely critical and missing,
-    // we might need a different fallback. For now, let's assume it will be provided.
     if (!lastReviewDate) {
       if (debugMode)
         logWarning('计算透明度：没有上次复习日期，无法使用新公式。默认为1.0', { dueDate });
-      // This case might need refinement based on how 'new' cards without a lastReviewDate should behave.
-      // If a card is new and has a future due date but no lastReviewDate, perhaps it should be 1.0.
-      // Or, if it's an old card somehow missing this data, 0.2 might be safer.
-      // Given "刚刚update的透明度应该是100", 1.0 seems like a reasonable default if lastReviewDate is missing.
       return 1.0;
     }
 
     const lastReviewTime = new Date(lastReviewDate).getTime();
     if (isNaN(lastReviewTime)) {
       if (debugMode) logError('计算透明度：无效的上次复习日期格式', { lastReviewDate });
-      // Fallback if lastReviewTime is invalid, treat as if just reviewed for safety, or could be 0.2
       return 1.0;
     }
 
-    // Denominator: total interval duration
     const totalInterval = dueTime - lastReviewTime;
-
-    // Numerator: time remaining in the interval
     const remainingInterval = dueTime - currentTime;
 
     if (totalInterval <= 0) {
-      // This implies last review was at or after the due date, or it's a new card scheduled.
-      // If dueTime > currentTime (not due yet), and totalInterval <=0 means lastReviewTime >= dueTime.
-      // This could mean it was just reviewed and the interval is very short, or it's a "new" card with lastReviewDate = creationDate.
-      // In this case, opacity should be 1.0 (max strength).
       if (debugMode) {
         logInfo('计算透明度：总间隔为0或负数（可能刚复习或新卡），设为100%', {
           dueDate,
@@ -262,10 +247,8 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
 
     const calculatedOpacity = remainingInterval / totalInterval;
 
-    // Clamp opacity between 0.2 and 1.0
-    // 0.2 is the minimum for cards that are not yet due but almost there according to the formula
-    // This replaces the previous complex multi-stage logic.
-    const finalOpacity = Math.max(0.2, Math.min(1.0, calculatedOpacity));
+    // Clamp opacity between 0.0 and 1.0
+    const finalOpacity = Math.max(0.0, Math.min(1.0, calculatedOpacity));
 
     if (debugMode) {
       logInfo('计算透明度：基于上次复习时间', {
