@@ -1,7 +1,7 @@
+import { Button, Card } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Spin, Card } from 'antd';
-import FooterBar from '../Footbar';
 import MyEditor from '../Editor';
+import FooterBar from '../Footbar';
 import './ankicard.less';
 
 function AnkiCard({

@@ -1,24 +1,25 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { message, Spin, Switch, Tag, Input, Space, Button } from 'antd';
-import { useNavigate, useParams } from 'react-router-dom';
-import AnkiCard from '../../component/AnkiCard';
-import apiClient from '../../common/http/apiClient';
-import axios from 'axios';
 import {
-  CaretDownOutlined,
-  SendOutlined,
-  PaperClipOutlined,
   CloseOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
   HighlightOutlined,
   MessageOutlined,
+  SendOutlined,
 } from '@ant-design/icons';
-import './style.less';
+import { Button, Input, message, Space, Spin, Tooltip } from 'antd';
 import { marked } from 'marked';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import apiClient from '../../common/http/apiClient';
+import AnkiCard from '../../component/AnkiCard';
+import CardVisualizer from '../../component/CardVisualizer';
+import './style.less';
 
 function Anki() {
   const [flipped, setFlipped] = useState(false);
   const navigate = useNavigate();
   const [card, setCard] = useState({});
+  const [allCards, setAllCards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [deckStats, setDeckStats] = useState({});
   const params = useParams();
@@ -30,6 +31,7 @@ function Anki() {
   const aiChatPromptRef = useRef(null);
   const aiChatMessagesRef = useRef(null);
   const [chunkId, setChunkId] = useState(null);
+  const [visualizerVisible, setVisualizerVisible] = useState(true);
   console.log(params, 'params');
 
   useEffect(() => {
@@ -114,37 +116,20 @@ function Anki() {
       });
   };
 
-  const getDeckStats = deckId => {
-    apiClient
-      .get(`/anki/getDeckStats?deckId=${deckId}`)
-      .then(res => {
-        const data = res.data;
-        if (data.success) {
-          setDeckStats(data.data);
-          return;
-        }
-        message.error(data.message);
-        console.log(res);
-      })
-      .catch(err => {
-        console.log(err);
-        throw err;
-      });
-  };
-
   const getNextCard = (deckId, isInit = false) => {
     setFlipped(false);
     setLoading(true);
-    // getDeckStats(deckId);
     apiClient
-      .get(`/anki/getNextCard?deckId=${deckId}`)
+      .get(`/anki/getNextCard?deckId=${deckId}&mount=${isInit}`)
       .then(res => {
         setLoading(false);
         const data = res.data;
         if (data.success) {
           if (Object.keys(data.data || {}).length > 0) {
-            cardIdRef.current = data.data?.uuid;
-            setCard(data.data);
+            cardIdRef.current = data.data?.card?.uuid;
+            setCard(data.data?.card);
+            setDeckStats(data.data?.stats);
+            setAllCards(data.data?.allCards);
           } else {
             if (data.data === null) {
               //deck为空 需要插入新卡
@@ -207,6 +192,7 @@ function Anki() {
 
   const isNew = card['state'] === 0;
 
+  console.log(card, 'card');
   return (
     <Spin spinning={loading}>
       <div style={{ marginBottom: '0px' }}>
@@ -214,6 +200,7 @@ function Anki() {
           style={{
             display: 'flex',
             justifyContent: 'space-between',
+            alignItems: 'flex-start',
             background: 'white',
             padding: '12px',
           }}
@@ -229,6 +216,17 @@ function Anki() {
                 <HighlightOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
               )}
             </span>
+            <span
+              style={{ cursor: 'pointer', marginRight: '8px' }}
+              onClick={() => setVisualizerVisible(!visualizerVisible)}
+            >
+              {visualizerVisible ? (
+                <EyeOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
+              ) : (
+                <EyeInvisibleOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
+              )}
+            </span>
+
             {cardIdRef.current && (
               <span
                 style={{ cursor: 'pointer', marginRight: '8px' }}
@@ -246,37 +244,84 @@ function Anki() {
               </span>
             )}
           </div>
+          {visualizerVisible && <CardVisualizer cards={allCards} currentCardId={card?.uuid} />}
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <Tag style={isNew ? { fontSize: '16px', fontWeight: 'bold' } : null} color="blue">
-              New: {deckStats?.newCards}
-            </Tag>
-            <Tag style={isNew ? { fontSize: '16px', fontWeight: 'bold' } : null} color="red">
-              Learning: {deckStats?.learning}
-            </Tag>
-            <Tag style={!isNew ? { fontSize: '16px', fontWeight: 'bold' } : null} color="green">
-              Review: {deckStats?.review}
-            </Tag>
+            <div>
+              <Tooltip title="New">
+                <span
+                  style={{
+                    color: 'blue',
+                    textDecoration: card['state'] === 0 ? 'underline' : 'none',
+                    marginRight: 12,
+                  }}
+                >
+                  {deckStats?.newCount || 0}
+                </span>
+              </Tooltip>
+              <Tooltip title="Due Learning">
+                <span
+                  style={{
+                    color: 'red',
+                    textDecoration: [1, 3].includes(card['state']) ? 'underline' : 'none',
+                    marginRight: 12,
+                  }}
+                >
+                  {deckStats?.learningCount || 0}
+                </span>
+              </Tooltip>
+              <Tooltip title="Due Review">
+                <span
+                  style={{
+                    color: 'green',
+                    textDecoration: card['state'] === 2 ? 'underline' : 'none',
+                    marginRight: 12,
+                  }}
+                >
+                  {deckStats?.reviewCount || 0}
+                </span>
+              </Tooltip>
+            </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', height: 'calc(100vh - 120px)' }}>
-          <div style={{ width: aiChatVisible ? '75%' : '100%', transition: 'width 0.3s' }}>
-            <AnkiCard
-              config={config}
-              front={card['front']}
-              back={card['customBack']}
-              frontType={card['frontType']}
-              key={card['id']}
-              cardUUID={card['uuid']}
-              onChange={value => updateCard(value)}
-              isNew={isNew}
-              flipped={flipped}
-              onNext={quality => {
-                setQualityForThisCardAndGetNext(params.deckId, quality);
+          <div
+            style={{
+              width: aiChatVisible ? '75%' : '100%',
+              transition: 'width 0.3s',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                overflow: 'hidden',
               }}
-              getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
-              onFlip={action => setFlipped(action)}
-            />
+            >
+              <AnkiCard
+                config={config}
+                front={card['front']}
+                back={card['customBack']}
+                frontType={
+                  card['frontType'] === 'audio'
+                    ? 'audio'
+                    : card['front']?.includes('audio/decks')
+                      ? 'audio'
+                      : card['frontType']
+                }
+                key={card['id']}
+                cardUUID={card['uuid']}
+                onChange={value => updateCard(value)}
+                isNew={isNew}
+                flipped={flipped}
+                onNext={quality => {
+                  setQualityForThisCardAndGetNext(params.deckId, quality);
+                }}
+                getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
+                onFlip={action => setFlipped(action)}
+              />
+            </div>
           </div>
 
           {aiChatVisible && (

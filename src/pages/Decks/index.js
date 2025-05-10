@@ -1,24 +1,23 @@
-import React, { useEffect, useState, useRef } from 'react';
 import {
-  message,
-  Table,
   Button,
   Drawer,
   Form,
   Input,
-  Upload,
-  Tag,
+  InputNumber,
+  message,
   Modal,
+  Progress,
   Radio,
   Select,
-  Progress,
-  InputNumber,
+  Table,
+  Tooltip,
+  Upload,
 } from 'antd';
-import apiClient from '../../common/http/apiClient';
-import { useNavigate, useParams } from 'react-router-dom';
-import FooterBar from '../../component/Footbar';
-import StreamingTooltip from '../../component/StreamingTooltip';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useSocket from '../../common/hooks/useSocket';
+import apiClient from '../../common/http/apiClient';
+import FooterBar from '../../component/Footbar';
 
 const Decks = () => {
   const [decks, setDecks] = useState([]);
@@ -327,14 +326,21 @@ const Decks = () => {
       render: (text, row) => {
         return (
           <div>
-            <div>
-              <Tag color="blue">New: {row?.stats?.newCards}</Tag>
-              <Tag color="green">Due: {row?.stats?.dueCards}</Tag>
-            </div>
-            <div style={{ marginTop: 4 }}>
-              <Tag color="red">Review: {row?.stats?.totalReviewCards}</Tag>
-              <Tag color="pink">Total: {row?.stats?.totalCards}</Tag>
-            </div>
+            <Tooltip title="New">
+              <span style={{ color: 'blue', textDecoration: 'underline', marginRight: 12 }}>
+                {row?.stats?.newCount || 0}
+              </span>
+            </Tooltip>
+            <Tooltip title="Due Learning">
+              <span style={{ color: 'red', textDecoration: 'underline', marginRight: 12 }}>
+                {row?.stats?.learningCount || 0}
+              </span>
+            </Tooltip>
+            <Tooltip title="Due Review">
+              <span style={{ color: 'green', textDecoration: 'underline', marginRight: 12 }}>
+                {row?.stats?.reviewCount || 0}
+              </span>
+            </Tooltip>
           </div>
         );
       },

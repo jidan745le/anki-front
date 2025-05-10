@@ -23,10 +23,11 @@ module.exports = {
         'react/prop-types': 'off',
         'react/react-in-jsx-scope': 'off',
         'no-unused-vars': 'warn',
+        indent: 'off',
     },
     settings: {
         react: {
             version: 'detect',
         },
     },
-}; 
+};
