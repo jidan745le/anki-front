@@ -1,18 +1,11 @@
-import {
-  CloseOutlined,
-  EyeInvisibleOutlined,
-  EyeOutlined,
-  HighlightOutlined,
-  MessageOutlined,
-  SendOutlined,
-} from '@ant-design/icons';
-import { Button, Input, message, Space, Spin, Tooltip } from 'antd';
+import { CloseOutlined, SendOutlined } from '@ant-design/icons';
+import { Button, Input, message, Space, Spin } from 'antd';
 import { marked } from 'marked';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import apiClient from '../../common/http/apiClient';
+import AnkiBar from '../../component/AnkiBar';
 import AnkiCard from '../../component/AnkiCard';
-import CardVisualizer from '../../component/CardVisualizer';
 import './style.less';
 
 function Anki() {
@@ -31,7 +24,7 @@ function Anki() {
   const aiChatPromptRef = useRef(null);
   const aiChatMessagesRef = useRef(null);
   const [chunkId, setChunkId] = useState(null);
-  const [visualizerVisible, setVisualizerVisible] = useState(true);
+  const [visualizerVisible, setVisualizerVisible] = useState(false);
   console.log(params, 'params');
 
   useEffect(() => {
@@ -196,93 +189,27 @@ function Anki() {
   return (
     <Spin spinning={loading}>
       <div style={{ marginBottom: '0px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            background: 'white',
-            padding: '12px',
+        <AnkiBar
+          autoMarkTitleEnabled={config.autoMarkTitle}
+          onToggleAutoMarkTitle={() =>
+            setConfig({ ...config, autoMarkTitle: !config.autoMarkTitle })
+          }
+          visualizerVisible={visualizerVisible}
+          onToggleVisualizer={() => setVisualizerVisible(!visualizerVisible)}
+          aiChatEnabled={!!cardIdRef.current}
+          aiChatVisible={aiChatVisible}
+          onToggleAIChat={() => {
+            setChunkId(undefined);
+            setAiChatVisible(!aiChatVisible);
+            if (!aiChatVisible && cardIdRef.current) {
+              getAIChat(cardIdRef.current);
+            }
           }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span
-              style={{ cursor: 'pointer', marginRight: '8px' }}
-              onClick={() => setConfig({ ...config, autoMarkTitle: !config.autoMarkTitle })}
-            >
-              {config.autoMarkTitle ? (
-                <HighlightOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
-              ) : (
-                <HighlightOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
-              )}
-            </span>
-            <span
-              style={{ cursor: 'pointer', marginRight: '8px' }}
-              onClick={() => setVisualizerVisible(!visualizerVisible)}
-            >
-              {visualizerVisible ? (
-                <EyeOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
-              ) : (
-                <EyeInvisibleOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
-              )}
-            </span>
-
-            {cardIdRef.current && (
-              <span
-                style={{ cursor: 'pointer', marginRight: '8px' }}
-                onClick={() => {
-                  setChunkId(undefined);
-                  setAiChatVisible(!aiChatVisible);
-                  if (!aiChatVisible) {
-                    getAIChat(cardIdRef.current);
-                  }
-                }}
-              >
-                <MessageOutlined
-                  style={{ fontSize: '16px', color: aiChatVisible ? '#1890ff' : '#d9d9d9' }}
-                />
-              </span>
-            )}
-          </div>
-          {visualizerVisible && <CardVisualizer cards={allCards} currentCardId={card?.uuid} />}
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div>
-              <Tooltip title="New">
-                <span
-                  style={{
-                    color: 'blue',
-                    textDecoration: card['state'] === 0 ? 'underline' : 'none',
-                    marginRight: 12,
-                  }}
-                >
-                  {deckStats?.newCount || 0}
-                </span>
-              </Tooltip>
-              <Tooltip title="Due Learning">
-                <span
-                  style={{
-                    color: 'red',
-                    textDecoration: [1, 3].includes(card['state']) ? 'underline' : 'none',
-                    marginRight: 12,
-                  }}
-                >
-                  {deckStats?.learningCount || 0}
-                </span>
-              </Tooltip>
-              <Tooltip title="Due Review">
-                <span
-                  style={{
-                    color: 'green',
-                    textDecoration: card['state'] === 2 ? 'underline' : 'none',
-                    marginRight: 12,
-                  }}
-                >
-                  {deckStats?.reviewCount || 0}
-                </span>
-              </Tooltip>
-            </div>
-          </div>
-        </div>
+          allCards={allCards}
+          currentCardId={card?.uuid}
+          currentCardState={card?.state}
+          deckStats={deckStats}
+        />
 
         <div style={{ display: 'flex', height: 'calc(100vh - 120px)' }}>
           <div
