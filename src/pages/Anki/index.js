@@ -71,14 +71,14 @@ function Anki() {
     }
   };
 
-  useEffect(() => {
-    if (aiChatMessagesRef.current) {
-      aiChatMessagesRef.current.scrollTo({
-        top: aiChatMessagesRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
-  }, [chatMessages]);
+  // useEffect(() => {
+  //   if (aiChatMessagesRef.current) {
+  //     aiChatMessagesRef.current.scrollTo({
+  //       top: aiChatMessagesRef.current.scrollHeight,
+  //       behavior: 'smooth',
+  //     });
+  //   }
+  // }, [chatMessages]);
 
   const setQualityForThisCardAndGetNext = async (deckId, quality) => {
     try {
@@ -119,24 +119,27 @@ function Anki() {
         const data = res.data;
         if (data.success) {
           if (Object.keys(data.data || {}).length > 0) {
-            cardIdRef.current = data.data?.card?.uuid;
-            setCard(data.data?.card);
-            setDeckStats(data.data?.stats);
-            setAllCards(data.data?.allCards);
-          } else {
-            if (data.data === null) {
-              //deck为空 需要插入新卡
-              navigate(`/anki/create/${deckId}`);
-              setCard({ front: 'front', back: 'back' });
+            if (data.data?.card?.uuid) {
+              cardIdRef.current = data.data?.card?.uuid;
+              setCard(data.data?.card);
+
+              setDeckStats(data.data?.stats);
+              setAllCards(data.data?.allCards);
             } else {
-              navigate(`/anki/empty`);
-              //deck为{} 代表今天或目前没有卡片了
+              if (data.data?.card === null) {
+                //deck为空 需要插入新卡
+                navigate(`/anki/create/${deckId}`);
+                setCard({ front: 'front', back: 'back' });
+              } else if (data.data?.card?.message) {
+                navigate(`/anki/empty`);
+                //deck为{} 代表今天或目前没有卡片了
+              }
             }
+            return;
           }
-          return;
+          message.error(data.message);
+          console.log(res);
         }
-        message.error(data.message);
-        console.log(res);
       })
       .catch(err => {
         setLoading(false);
