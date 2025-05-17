@@ -1,5 +1,5 @@
 import { Tooltip } from 'antd';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './style.less';
 
 // 全局日志函数
@@ -35,6 +35,9 @@ const hexToRgb = hex => {
   }
   return { r, g, b };
 };
+
+// 常量定义
+const MAX_VISIBLE_CARDS = 100; // 最大显示的卡片数量
 
 const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false }) => {
   const [now, setNow] = useState(new Date());
@@ -312,6 +315,56 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
   // Get index of current card
   const currentCardIndex = cards.findIndex(card => card.uuid === currentCardId);
 
+  // 计算要显示的卡片范围
+  const visibleCards = useMemo(() => {
+    if (cards.length <= MAX_VISIBLE_CARDS) {
+      // 如果卡片总数小于最大显示数，全部显示
+      return cards;
+    }
+
+    let startIndex = 0;
+    let endIndex = MAX_VISIBLE_CARDS;
+
+    if (currentCardIndex !== -1) {
+      // 如果存在当前卡片，计算居中显示所需的起始和结束索引
+      // 居中显示当前卡片，计算前后各需要多少卡片
+      const cardsOnEachSide = Math.floor(MAX_VISIBLE_CARDS / 2);
+
+      // 计算开始索引，确保不会越界
+      startIndex = Math.max(0, currentCardIndex - cardsOnEachSide);
+
+      // 计算结束索引（不含），确保不会越界
+      endIndex = Math.min(cards.length, startIndex + MAX_VISIBLE_CARDS);
+
+      // 如果结束索引达到了卡片总数，可能需要调整起始索引以显示更多的前面卡片
+      if (endIndex === cards.length && startIndex > 0) {
+        // 调整起始索引以充分利用MAX_VISIBLE_CARDS
+        startIndex = Math.max(0, cards.length - MAX_VISIBLE_CARDS);
+      }
+    }
+
+    if (debugMode) {
+      logInfo('计算可见卡片范围', {
+        totalCards: cards.length,
+        currentCardIndex,
+        startIndex,
+        endIndex,
+        visibleCount: endIndex - startIndex,
+      });
+    }
+
+    return cards.slice(startIndex, endIndex);
+  }, [cards, currentCardIndex, debugMode]);
+
+  // 显示卡片数量信息
+  const cardCountInfo = useMemo(() => {
+    if (cards.length <= MAX_VISIBLE_CARDS) {
+      return `显示全部${cards.length}张卡片`;
+    } else {
+      return `显示${visibleCards.length}张卡片（共${cards.length}张）`;
+    }
+  }, [cards.length, visibleCards.length]);
+
   if (!cards.length) {
     logInfo('没有卡片数据');
     return null;
@@ -320,6 +373,7 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
   if (debugMode) {
     logInfo('渲染卡片可视化组件', {
       cardsCount: cards.length,
+      visibleCardsCount: visibleCards.length,
       currentTime: now.toISOString(),
       hasCurrentCard: currentCardIndex !== -1,
     });
@@ -328,7 +382,7 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
   return (
     <div className="card-visualizer-container">
       <div className="card-grid">
-        {cards.map((card, index) => {
+        {visibleCards.map((card, index) => {
           // 使用优化后的函数计算不透明度
           const calculatedAppOpacity = calculateOpacity(
             card.dueDate,
@@ -338,7 +392,7 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
           const isDueStatus = isCardDue(card.dueDate);
           const isCurrentCard = card.uuid === currentCardId;
 
-          // 对所有卡片进行调试
+          // 对可见卡片进行调试
           debugCard(card, calculatedAppOpacity, {
             index,
             isCurrentCard,
@@ -361,6 +415,9 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
 
           const cardClass = `card-block ${isCurrentCard ? 'current-card' : ''} ${isDueStatus ? 'due-card' : ''}`;
 
+          // 获取卡片在原始数组中的索引
+          const originalIndex = cards.indexOf(card);
+
           return (
             <Tooltip
               key={card.uuid}
@@ -368,9 +425,9 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
 状态: ${card.state === 0 ? '新卡片' : card.state === 1 ? '学习中' : card.state === 2 ? '复习' : '重新学习'}
 到期时间: ${formatDate(card.dueDate)}
 ${timeRemaining}
-位置: ${index + 1}/${cards.length}
+位置: ${originalIndex + 1}/${cards.length}
 记忆强度: ${Math.round(calculatedAppOpacity * 100)}%
-${index === currentCardIndex ? '(当前卡片)' : ''}
+${originalIndex === currentCardIndex ? '(当前卡片)' : ''}
               `}
             >
               <div
@@ -384,6 +441,7 @@ ${index === currentCardIndex ? '(当前卡片)' : ''}
           );
         })}
       </div>
+      {cards.length > MAX_VISIBLE_CARDS && <div className="card-count-info">{cardCountInfo}</div>}
       <div className="legend">
         <div className="legend-item">
           <div className="legend-color" style={{ backgroundColor: getCardColor(0) }}></div>

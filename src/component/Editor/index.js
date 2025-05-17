@@ -1,24 +1,13 @@
+import { Boot, SlateEditor, SlatePath, SlateTransforms } from '@wangeditor/editor';
 import { Editor, Toolbar } from '@wangeditor/editor-for-react';
-import {
-  IDomEditor,
-  IEditorConfig,
-  IToolbarConfig,
-  Boot,
-  SlateTransforms,
-  SlateEditor,
-  SlatePath,
-} from '@wangeditor/editor';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
-import { addSpanBelowP } from '../../common/util/util';
-import { Modal } from 'antd';
 import StreamingTooltip from '../StreamingTooltip';
-import { chatChunkModule } from './Plugins/chatChunk';
 import { aiExplain } from './Plugins/aiExplainMenu';
-import aiAsk from './Plugins/aiAskMenu';
+import { chatChunkModule } from './Plugins/chatChunk';
 
 Boot.registerMenu(aiExplain);
-Boot.registerMenu(aiAsk);
+// Boot.registerMenu(aiAsk);
 Boot.registerModule(chatChunkModule);
 
 function CardEditor({
@@ -80,7 +69,7 @@ function CardEditor({
                       focus: { path: [index, childIndex], offset: titleIndex + title.length },
                     });
                     // Add background color mark
-                    editor.addMark('bgColor', 'rgb(255, 251, 143)');
+                    editor.addMark('bgColor', 'rgb(248, 178, 120)');
                     // Deselect after highlighting
                     editor.deselect();
                   }
@@ -98,7 +87,7 @@ function CardEditor({
   const toolbarConfig = {
     insertKeys: {
       index: 0,
-      keys: ['aiExplain', 'aiAsk'], // 添加 attachment 菜单
+      keys: ['aiExplain'], // 添加 attachment 菜单
     },
     excludeKeys: ['todo', 'redo', 'undo', 'fullScreen'],
   };
@@ -143,8 +132,6 @@ function CardEditor({
       text: {
         menuKeys: [
           'aiExplain',
-          'aiAsk',
-          'textToChatChunk',
           'headerSelect',
           'insertLink',
           'bulletedList',
@@ -311,7 +298,7 @@ function CardEditor({
                             focus: { path: [index, childIndex], offset: titleIndex + title.length },
                           });
                           // Add background color mark
-                          editor.addMark('bgColor', 'rgb(255, 251, 143)');
+                          editor.addMark('bgColor', 'rgb(248, 178, 120)');
                           // Deselect after highlighting
                           editor.deselect();
                         }

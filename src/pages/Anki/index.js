@@ -1,5 +1,5 @@
 import { CloseOutlined, SendOutlined } from '@ant-design/icons';
-import { Button, Input, message, Space, Spin } from 'antd';
+import { Button, Input, message, Select, Spin } from 'antd';
 import { marked } from 'marked';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -21,8 +21,10 @@ function Anki() {
   const [selectedText, setSelectedText] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const cardIdRef = useRef(null);
-  const aiChatPromptRef = useRef(null);
+  const [aiChatPrompt, setAiChatPrompt] = useState('');
+  const [chatContext, setChatContext] = useState('None');
   const aiChatMessagesRef = useRef(null);
+  const aiChatInputRef = useRef(null);
   const [chunkId, setChunkId] = useState(null);
   const [visualizerVisible, setVisualizerVisible] = useState(false);
   console.log(params, 'params');
@@ -54,12 +56,20 @@ function Anki() {
   const sendAiChatMessage = async message => {
     const pendingMessages = [...chatMessages, { role: 'user', content: message }];
     setChatMessages([...pendingMessages, { role: 'assistant', pending: true }]);
+
+    // Determine context content based on context type
+    let contextContent = '';
+    if (['Deck', 'Card'].includes(chatContext) && card) {
+      contextContent = `${card.customBack || card.back || ''}`;
+    }
+
     const response = await apiClient.post('/aichat/message', {
       cardId: cardIdRef.current,
-      chatcontext: 'None',
+      chatcontext: chatContext,
       chattype: 'Generic',
       chunkId,
       question: message,
+      contextContent: contextContent,
       model: 'deepseek-chat',
     });
 
@@ -85,6 +95,7 @@ function Anki() {
       setAiChatVisible(false);
       await updateQualityForThisCard(deckId, quality);
       getNextCard(deckId);
+      setChatContext('None');
     } catch (e) {
       console.log(e);
     }
@@ -240,7 +251,6 @@ function Anki() {
                       ? 'audio'
                       : card['frontType']
                 }
-                key={card['id']}
                 cardUUID={card['uuid']}
                 onChange={value => updateCard(value)}
                 isNew={isNew}
@@ -249,6 +259,7 @@ function Anki() {
                   setQualityForThisCardAndGetNext(params.deckId, quality);
                 }}
                 getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
+                showAIChatSidebar={aiChatVisible}
                 onFlip={action => setFlipped(action)}
               />
             </div>
@@ -355,40 +366,59 @@ function Anki() {
                   className="ai-chat-input"
                   style={{ padding: '16px', borderTop: '1px solid #f0f0f0', background: 'white' }}
                 >
-                  <Input
-                    placeholder="Ask AI anything..."
-                    onChange={e => (aiChatPromptRef.current = e.target.value)}
-                    onPressEnter={() => {
-                      if (
-                        chatMessages.length > 0 &&
-                        chatMessages[chatMessages.length - 1].pending
-                      ) {
-                        return;
-                      }
-                      if (aiChatPromptRef.current) {
-                        sendAiChatMessage(aiChatPromptRef.current);
-                        aiChatPromptRef.current = '';
-                      }
-                    }}
-                    suffix={
-                      <Space>
-                        <SendOutlined
-                          onClick={() => {
-                            if (
-                              chatMessages.length > 0 &&
-                              chatMessages[chatMessages.length - 1].pending
-                            ) {
-                              return;
-                            }
-                            if (aiChatPromptRef.current) {
-                              sendAiChatMessage(aiChatPromptRef.current);
-                              aiChatPromptRef.current = '';
-                            }
-                          }}
-                        />
-                      </Space>
-                    }
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
+                    <Input
+                      placeholder="Ask AI anything..."
+                      value={aiChatPrompt}
+                      onChange={e => setAiChatPrompt(e.target.value)}
+                      ref={aiChatInputRef}
+                      onPressEnter={() => {
+                        if (
+                          chatMessages.length > 0 &&
+                          chatMessages[chatMessages.length - 1].pending
+                        ) {
+                          return;
+                        }
+                        if (aiChatPrompt) {
+                          sendAiChatMessage(aiChatPrompt);
+                          setAiChatPrompt('');
+                        }
+                      }}
+                    />
+                    <Select
+                      value={chatContext}
+                      size="middle"
+                      dropdownMatchSelectWidth={false}
+                      onChange={value => {
+                        try {
+                          setChatContext(value);
+                        } catch (err) {
+                          console.error('Context selection error:', err);
+                        }
+                      }}
+                      options={[
+                        { value: 'Deck', label: 'Deck' },
+                        { value: 'Card', label: 'Card' },
+                        { value: 'None', label: 'None' },
+                      ]}
+                    />
+                    <Button
+                      type="primary"
+                      icon={<SendOutlined />}
+                      onClick={() => {
+                        if (
+                          chatMessages.length > 0 &&
+                          chatMessages[chatMessages.length - 1].pending
+                        ) {
+                          return;
+                        }
+                        if (aiChatPrompt) {
+                          sendAiChatMessage(aiChatPrompt);
+                          setAiChatPrompt('');
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
