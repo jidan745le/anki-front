@@ -69,7 +69,7 @@ function CardEditor({
                       focus: { path: [index, childIndex], offset: titleIndex + title.length },
                     });
                     // Add background color mark
-                    editor.addMark('bgColor', 'rgb(248, 178, 120)');
+                    editor.addMark('bgColor', 'rgb(120, 208, 248)');
                     // Deselect after highlighting
                     editor.deselect();
                   }
@@ -298,7 +298,7 @@ function CardEditor({
                             focus: { path: [index, childIndex], offset: titleIndex + title.length },
                           });
                           // Add background color mark
-                          editor.addMark('bgColor', 'rgb(248, 178, 120)');
+                          editor.addMark('bgColor', 'rgb(120, 208, 248)');
                           // Deselect after highlighting
                           editor.deselect();
                         }

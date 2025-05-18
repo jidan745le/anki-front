@@ -129,7 +129,9 @@ function AnkiCard({
   }, [flipped, onFlip, onNext]);
 
   useEffect(() => {
+    console.log(frontType, 'frontType', cardUUID, front);
     if (frontType === 'audio' && audioRef.current) {
+      audioRef.current.load();
       audioRef.current.play().catch(e => {
         console.log('自动播放失败:', e);
       });
@@ -154,8 +156,7 @@ function AnkiCard({
             }}
           >
             {frontType === 'audio' ? (
-              <audio ref={audioRef} controls>
-                <source src={`${front}`} type="audio/mpeg" />
+              <audio ref={audioRef} controls src={`${front}`} type="audio/mpeg">
                 Your browser does not support the audio element.
               </audio>
             ) : (

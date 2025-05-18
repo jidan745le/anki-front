@@ -149,11 +149,11 @@ module.exports = {
         proxy: [
             {
                 context: ['/api'],
-                target: 'http://127.0.0.1:3000',
-                // target: 'https://www.myanki.cc',
-                pathRewrite: (path) => {
-                    return path.replace('/api', '')
-                },
+                // target: 'http://127.0.0.1:3000',
+                target: 'https://www.myanki.cc',
+                // pathRewrite: (path) => {
+                //     return path.replace('/api', '')
+                // },
 
                 changeOrigin: true,
                 secure: false,  // 禁用 SSL 证书验证
@@ -166,8 +166,8 @@ module.exports = {
             },
             {
                 context: ['/socket.io/'],
-                target: 'http://127.0.0.1:3000',
-                // target: 'https://www.myanki.cc',
+                // target: 'http://127.0.0.1:3000',
+                target: 'https://www.myanki.cc',
                 secure: false,  // 禁用 SSL 证书验证
                 changeOrigin: true,
                 ws: true
