@@ -56,8 +56,15 @@ class WebSocketClient {
       console.log('Disconnected from socket server');
     });
 
+    this.socket.on('auth_success', data => {
+      console.log('Authentication successful', data);
+      this.userId = data.userId;
+      this.client.emit('auth_success', data);
+    });
+
     this.socket.on('error', async error => {
-      // this.client.emit('error', error);
+      this.client.emit('error', { error: error });
+
       console.error('Socket error:', error, 'error.type', error.type);
       if (error.type === 'unauthorized') {
         console.log('unauthorized 尝试刷新 token');

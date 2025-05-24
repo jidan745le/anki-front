@@ -12,32 +12,44 @@ const useSocket = () => {
     console.log('useSocket.js useEffect connect 2');
 
     // Set socket instance and update connection status
-    if (wsClient.socket) {
+    if (wsClient.client) {
       console.log('useSocket.js useEffect connect 3');
-      if (!socket) {
-        console.log('useSocket.js useEffect connect 4 !socket');
+
+      // Define handler functions
+      const handleAuthSuccess = data => {
+        console.log('Authentication successful', data);
         setSocket(wsClient.socket);
-      }
-
-      // Listen for connection events
-      wsClient.socket.on('connect', () => {
-        console.log('useSocket.js connect');
         setIsConnected(true);
-      });
+      };
 
-      wsClient.socket.on('disconnect', () => {
-        console.log('useSocket.js disconnect');
+      const handleError = error => {
+        console.log('error', error);
         setIsConnected(false);
-      });
+      };
+
+      const handleDisconnect = () => {
+        console.log('disconnect');
+        setIsConnected(false);
+      };
+
+      // Add event listeners
+      wsClient.client.on('auth_success', handleAuthSuccess);
+      wsClient.client.on('error', handleError);
+      wsClient.client.on('disconnect', handleDisconnect);
+
+      // Cleanup on unmount
+      return () => {
+        if (wsClient.socket) {
+          wsClient.socket.off('connect');
+          wsClient.socket.off('disconnect');
+          wsClient.client.off('auth_success', handleAuthSuccess);
+          wsClient.client.off('error', handleError);
+          wsClient.client.off('disconnect', handleDisconnect);
+        }
+      };
     }
 
-    // Cleanup on unmount
-    return () => {
-      if (wsClient.socket) {
-        wsClient.socket.off('connect');
-        wsClient.socket.off('disconnect');
-      }
-    };
+    return () => {}; // Return empty cleanup if wsClient.client doesn't exist
   }, []);
 
   // Method to emit events
