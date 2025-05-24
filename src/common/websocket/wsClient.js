@@ -80,7 +80,9 @@ class WebSocketClient {
   }
 
   disconnect() {
+    console.log('disconnect fn', this.socket, 'socket');
     if (this.socket) {
+      console.log('disconnect fn 2', this.socket, 'socket');
       this.socket.disconnect();
       this.socket = null;
     }
