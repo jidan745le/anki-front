@@ -22,15 +22,17 @@ class WebSocketClient {
 
   async connect() {
     const token = localStorage.getItem('token');
-    console.log(token, this.socket, 'token');
+    console.log('connect', token, this.socket, 'token');
 
     if (!token || this.socket) {
+      console.log('connect !token || this.socket', token, this.socket, 'token');
       if (!token && !['/login', '/signup'].includes(window.location.pathname)) {
         localStorage.removeItem('token');
         window.location.href = '/login';
       }
       return;
     }
+    console.log('start connect', token, this.socket, 'token');
 
     this.socket = io(this.url, {
       auth: {
@@ -39,6 +41,7 @@ class WebSocketClient {
       reconnection: false, // 禁用自动重连，我们自己处理
       timeout: 5000,
     });
+    console.log('start connect 2', token, this.socket, 'token');
 
     this.socket.on('connect', () => {
       console.log('Connected to socket server');
@@ -50,8 +53,9 @@ class WebSocketClient {
     });
 
     this.socket.on('error', async error => {
-      console.error('Socket error:', error);
+      console.error('Socket error:', error, 'error.type', error.type);
       if (error.type === 'unauthorized') {
+        console.log('unauthorized 尝试刷新 token');
         // 尝试刷新 token
         const refreshSuccess = await this.refreshToken();
 

@@ -88,11 +88,11 @@ const optimaizationConfig = {
                         ecma: 5, // 指定压缩时的 ECMAScript 版本
                         comparisons: false,
                         inline: 2,
-                        drop_console: process.env.NODE_ENV === 'production', // 生产环境下移除 console
-                        drop_debugger: true, // 移除 debugger
-                        pure_funcs: process.env.NODE_ENV === 'production'
-                            ? ['console.log', 'console.info', 'console.debug']
-                            : [], // 移除指定函数
+                        // drop_console: process.env.NODE_ENV === 'production', // 生产环境下移除 console
+                        // drop_debugger: true, // 移除 debugger
+                        // pure_funcs: process.env.NODE_ENV === 'production'
+                        //     ? ['console.log', 'console.info', 'console.debug']
+                        //     : [], // 移除指定函数
                         pure_getters: true, // 优化 getter
                         unsafe_math: true, // 优化数学表达式
                         unsafe_methods: true, // 优化方法调用
