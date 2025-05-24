@@ -22,8 +22,8 @@ const useSocket = () => {
         setIsConnected(true);
       };
 
-      const handleError = error => {
-        console.log('error', error);
+      const handleError = () => {
+        console.log('error');
         setIsConnected(false);
       };
 
@@ -34,7 +34,7 @@ const useSocket = () => {
 
       // Add event listeners
       wsClient.client.on('auth_success', handleAuthSuccess);
-      wsClient.client.on('error', handleError);
+      wsClient.client.on('errorMessage', handleError);
       wsClient.client.on('disconnect', handleDisconnect);
 
       // Cleanup on unmount
@@ -43,7 +43,7 @@ const useSocket = () => {
           wsClient.socket.off('connect');
           wsClient.socket.off('disconnect');
           wsClient.client.off('auth_success', handleAuthSuccess);
-          wsClient.client.off('error', handleError);
+          wsClient.client.off('errorMessage', handleError);
           wsClient.client.off('disconnect', handleDisconnect);
         }
       };
