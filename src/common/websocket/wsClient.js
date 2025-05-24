@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { EventEmitter } from 'events';
 import { io } from 'socket.io-client';
 
 class WebSocketClient {
@@ -7,6 +8,7 @@ class WebSocketClient {
     this.url = url;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 3;
+    this.client = new EventEmitter();
   }
 
   async refreshToken() {
@@ -44,22 +46,25 @@ class WebSocketClient {
     console.log('start connect 2', token, this.socket, 'token');
 
     this.socket.on('connect', () => {
+      this.client.emit('connect');
       console.log('Connected to socket server');
       this.reconnectAttempts = 0; // 重置重连次数
     });
 
     this.socket.on('disconnect', () => {
+      this.client.emit('disconnect');
       console.log('Disconnected from socket server');
     });
 
     this.socket.on('error', async error => {
+      this.client.emit('error', error);
       console.error('Socket error:', error, 'error.type', error.type);
       if (error.type === 'unauthorized') {
         console.log('unauthorized 尝试刷新 token');
         // 尝试刷新 token
         const refreshSuccess = await this.refreshToken();
 
-        if (refreshSuccess && this.reconnectAttempts < this.maxReconnectAttempts) {
+        if (refreshSuccess.status === 200 && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           // 断开当前连接
           this.disconnect();

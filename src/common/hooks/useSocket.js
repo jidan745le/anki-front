@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import wsClient from '../websocket/wsClient';
 
 const useSocket = () => {
@@ -7,20 +7,26 @@ const useSocket = () => {
 
   useEffect(() => {
     // Connect socket when component mounts
+    console.log('useSocket.js useEffect connect 1');
     wsClient.connect();
+    console.log('useSocket.js useEffect connect 2');
 
     // Set socket instance and update connection status
     if (wsClient.socket) {
+      console.log('useSocket.js useEffect connect 3');
       if (!socket) {
+        console.log('useSocket.js useEffect connect 4 !socket');
         setSocket(wsClient.socket);
       }
 
       // Listen for connection events
       wsClient.socket.on('connect', () => {
+        console.log('useSocket.js connect');
         setIsConnected(true);
       });
 
       wsClient.socket.on('disconnect', () => {
+        console.log('useSocket.js disconnect');
         setIsConnected(false);
       });
     }
