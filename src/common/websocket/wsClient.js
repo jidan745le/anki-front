@@ -63,7 +63,7 @@ class WebSocketClient {
     });
 
     this.socket.on('error', async error => {
-      this.client.emit('error', { error: error });
+      this.client.emit('error', { error: error?.message });
 
       console.error('Socket error:', error, 'error.type', error.type);
       if (error.type === 'unauthorized') {
