@@ -1,6 +1,21 @@
-import { SlateEditor, SlateTransforms, SlateElement } from '@wangeditor/editor';
+import { SlateEditor, SlateElement, SlateTransforms } from '@wangeditor/editor';
 import { omit } from 'lodash';
 import apiClient from 'src/common/http/apiClient';
+
+const initChunkSession = async requestData => {
+  try {
+    const response = await apiClient.post('/aichat/initSession', requestData);
+    console.log(response, 'response');
+
+    if (response.data.success) {
+      return response.data?.data;
+    } else {
+    }
+  } catch (err) {
+    console.error('转换文本到对话块时出错:', err);
+  } finally {
+  }
+};
 
 class AiExplain {
   constructor() {
@@ -56,44 +71,31 @@ class AiExplain {
     const properties = omit(textNode, ['children', 'text']);
 
     try {
+      const chunkId = 'chunk_' + Date.now();
+
       const promptData = {
         localContextHtml: editor.getHtml(),
         selectionText: editor.getSelectionText(),
       };
-      const fetchData = async () => {
-        try {
-          const requestData = {
-            chunkId,
-            chatcontext: contextType === 'deck' ? 'Deck' : 'Card',
-            contextContent: promptData.localContextHtml,
-            selectionText: promptData.selectionText,
-            chattype: 'Explain',
-            model: 'deepseek-chat',
-            cardId: editor.cardId,
-          };
-
-          const response = await apiClient.post('/aichat/message', requestData);
-          console.log(response, 'response');
-
-          if (response.data.success) {
-            const {
-              aiMessage: { content },
-            } = response.data.data;
-            return response.data?.data;
-          } else {
-          }
-        } catch (err) {
-          console.error('转换文本到对话块时出错:', err);
-        } finally {
-        }
+      const requestData = {
+        chunkId,
+        chatcontext: contextType === 'deck' ? 'Deck' : 'Card',
+        contextContent: promptData.localContextHtml,
+        selectionText: promptData.selectionText,
+        chattype: 'Explain',
+        model: 'deepseek-chat',
+        cardId: editor.cardId,
       };
-      const chunkId = 'chunk_' + Date.now();
+
       SlateTransforms.wrapNodes(
         editor,
         { type: 'ailoadingchunk', chunkId, children: [] },
         { split: true }
       );
-      await fetchData();
+
+      const data = await initChunkSession(requestData);
+      const sessionId = data.sessionId;
+
       SlateTransforms.setNodes(
         editor,
         { type: 'chatchunk' },
@@ -104,7 +106,8 @@ class AiExplain {
             SlateElement.isElement(n) && n.type === 'ailoadingchunk' && n.chunkId === chunkId,
         }
       );
-      editor.getChatMessageAndShowSidebar && editor.getChatMessageAndShowSidebar(chunkId);
+      // editor.getChatMessageAndShowSidebar && editor.getChatMessageAndShowSidebar(chunkId);
+      editor.onInitChunkChatSession && editor.onInitChunkChatSession(requestData, sessionId);
     } catch (error) {
       console.error('转换文本到对话块时出错:', error);
     }

@@ -18,6 +18,7 @@ function CardEditor({
   onChange,
   showAIChatSidebar,
   getChatMessageAndShowSidebar,
+  onInitChunkChatSession,
   config = {},
 }) {
   const [editor, setEditor] = useState(null); // 存储 editor 实例
@@ -155,6 +156,7 @@ function CardEditor({
       editor.cardId = cardUUID;
       editor.showAIChatSidebar = showAIChatSidebar;
       editor.getChatMessageAndShowSidebar = getChatMessageAndShowSidebar;
+      editor.onInitChunkChatSession = onInitChunkChatSession;
       console.log(
         editor.getConfig(),
         editor.getConfig().hoverbarKeys,

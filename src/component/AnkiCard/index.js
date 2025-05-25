@@ -17,6 +17,7 @@ function AnkiCard({
   cardUUID,
   showAIChatSidebar,
   getChatMessageAndShowSidebar,
+  onInitChunkChatSession,
 }) {
   const audioRef = React.useRef(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -186,6 +187,7 @@ function AnkiCard({
               // PC端显示编辑器
               <MyEditor
                 getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
+                onInitChunkChatSession={onInitChunkChatSession}
                 showAIChatSidebar={showAIChatSidebar}
                 cardUUID={cardUUID}
                 config={config}

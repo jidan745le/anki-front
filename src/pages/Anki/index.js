@@ -4,6 +4,7 @@ import { marked } from 'marked';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import apiClient from '../../common/http/apiClient';
+import { generateSimplifiedPromptDisplay } from '../../common/util/ai-util';
 import AnkiBar from '../../component/AnkiBar';
 import AnkiCard from '../../component/AnkiCard';
 import './style.less';
@@ -27,6 +28,10 @@ function Anki() {
   const aiChatInputRef = useRef(null);
   const [chunkId, setChunkId] = useState(null);
   const [visualizerVisible, setVisualizerVisible] = useState(false);
+  const eventSourceRef = useRef(null);
+  const pendingEventSourcesRef = useRef(new Map());
+  const [useStreamingApi, setUseStreamingApi] = useState(true);
+  const [chatStatus, setChatStatus] = useState([]);
   console.log(params, 'params');
 
   useEffect(() => {
@@ -39,6 +44,20 @@ function Anki() {
     // }
   }, [aiChatVisible]);
 
+  // Cleanup EventSource when component unmounts
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      // Cleanup all pending EventSource connections
+      pendingEventSourcesRef.current.forEach((eventSource, sessionId) => {
+        eventSource.close();
+      });
+      pendingEventSourcesRef.current.clear();
+    };
+  }, []);
+
   const getAIChat = (chatId, chunkId) => {
     let paramsStr = '';
     if (chunkId) {
@@ -47,23 +66,146 @@ function Anki() {
     apiClient.get(`/aichat/${chatId}/messages${paramsStr}`).then(res => {
       const data = res.data.data;
       setChatMessages(
-        data.messages.map(item => ({ role: item.role, content: item.content })).reverse()
+        data.messages
+          .map(item => ({
+            role: item.role,
+            content: item.content,
+            sessionId: item.sessionId,
+            pending: !!item.sessionId,
+          }))
+          .reverse()
+      );
+      setChatStatus(
+        data.messages
+          .map(item => ({ role: item.role, content: item.content, sessionId: item.sessionId }))
+          .reverse()
       );
       // console.log(res)
     });
   };
 
-  const sendAiChatMessage = async message => {
+  useEffect(() => {
+    if (chatStatus.length > 0) {
+      const pendingMessages = chatStatus.filter(
+        item => !!item.sessionId && item.role === 'assistant'
+      );
+
+      // Process each pending message with sessionId
+      pendingMessages.forEach((pendingMessage, index) => {
+        const sessionId = pendingMessage.sessionId;
+
+        // Skip if we're already processing this session
+        if (pendingEventSourcesRef.current.has(sessionId)) {
+          return;
+        }
+
+        // Create EventSource for this session's status
+        const token = localStorage.getItem('token');
+        const statusEventSource = new EventSource(
+          `${apiClient.defaults.baseURL}/aichat/status/${sessionId}?token=${token}`
+        );
+
+        // Store the EventSource reference
+        pendingEventSourcesRef.current.set(sessionId, statusEventSource);
+
+        let accumulatedContent = '';
+
+        statusEventSource.onmessage = event => {
+          const eventData = event.data;
+          const jsonData = JSON.parse(eventData);
+          if (jsonData.event === 'existing_content') {
+            // Handle existing content
+            accumulatedContent = jsonData.data;
+
+            updateMessageContent(sessionId, accumulatedContent, true);
+          } else if (jsonData.event === 'message') {
+            // Handle new streaming content
+            accumulatedContent += jsonData.data;
+            updateMessageContent(sessionId, accumulatedContent, true);
+
+            // Scroll to bottom as content is streamed
+            // if (aiChatMessagesRef.current) {
+            //   aiChatMessagesRef.current.scrollTo({
+            //     top: aiChatMessagesRef.current.scrollHeight,
+            //     behavior: 'smooth',
+            //   });
+            // }
+          }
+        };
+
+        statusEventSource.addEventListener('complete', event => {
+          try {
+            const completeData = JSON.parse(event.data);
+
+            // Update message with complete content and remove pending state
+            updateMessageContent(sessionId, completeData.content, false);
+
+            // Close and cleanup this EventSource
+            statusEventSource.close();
+            pendingEventSourcesRef.current.delete(sessionId);
+          } catch (error) {
+            console.error('Error handling complete event for session:', sessionId, error);
+          }
+        });
+
+        statusEventSource.onerror = error => {
+          console.error('EventSource error for session:', sessionId, error);
+
+          // Update the message to show error and remove pending state
+          updateMessageContent(
+            sessionId,
+            accumulatedContent || 'Error: Failed to receive response',
+            false,
+            true
+          );
+
+          // Close and cleanup this EventSource
+          statusEventSource.close();
+          pendingEventSourcesRef.current.delete(sessionId);
+        };
+      });
+    }
+  }, [chatStatus]);
+
+  // Helper function to update message content by sessionId
+  const updateMessageContent = (sessionId, content, isPending, isError = false) => {
+    setChatMessages(prevMessages => {
+      const updatedMessages = [...prevMessages];
+      const messageIndex = updatedMessages.findIndex(
+        msg => msg.sessionId === sessionId && msg.role === 'assistant'
+      );
+
+      if (messageIndex >= 0) {
+        updatedMessages[messageIndex] = {
+          ...updatedMessages[messageIndex],
+          content: content,
+          pending: isPending,
+          error: isError,
+        };
+      }
+
+      return updatedMessages;
+    });
+  };
+
+  const sendAiChatMessage = async (message, useStreaming = useStreamingApi) => {
+    // Close any existing EventSource connection
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
     const pendingMessages = [...chatMessages, { role: 'user', content: message }];
-    setChatMessages([...pendingMessages, { role: 'assistant', pending: true }]);
+    setChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
 
     // Determine context content based on context type
     let contextContent = '';
     if (['Deck', 'Card'].includes(chatContext) && card) {
-      contextContent = `${card.customBack || card.back || ''}`;
+      contextContent = `${card['customBack'] || card['back'] || ''}`;
     }
 
-    const response = await apiClient.post('/aichat/message', {
+    // Common request parameters
+    const requestParams = {
       cardId: cardIdRef.current,
       chatcontext: chatContext,
       chattype: 'Generic',
@@ -71,16 +213,159 @@ function Anki() {
       question: message,
       contextContent: contextContent,
       model: 'deepseek-chat',
-    });
+    };
 
-    if (response.data.success) {
-      const aiData = response.data.data;
-      setChatMessages([...pendingMessages, aiData.aiMessage]);
+    if (useStreaming) {
+      // Use new streaming API
+      try {
+        // Step 1: Initialize chat session
+        const initResponse = await apiClient.post('/aichat/initSession', requestParams);
+
+        if (!initResponse.data?.data?.sessionId) {
+          throw new Error('Failed to initialize chat session');
+        }
+
+        const sessionId = initResponse.data.data.sessionId;
+
+        // Step 2: Set up SSE connection
+        const token = localStorage.getItem('token');
+        const eventSource = new EventSource(
+          `${apiClient.defaults.baseURL}/aichat/stream/${sessionId}?token=${token}`
+        );
+        eventSourceRef.current = eventSource;
+
+        let streamedContent = '';
+
+        eventSource.onmessage = event => {
+          const eventData = event.data;
+          const jsonData = JSON.parse(eventData);
+          if (jsonData.event === 'message') {
+            streamedContent += jsonData.data;
+            // Update the assistant message with the streamed content
+            setChatMessages(prevMessages => {
+              const updatedMessages = [...prevMessages];
+              const lastMessageIndex = updatedMessages.length - 1;
+
+              // Update the last message (which should be the assistant's)
+              if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+                updatedMessages[lastMessageIndex] = {
+                  ...updatedMessages[lastMessageIndex],
+                  content: streamedContent,
+                  pending: true,
+                };
+              }
+
+              return updatedMessages;
+            });
+
+            // Scroll to bottom as content is streamed
+            if (aiChatMessagesRef.current) {
+              aiChatMessagesRef.current.scrollTo({
+                top: aiChatMessagesRef.current.scrollHeight,
+                behavior: 'smooth',
+              });
+            }
+          }
+        };
+
+        eventSource.addEventListener('complete', event => {
+          try {
+            const completeData = JSON.parse(event.data);
+
+            // Update message with complete content and remove pending state
+            setChatMessages(prevMessages => {
+              const updatedMessages = [...prevMessages];
+              const lastMessageIndex = updatedMessages.length - 1;
+
+              if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+                updatedMessages[lastMessageIndex] = {
+                  ...updatedMessages[lastMessageIndex],
+                  content: completeData.content,
+                  pending: false,
+                };
+              }
+
+              return updatedMessages;
+            });
+
+            // Close the event source
+            eventSource.close();
+            eventSourceRef.current = null;
+          } catch (error) {
+            console.error('Error handling complete event:', error);
+          }
+        });
+
+        eventSource.onerror = error => {
+          console.error('EventSource error:', error);
+
+          // Update the assistant message to show error
+          setChatMessages(prevMessages => {
+            const updatedMessages = [...prevMessages];
+            const lastMessageIndex = updatedMessages.length - 1;
+
+            if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+              updatedMessages[lastMessageIndex] = {
+                ...updatedMessages[lastMessageIndex],
+                content: streamedContent || 'Error: Failed to receive response',
+                pending: false,
+                error: true,
+              };
+            }
+
+            return updatedMessages;
+          });
+
+          // Close the event source
+          eventSource.close();
+          eventSourceRef.current = null;
+        };
+      } catch (error) {
+        console.error('Error initiating chat session:', error);
+        message.error(error.message || 'Failed to send message');
+
+        // Update the assistant message to show error
+        setChatMessages(prevMessages => {
+          const updatedMessages = [...prevMessages];
+          const lastMessageIndex = updatedMessages.length - 1;
+
+          if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+            updatedMessages[lastMessageIndex] = {
+              ...updatedMessages[lastMessageIndex],
+              content: 'Error: Failed to connect to AI service',
+              pending: false,
+              error: true,
+            };
+          }
+
+          return updatedMessages;
+        });
+      }
     } else {
-      message.error(response.data.message || 'Request failed');
+      // Use original non-streaming implementation
+      try {
+        const response = await apiClient.post('/aichat/message', requestParams);
+
+        if (response.data.success) {
+          const aiData = response.data.data;
+          setChatMessages([...pendingMessages, aiData.aiMessage]);
+        } else {
+          message.error(response.data.message || 'Request failed');
+
+          // Remove the pending message
+          setChatMessages(pendingMessages);
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+        message.error(error.message || 'Failed to send message');
+
+        // Remove the pending message
+        setChatMessages(pendingMessages);
+      }
     }
   };
 
+  // Enable automatic scrolling to bottom when messages change
   // useEffect(() => {
   //   if (aiChatMessagesRef.current) {
   //     aiChatMessagesRef.current.scrollTo({
@@ -92,6 +377,18 @@ function Anki() {
 
   const setQualityForThisCardAndGetNext = async (deckId, quality) => {
     try {
+      // Close any existing EventSource connection when navigating away
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+
+      // Close all pending EventSource connections
+      pendingEventSourcesRef.current.forEach((eventSource, sessionId) => {
+        eventSource.close();
+      });
+      pendingEventSourcesRef.current.clear();
+
       setAiChatVisible(false);
       await updateQualityForThisCard(deckId, quality);
       getNextCard(deckId);
@@ -104,7 +401,7 @@ function Anki() {
   const updateQualityForThisCard = async (deckId, quality) => {
     setLoading(true);
     return await apiClient
-      .post(`/anki/updateCardWithFSRS`, { userCardId: card.uuid, reviewQuality: quality })
+      .post(`/anki/updateCardWithFSRS`, { userCardId: card['uuid'], reviewQuality: quality })
       .then(res => {
         setLoading(false);
         const data = res.data;
@@ -159,9 +456,9 @@ function Anki() {
   };
 
   const updateCard = value => {
-    console.log({ id: card.id, back: value });
+    console.log({ id: card['id'], back: value });
     apiClient
-      .post(`/anki/updateCard`, { id: card.uuid, custom_back: value })
+      .post(`/anki/updateCard`, { id: card['uuid'], custom_back: value })
       .then(res => {
         // const data = res.data;
         // if (data.success) {
@@ -179,8 +476,133 @@ function Anki() {
     if (!aiChatVisible) {
       setAiChatVisible(true);
     }
+    // Close any existing stream when changing chat context
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    // Close all pending EventSource connections
+    pendingEventSourcesRef.current.forEach((eventSource, sessionId) => {
+      eventSource.close();
+    });
+    pendingEventSourcesRef.current.clear();
+
     setChunkId(chunkId);
     getAIChat(cardIdRef.current, chunkId);
+  };
+
+  const onInitChunkChatSession = async (promptConfig, sessionId) => {
+    const pendingMessages = [
+      { role: 'user', content: generateSimplifiedPromptDisplay(promptConfig) },
+    ];
+    if (!aiChatVisible) {
+      setAiChatVisible(true);
+    }
+
+    // Close any existing stream when changing chat context
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    // Close all pending EventSource connections
+    pendingEventSourcesRef.current.forEach((eventSource, sessionId) => {
+      eventSource.close();
+    });
+    pendingEventSourcesRef.current.clear();
+
+    setChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
+
+    const eventSource = new EventSource(`${apiClient.defaults.baseURL}/aichat/stream/${sessionId}`);
+    eventSourceRef.current = eventSource;
+
+    let streamedContent = '';
+    eventSource.onmessage = event => {
+      const eventData = event.data;
+      const jsonData = JSON.parse(eventData);
+      if (jsonData.event === 'message') {
+        streamedContent += jsonData.data;
+        // Update the assistant message with the streamed content
+        // console.log(streamedContent, 'streamedContent');
+        setChatMessages(prevMessages => {
+          const updatedMessages = [...prevMessages];
+          const lastMessageIndex = updatedMessages.length - 1;
+
+          // Update the last message (which should be the assistant's)
+          if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+            updatedMessages[lastMessageIndex] = {
+              ...updatedMessages[lastMessageIndex],
+              content: streamedContent,
+              pending: true,
+            };
+          }
+
+          return updatedMessages;
+        });
+
+        // Scroll to bottom as content is streamed
+        if (aiChatMessagesRef.current) {
+          aiChatMessagesRef.current.scrollTo({
+            top: aiChatMessagesRef.current.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
+      }
+    };
+
+    eventSource.addEventListener('complete', event => {
+      try {
+        const completeData = JSON.parse(event.data);
+
+        // Update message with complete content and remove pending state
+        setChatMessages(prevMessages => {
+          const updatedMessages = [...prevMessages];
+          const lastMessageIndex = updatedMessages.length - 1;
+
+          if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+            updatedMessages[lastMessageIndex] = {
+              ...updatedMessages[lastMessageIndex],
+              content: completeData.content,
+              pending: false,
+            };
+          }
+
+          return updatedMessages;
+        });
+
+        // Close the event source
+        eventSource.close();
+        eventSourceRef.current = null;
+      } catch (error) {
+        console.error('Error handling complete event:', error);
+      }
+    });
+
+    eventSource.onerror = error => {
+      console.error('EventSource error:', error);
+
+      // Update the assistant message to show error
+      setChatMessages(prevMessages => {
+        const updatedMessages = [...prevMessages];
+        const lastMessageIndex = updatedMessages.length - 1;
+
+        if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+          updatedMessages[lastMessageIndex] = {
+            ...updatedMessages[lastMessageIndex],
+            content: streamedContent || 'Error: Failed to receive response',
+            pending: false,
+            error: true,
+          };
+        }
+
+        return updatedMessages;
+      });
+
+      // Close the event source
+      eventSource.close();
+      eventSourceRef.current = null;
+    };
   };
 
   // 将 Markdown 转换为安全的 HTML
@@ -204,9 +626,9 @@ function Anki() {
     <Spin spinning={loading}>
       <div style={{ marginBottom: '0px' }}>
         <AnkiBar
-          autoMarkTitleEnabled={config.autoMarkTitle}
+          autoMarkTitleEnabled={config['autoMarkTitle']}
           onToggleAutoMarkTitle={() =>
-            setConfig({ ...config, autoMarkTitle: !config.autoMarkTitle })
+            setConfig({ ...config, autoMarkTitle: !config['autoMarkTitle'] })
           }
           visualizerVisible={visualizerVisible}
           onToggleVisualizer={() => setVisualizerVisible(!visualizerVisible)}
@@ -215,13 +637,25 @@ function Anki() {
           onToggleAIChat={() => {
             setChunkId(undefined);
             setAiChatVisible(!aiChatVisible);
+            // Close any existing stream when toggling chat visibility
+            if (eventSourceRef.current) {
+              eventSourceRef.current.close();
+              eventSourceRef.current = null;
+            }
+
+            // Close all pending EventSource connections
+            pendingEventSourcesRef.current.forEach((eventSource, sessionId) => {
+              eventSource.close();
+            });
+            pendingEventSourcesRef.current.clear();
+
             if (!aiChatVisible && cardIdRef.current) {
               getAIChat(cardIdRef.current);
             }
           }}
           allCards={allCards}
-          currentCardId={card?.uuid}
-          currentCardState={card?.state}
+          currentCardId={card?.['uuid']}
+          currentCardState={card?.['state']}
           deckStats={deckStats}
         />
 
@@ -258,6 +692,7 @@ function Anki() {
                 onNext={quality => {
                   setQualityForThisCardAndGetNext(params.deckId, quality);
                 }}
+                onInitChunkChatSession={onInitChunkChatSession}
                 getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
                 showAIChatSidebar={aiChatVisible}
                 onFlip={action => setFlipped(action)}
@@ -288,17 +723,26 @@ function Anki() {
                   alignItems: 'center',
                 }}
               >
-                <span
-                  className="alpha-tag"
-                  style={{
-                    fontSize: '12px',
-                    padding: '2px 6px',
-                    backgroundColor: '#f5f5f5',
-                    borderRadius: '4px',
-                  }}
-                >
-                  AI Chat
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    className="alpha-tag"
+                    style={{
+                      fontSize: '12px',
+                      padding: '2px 6px',
+                      backgroundColor: '#f5f5f5',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    AI Chat
+                  </span>
+                  <Button
+                    type="text"
+                    size="small"
+                    onClick={() => setUseStreamingApi(!useStreamingApi)}
+                  >
+                    {useStreamingApi ? 'Streaming: On' : 'Streaming: Off'}
+                  </Button>
+                </div>
                 <div>
                   <Button type="link" onClick={() => getAIChat(cardIdRef.current)}>
                     View history
@@ -353,7 +797,9 @@ function Anki() {
                         }}
                       >
                         {message.pending
-                          ? 'thinking...'
+                          ? message.content
+                            ? renderContent(message.content)
+                            : 'thinking...'
                           : message.role === 'user'
                             ? message.content
                             : renderContent(message.content)}
