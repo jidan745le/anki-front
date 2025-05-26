@@ -390,6 +390,7 @@ function Anki() {
       pendingEventSourcesRef.current.clear();
 
       setAiChatVisible(false);
+      setChunkId(undefined);
       await updateQualityForThisCard(deckId, quality);
       getNextCard(deckId);
       setChatContext('None');
@@ -499,6 +500,7 @@ function Anki() {
     if (!aiChatVisible) {
       setAiChatVisible(true);
     }
+    setChunkId(promptConfig.chunkId);
 
     // Close any existing stream when changing chat context
     if (eventSourceRef.current) {
@@ -750,7 +752,10 @@ function Anki() {
                   <Button
                     type="text"
                     icon={<CloseOutlined />}
-                    onClick={() => setAiChatVisible(false)}
+                    onClick={() => {
+                      setAiChatVisible(false);
+                      setChunkId(undefined);
+                    }}
                   />
                 </div>
               </div>
