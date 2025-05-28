@@ -23,7 +23,7 @@ function Anki() {
   const [chatMessages, setChatMessages] = useState([]);
   const cardIdRef = useRef(null);
   const [aiChatPrompt, setAiChatPrompt] = useState('');
-  const [chatContext, setChatContext] = useState('None');
+  const [chatContext, setChatContext] = useState('Card');
   const aiChatMessagesRef = useRef(null);
   const aiChatInputRef = useRef(null);
   const [chunkId, setChunkId] = useState(null);
@@ -32,6 +32,7 @@ function Anki() {
   const pendingEventSourcesRef = useRef(new Map());
   const [useStreamingApi, setUseStreamingApi] = useState(true);
   const [chatStatus, setChatStatus] = useState([]);
+  const [aiChatLoading, setAiChatLoading] = useState(false);
   console.log(params, 'params');
 
   useEffect(() => {
@@ -59,29 +60,37 @@ function Anki() {
   }, []);
 
   const getAIChat = (chatId, chunkId) => {
+    setAiChatLoading(true);
     let paramsStr = '';
     if (chunkId) {
       paramsStr = `?chunkId=${chunkId}`;
     }
-    apiClient.get(`/aichat/${chatId}/messages${paramsStr}`).then(res => {
-      const data = res.data.data;
-      setChatMessages(
-        data.messages
-          .map(item => ({
-            role: item.role,
-            content: item.content,
-            sessionId: item.sessionId,
-            pending: !!item.sessionId,
-          }))
-          .reverse()
-      );
-      setChatStatus(
-        data.messages
-          .map(item => ({ role: item.role, content: item.content, sessionId: item.sessionId }))
-          .reverse()
-      );
-      // console.log(res)
-    });
+    apiClient
+      .get(`/aichat/${chatId}/messages${paramsStr}`)
+      .then(res => {
+        const data = res.data.data;
+        setChatMessages(
+          data.messages
+            .map(item => ({
+              role: item.role,
+              content: item.content,
+              sessionId: item.sessionId,
+              pending: !!item.sessionId,
+            }))
+            .reverse()
+        );
+        setChatStatus(
+          data.messages
+            .map(item => ({ role: item.role, content: item.content, sessionId: item.sessionId }))
+            .reverse()
+        );
+        setAiChatLoading(false);
+        // console.log(res)
+      })
+      .catch(err => {
+        setAiChatLoading(false);
+        console.error('Error loading AI chat:', err);
+      });
   };
 
   useEffect(() => {
@@ -391,9 +400,10 @@ function Anki() {
 
       setAiChatVisible(false);
       setChunkId(undefined);
+      setAiChatLoading(false);
       await updateQualityForThisCard(deckId, quality);
       getNextCard(deckId);
-      setChatContext('None');
+      setChatContext('Card');
     } catch (e) {
       console.log(e);
     }
@@ -651,6 +661,11 @@ function Anki() {
             });
             pendingEventSourcesRef.current.clear();
 
+            // Clear loading state when closing chat
+            if (aiChatVisible) {
+              setAiChatLoading(false);
+            }
+
             if (!aiChatVisible && cardIdRef.current) {
               getAIChat(cardIdRef.current);
             }
@@ -737,13 +752,6 @@ function Anki() {
                   >
                     AI Chat
                   </span>
-                  <Button
-                    type="text"
-                    size="small"
-                    onClick={() => setUseStreamingApi(!useStreamingApi)}
-                  >
-                    {useStreamingApi ? 'Streaming: On' : 'Streaming: Off'}
-                  </Button>
                 </div>
                 <div>
                   <Button type="link" onClick={() => getAIChat(cardIdRef.current)}>
@@ -755,6 +763,7 @@ function Anki() {
                     onClick={() => {
                       setAiChatVisible(false);
                       setChunkId(undefined);
+                      setAiChatLoading(false);
                     }}
                   />
                 </div>
@@ -779,8 +788,27 @@ function Anki() {
                     gap: '16px',
                     overflowY: 'auto',
                     flex: 1,
+                    position: 'relative',
                   }}
                 >
+                  {aiChatLoading && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        zIndex: 10,
+                      }}
+                    >
+                      <Spin size="large" />
+                    </div>
+                  )}
                   {chatMessages.map((message, index) => (
                     <div
                       key={index}

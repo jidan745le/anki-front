@@ -1,14 +1,99 @@
 import { Boot, SlateEditor, SlatePath, SlateTransforms } from '@wangeditor/editor';
 import { Editor, Toolbar } from '@wangeditor/editor-for-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import StreamingTooltip from '../StreamingTooltip';
-import { aiExplain } from './Plugins/aiExplainMenu';
+import { aiExplain, aiGlobalExplain } from './Plugins/aiExplainMenu';
 import { chatChunkModule } from './Plugins/chatChunk';
 
 Boot.registerMenu(aiExplain);
+Boot.registerMenu(aiGlobalExplain);
 // Boot.registerMenu(aiAsk);
 Boot.registerModule(chatChunkModule);
+
+// Houdini Paint Worklet 代码
+const initializeHoudiniWorklet = () => {
+  if (!CSS.paintWorklet) {
+    console.warn('CSS Paint API not supported in this browser');
+    return false;
+  }
+
+  const workletCode = `
+    registerPaint('titleHighlighter', class {
+      static get inputProperties() {
+        return [
+          '--highlight-color',
+          '--highlight-opacity',
+          '--title-rect-x',
+          '--title-rect-y', 
+          '--title-rect-width',
+          '--title-rect-height',
+          '--border-radius'
+        ];
+      }
+      
+      paint(ctx, size, props) {
+        // 获取CSS变量
+        const color = props.get('--highlight-color').toString();
+        const opacity = parseFloat(props.get('--highlight-opacity').toString() || '0.25');
+        const x = parseFloat(props.get('--title-rect-x').toString() || '0');
+        const y = parseFloat(props.get('--title-rect-y').toString() || '0');
+        const width = parseFloat(props.get('--title-rect-width').toString() || '0');
+        const height = parseFloat(props.get('--title-rect-height').toString() || '0');
+        const borderRadius = parseFloat(props.get('--border-radius').toString() || '4');
+        
+        // 解析RGB颜色
+        let r = 120, g = 208, b = 248; // 默认蓝色
+        if (color.startsWith('rgb')) {
+          const rgbMatch = color.match(/rgb\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)/);
+          if (rgbMatch) {
+            r = parseInt(rgbMatch[1]);
+            g = parseInt(rgbMatch[2]);
+            b = parseInt(rgbMatch[3]);
+          }
+        } else if (color.startsWith('#')) {
+          r = parseInt(color.substring(1, 3), 16);
+          g = parseInt(color.substring(3, 5), 16);
+          b = parseInt(color.substring(5, 7), 16);
+        }
+        
+        // 设置填充颜色
+        ctx.fillStyle = \`rgba(\${r}, \${g}, \${b}, \${opacity})\`;
+        
+        // 绘制圆角矩形
+        if (width > 0 && height > 0) {
+          if (borderRadius > 0) {
+            const rad = Math.min(borderRadius, width/2, height/2);
+            ctx.beginPath();
+            ctx.moveTo(x + rad, y);
+            ctx.lineTo(x + width - rad, y);
+            ctx.arcTo(x + width, y, x + width, y + rad, rad);
+            ctx.lineTo(x + width, y + height - rad);
+            ctx.arcTo(x + width, y + height, x + width - rad, y + height, rad);
+            ctx.lineTo(x + rad, y + height);
+            ctx.arcTo(x, y + height, x, y + height - rad, rad);
+            ctx.lineTo(x, y + rad);
+            ctx.arcTo(x, y, x + rad, y, rad);
+            ctx.closePath();
+            ctx.fill();
+          } else {
+            ctx.fillRect(x, y, width, height);
+          }
+        }
+      }
+    });
+  `;
+
+  try {
+    const blob = new Blob([workletCode], { type: 'application/javascript' });
+    const workletUrl = URL.createObjectURL(blob);
+    CSS.paintWorklet.addModule(workletUrl);
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize Houdini worklet:', error);
+    return false;
+  }
+};
 
 function CardEditor({
   title,
@@ -31,64 +116,293 @@ function CardEditor({
   const editorContainerRef = useRef(null);
   const { autoMarkTitle = false } = config;
   const autoMarkTitleRef = useRef(autoMarkTitle);
+  const houdiniSupportRef = useRef(false);
+  const titleHighlightTimeoutRef = useRef(null);
+  const resizeObserverRef = useRef(null);
 
+  // 初始化 Houdini Worklet
   useEffect(() => {
-    if (autoMarkTitleRef.current !== autoMarkTitle) {
-      autoMarkTitleRef.current = autoMarkTitle;
-      if (title) {
-        try {
-          // First deselect any existing selection
-          // editor.deselect();
-          if (!autoMarkTitle) {
-            editor.children.forEach((node, index) => {
-              if (node.children) {
-                node.children.forEach((child, childIndex) => {
-                  console.log(child, childIndex, 'child');
-                  if (child.text === title) {
-                    console.log(child, childIndex, 'child1');
+    houdiniSupportRef.current = initializeHoudiniWorklet();
+  }, []);
 
-                    SlateTransforms.select(editor, {
-                      anchor: { path: [index, childIndex], offset: 0 },
-                      focus: { path: [index, childIndex], offset: title.length },
-                    });
-                    editor.removeMark('bgColor');
-                    editor.deselect();
-                  }
-                });
-              }
-            });
-          } else {
-            // Find the title text and highlight it
-            editor.children.forEach((node, index) => {
-              if (node.children) {
-                node.children.forEach((child, childIndex) => {
-                  const titleIndex = child.text.indexOf(title);
-                  if (titleIndex !== -1) {
-                    // Select the title text
-                    SlateTransforms.select(editor, {
-                      anchor: { path: [index, childIndex], offset: titleIndex },
-                      focus: { path: [index, childIndex], offset: titleIndex + title.length },
-                    });
-                    // Add background color mark
-                    editor.addMark('bgColor', 'rgb(120, 208, 248)');
-                    // Deselect after highlighting
-                    editor.deselect();
-                  }
-                });
-              }
-            });
-          }
-        } catch (error) {
-          console.error('Error highlighting title:', error);
+  // 查找标题文本在DOM中的位置
+  const findTitlePosition = useCallback((titleText, containerElement) => {
+    if (!titleText || !containerElement) return null;
+
+    const walker = document.createTreeWalker(containerElement, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        return node.textContent.includes(titleText)
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT;
+      },
+    });
+
+    let textNode;
+    while ((textNode = walker.nextNode())) {
+      const text = textNode.textContent;
+      const titleIndex = text.indexOf(titleText);
+
+      if (titleIndex !== -1) {
+        // 创建范围来获取标题文本的位置
+        const range = document.createRange();
+        range.setStart(textNode, titleIndex);
+        range.setEnd(textNode, titleIndex + titleText.length);
+
+        const rects = Array.from(range.getClientRects());
+        if (rects.length > 0) {
+          const rect = rects[0];
+          const containerRect = containerElement.getBoundingClientRect();
+
+          return {
+            x: rect.left - containerRect.left,
+            y: rect.top - containerRect.top,
+            width: rect.width,
+            height: rect.height,
+          };
         }
       }
     }
-  }, [autoMarkTitle]);
+
+    return null;
+  }, []);
+
+  // 应用 Houdini 高亮
+  const applyHoudiniHighlight = useCallback(
+    (titleText, enable = true) => {
+      if (!houdiniSupportRef.current || !editorContainerRef.current) {
+        console.warn('Houdini not supported or editor container not ready');
+        return;
+      }
+
+      const containerElement = editorContainerRef.current;
+
+      if (!enable) {
+        // 清除高亮
+        containerElement.style.removeProperty('background-image');
+        containerElement.style.removeProperty('--title-rect-x');
+        containerElement.style.removeProperty('--title-rect-y');
+        containerElement.style.removeProperty('--title-rect-width');
+        containerElement.style.removeProperty('--title-rect-height');
+        return;
+      }
+
+      // 延迟查找位置，确保DOM已更新
+      if (titleHighlightTimeoutRef.current) {
+        clearTimeout(titleHighlightTimeoutRef.current);
+      }
+
+      titleHighlightTimeoutRef.current = setTimeout(() => {
+        console.log(containerElement, titleText, 'containerElement');
+        const titlePosition = findTitlePosition(titleText, containerElement);
+        console.log(titlePosition, 'containerElement titlePosition');
+
+        if (titlePosition) {
+          // 设置CSS变量
+          containerElement.style.setProperty('--highlight-color', 'rgb(120, 208, 248)');
+          containerElement.style.setProperty('--highlight-opacity', '0.3');
+          containerElement.style.setProperty('--title-rect-x', `${titlePosition.x}px`);
+          containerElement.style.setProperty('--title-rect-y', `${titlePosition.y}px`);
+          containerElement.style.setProperty('--title-rect-width', `${titlePosition.width}px`);
+          containerElement.style.setProperty('--title-rect-height', `${titlePosition.height}px`);
+          containerElement.style.setProperty('--border-radius', '4');
+
+          // 应用 Paint Worklet
+          containerElement.style.backgroundImage = 'paint(titleHighlighter)';
+
+          console.log('Applied Houdini highlight for title:', titleText, titlePosition);
+        } else {
+          containerElement.style.removeProperty('background-image');
+          containerElement.style.removeProperty('--title-rect-x');
+          containerElement.style.removeProperty('--title-rect-y');
+          containerElement.style.removeProperty('--title-rect-width');
+          containerElement.style.removeProperty('--title-rect-height');
+          console.warn('Title not found in DOM:', titleText);
+        }
+      });
+    },
+    [findTitlePosition]
+  );
+
+  // 替换原来的 useEffect，使用 Houdini 实现
+  useEffect(() => {
+    if (autoMarkTitleRef.current !== autoMarkTitle) {
+      autoMarkTitleRef.current = autoMarkTitle;
+
+      if (title && editor && editorContainerRef.current) {
+        if (autoMarkTitle) {
+          applyHoudiniHighlight(title, true);
+        } else {
+          applyHoudiniHighlight(title, false);
+        }
+      }
+    }
+  }, [autoMarkTitle, title, editor, applyHoudiniHighlight]);
+
+  // 监听编辑器容器大小变化和窗口大小变化
+  useEffect(() => {
+    const handleResize = () => {
+      if (title && autoMarkTitle && editor) {
+        applyHoudiniHighlight(title, true);
+      }
+    };
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', handleResize);
+
+    // 监听编辑器容器大小变化
+    if (editorContainerRef.current && window.ResizeObserver) {
+      resizeObserverRef.current = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          console.log('Editor container resized:', entry.contentRect);
+          handleResize();
+        }
+      });
+
+      resizeObserverRef.current.observe(editorContainerRef.current);
+    }
+
+    return () => {
+      // 清理窗口监听器
+      window.removeEventListener('resize', handleResize);
+
+      // 清理 ResizeObserver
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+
+      // 清理定时器
+      if (titleHighlightTimeoutRef.current) {
+        clearTimeout(titleHighlightTimeoutRef.current);
+      }
+    };
+  }, [title, autoMarkTitle, editor, applyHoudiniHighlight]);
+
+  // 当编辑器创建时设置 ResizeObserver
+  const handleEditorCreated = useCallback(
+    editor => {
+      setEditor(editor);
+      editorContainerRef.current = editor.getEditableContainer();
+
+      editor.setPosition = setPosition;
+      editor.showTooltip = setShowTooltip;
+
+      // 设置 ResizeObserver 监听编辑器容器
+      if (editorContainerRef.current && window.ResizeObserver) {
+        // 如果已有观察器，先断开
+        if (resizeObserverRef.current) {
+          resizeObserverRef.current.disconnect();
+        }
+
+        resizeObserverRef.current = new ResizeObserver(entries => {
+          for (const entry of entries) {
+            console.log('Editor container resized:', entry.contentRect);
+            // 容器大小变化时重新计算标题位置
+            if (title && autoMarkTitle) {
+              applyHoudiniHighlight(title, true);
+            }
+          }
+        });
+
+        resizeObserverRef.current.observe(editorContainerRef.current);
+      }
+
+      setTimeout(() => {
+        editor.dangerouslyInsertHtml(value);
+        initialFlag.current = true;
+      });
+    },
+    [title, autoMarkTitle, applyHoudiniHighlight, value]
+  );
+
+  // 监听编辑器内容变化，重新计算标题位置
+  const handleEditorChange = useCallback(
+    editor => {
+      console.log(editor, editor.selection, 'editor.selection');
+
+      if (initialFlag.current) {
+        preHtmlStr.current = editor.getHtml();
+        console.log(preHtmlStr.current, editor.children, 'editor.getHtml() titleLocation');
+
+        // 使用 Houdini 高亮标题
+        if (title && autoMarkTitle) {
+          applyHoudiniHighlight(title, true);
+        }
+
+        //第一次有意义赋值
+        if (isNew) {
+          console.log(html, editor, editor.marks, editor.getHtml(), 'initial3');
+          editor.selectAll();
+          editor.addMark('fontSize', '22px');
+          editor.deselect();
+        }
+
+        initialFlag.current = false;
+        return;
+      } else {
+        let curHtmlStr = editor.getHtml();
+        if (preHtmlStr.current && curHtmlStr !== preHtmlStr.current) {
+          preHtmlStr.current = curHtmlStr;
+          onChange && onChange(curHtmlStr);
+
+          // 内容变化时重新应用高亮
+          if (title && autoMarkTitle) {
+            applyHoudiniHighlight(title, true);
+          }
+        }
+        console.log(curHtmlStr, editor.children, 'editor.getHtml()');
+      }
+    },
+    [title, autoMarkTitle, isNew, html, onChange, applyHoudiniHighlight]
+  );
+
+  // 添加一个额外的监听器来处理编辑器样式变化
+  useEffect(() => {
+    if (!editorContainerRef.current) return;
+
+    const containerElement = editorContainerRef.current;
+
+    // 使用 MutationObserver 监听样式变化
+    const mutationObserver = new MutationObserver(mutations => {
+      let shouldRecalculate = false;
+
+      mutations.forEach(mutation => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+          // 检查是否是影响布局的样式变化
+          const target = mutation.target;
+          if (target === containerElement || containerElement.contains(target)) {
+            shouldRecalculate = true;
+          }
+        }
+
+        if (mutation.type === 'childList') {
+          // DOM结构变化也需要重新计算
+          shouldRecalculate = true;
+        }
+      });
+
+      if (shouldRecalculate && title && autoMarkTitle) {
+        console.log('DOM mutation detected, recalculating title position');
+        applyHoudiniHighlight(title, true);
+      }
+    });
+
+    mutationObserver.observe(containerElement, {
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+      childList: true,
+      subtree: true,
+    });
+
+    return () => {
+      mutationObserver.disconnect();
+    };
+  }, [title, autoMarkTitle, applyHoudiniHighlight]);
 
   const toolbarConfig = {
     insertKeys: {
       index: 0,
-      keys: ['aiExplain'], // 添加 attachment 菜单
+      keys: ['aiExplain', 'aiGlobalExplain'], // 添加 attachment 菜单
     },
     excludeKeys: ['todo', 'redo', 'undo', 'fullScreen'],
   };
@@ -133,6 +447,7 @@ function CardEditor({
       text: {
         menuKeys: [
           'aiExplain',
+          'aiGlobalExplain',
           'headerSelect',
           'insertLink',
           'bulletedList',
@@ -245,6 +560,33 @@ function CardEditor({
     console.log(editor.getHtml());
   }
 
+  const traverseDOMLeafNodes = (containerElement, callback) => {
+    if (!containerElement) return;
+
+    // 创建 TreeWalker 来遍历文本节点
+    const walker = document.createTreeWalker(
+      containerElement,
+      NodeFilter.SHOW_TEXT, // 只显示文本节点
+      {
+        acceptNode: function (node) {
+          // 过滤掉空白节点和不可见节点
+          if (node.textContent.trim() === '') {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      }
+    );
+
+    let currentNode;
+    let index = 0;
+
+    while ((currentNode = walker.nextNode())) {
+      callback(currentNode, index);
+      index++;
+    }
+  };
+
   return (
     <>
       {/* <div>
@@ -263,78 +605,8 @@ function CardEditor({
         />
         <Editor
           defaultConfig={editorConfig}
-          // value={html}
-
-          onCreated={editor => {
-            setEditor(editor);
-            editorContainerRef.current = editor.getEditableContainer();
-
-            editor.setPosition = setPosition;
-            editor.showTooltip = setShowTooltip;
-
-            setTimeout(() => {
-              editor.dangerouslyInsertHtml(value);
-              initialFlag.current = true;
-            });
-          }}
-          onChange={editor => {
-            console.log(editor, editor.selection, 'editor.selection');
-
-            if (initialFlag.current) {
-              preHtmlStr.current = editor.getHtml();
-              console.log(preHtmlStr.current, editor.children, 'editor.getHtml() titleLocation');
-              if (title && autoMarkTitle) {
-                try {
-                  // First deselect any existing selection
-                  editor.deselect();
-
-                  // Find the title text and highlight it
-                  editor.children.forEach((node, index) => {
-                    if (node.children) {
-                      node.children.forEach((child, childIndex) => {
-                        const titleIndex = child.text.indexOf(title);
-                        if (titleIndex !== -1) {
-                          // Select the title text
-                          SlateTransforms.select(editor, {
-                            anchor: { path: [index, childIndex], offset: titleIndex },
-                            focus: { path: [index, childIndex], offset: titleIndex + title.length },
-                          });
-                          // Add background color mark
-                          editor.addMark('bgColor', 'rgb(120, 208, 248)');
-                          // Deselect after highlighting
-                          editor.deselect();
-                        }
-                      });
-                    }
-                  });
-                } catch (error) {
-                  console.error('Error highlighting title:', error);
-                }
-              }
-
-              //第一次有意义赋值
-              if (isNew) {
-                // alert("isNew")
-                //innerdangerouslyInsertHtmlC初始化
-                console.log(html, editor, editor.marks, editor.getHtml(), 'initial3');
-                editor.selectAll();
-                editor.addMark('fontSize', '22px');
-                editor.deselect();
-              }
-
-              initialFlag.current = false;
-              //字体初始化设为24px
-              // setHtml(addSpanBelowP(editor.getHtml()))
-              return;
-            } else {
-              let curHtmlStr = editor.getHtml();
-              if (preHtmlStr.current && curHtmlStr !== preHtmlStr.current) {
-                preHtmlStr.current = curHtmlStr; // setHtml(addSpanBelowP(editor.getHtml()))
-                onChange && onChange(curHtmlStr);
-              }
-              console.log(curHtmlStr, editor.children, 'editor.getHtml()');
-            }
-          }}
+          onCreated={handleEditorCreated}
+          onChange={handleEditorChange}
           mode="default"
           style={{ height: '600px' }}
         />
@@ -346,7 +618,6 @@ function CardEditor({
             promptData={editor.promptData}
             onClose={() => setShowTooltip(false)}
             cardId={cardUUID}
-            // onInsert={(value) => { insertTextBelow(editor, value) }}
             onInsertHtml={value => {
               insertHtmlBelow(editor, value);
             }}
