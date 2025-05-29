@@ -1,3 +1,4 @@
+import { SoundOutlined } from '@ant-design/icons';
 import { Button, Card } from 'antd';
 import React, { useEffect, useState } from 'react';
 import MyEditor from '../Editor';
@@ -21,6 +22,7 @@ function AnkiCard({
 }) {
   const audioRef = React.useRef(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // 添加窗口大小变化监听
   useEffect(() => {
@@ -31,6 +33,80 @@ function AnkiCard({
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // TTS朗读功能
+  const speakText = text => {
+    if ('speechSynthesis' in window) {
+      // 停止当前朗读
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      // 设置语音属性
+      utterance.lang = 'en'; // 语言
+      utterance.rate = 0.8; // 语速
+      utterance.pitch = 1.5; // 音调
+      utterance.volume = 0.8; // 音量
+
+      // 朗读状态监听
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+      };
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+      };
+
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        console.error('TTS朗读出错');
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.warn('当前浏览器不支持TTS功能');
+    }
+  };
+
+  // 停止TTS朗读
+  const stopSpeaking = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  };
+
+  // 处理TTS按钮点击
+  const handleTTSClick = () => {
+    if (isSpeaking) {
+      stopSpeaking();
+    } else {
+      const textToSpeak = frontType !== 'audio' ? front : '这是一个音频卡片';
+      speakText(textToSpeak);
+    }
+  };
+
+  // 处理背面TTS按钮点击
+  const handleBackTTSClick = () => {
+    if (isSpeaking) {
+      stopSpeaking();
+    } else {
+      // 从HTML中提取纯文本
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = back;
+      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+      speakText(plainText);
+    }
+  };
+
+  // 组件卸载时停止朗读
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
@@ -151,17 +227,36 @@ function AnkiCard({
               boxSizing: 'border-box',
               display: 'flex',
               justifyContent: 'center',
+              alignItems: 'center',
               fontSize: '24px',
               fontWeight: 'bold',
               padding: '12px',
+              position: 'relative',
             }}
           >
             {frontType === 'audio' ? (
-              <audio ref={audioRef} controls src={`${front}`} type="audio/mpeg">
+              <audio ref={audioRef} controls src={`${front}`}>
                 Your browser does not support the audio element.
               </audio>
             ) : (
-              front
+              <>
+                <span>{front}</span>
+                {/* TTS朗读按钮 */}
+                <Button
+                  type="text"
+                  icon={<SoundOutlined />}
+                  onClick={handleTTSClick}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: isSpeaking ? '#1890ff' : '#666',
+                    fontSize: '18px',
+                  }}
+                  title={isSpeaking ? '停止朗读' : '朗读文本'}
+                />
+              </>
             )}
           </div>
         }
@@ -170,32 +265,67 @@ function AnkiCard({
           <div>
             {isMobile ? (
               // 移动端显示只读内容
-              <div
-                className="mobile-content"
-                dangerouslySetInnerHTML={{ __html: back }}
-                style={{
-                  padding: '10px',
-                  fontSize: '16px',
-                  lineHeight: '1.5',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                  whiteSpace: 'pre-wrap',
-                  maxWidth: '100%',
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <div
+                  className="mobile-content"
+                  dangerouslySetInnerHTML={{ __html: back }}
+                  style={{
+                    padding: '10px',
+                    fontSize: '16px',
+                    lineHeight: '1.5',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                    whiteSpace: 'pre-wrap',
+                    maxWidth: '100%',
+                  }}
+                />
+                {/* 移动端背面TTS按钮 */}
+                <Button
+                  type="text"
+                  icon={<SoundOutlined />}
+                  onClick={handleBackTTSClick}
+                  style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    color: isSpeaking ? '#1890ff' : '#666',
+                    fontSize: '16px',
+                  }}
+                  title={isSpeaking ? '停止朗读' : '朗读答案'}
+                />
+              </div>
             ) : (
               // PC端显示编辑器
-              <MyEditor
-                getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
-                onInitChunkChatSession={onInitChunkChatSession}
-                showAIChatSidebar={showAIChatSidebar}
-                cardUUID={cardUUID}
-                config={config}
-                title={frontType !== 'audio' ? front : undefined}
-                onChange={onChange}
-                isNew={isNew}
-                value={`${back}`}
-              />
+              <div style={{ position: 'relative' }}>
+                <MyEditor
+                  getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
+                  onInitChunkChatSession={onInitChunkChatSession}
+                  showAIChatSidebar={showAIChatSidebar}
+                  cardUUID={cardUUID}
+                  config={config}
+                  title={frontType !== 'audio' ? front : undefined}
+                  onChange={onChange}
+                  isNew={isNew}
+                  value={`${back}`}
+                />
+                {/* PC端背面TTS按钮 */}
+                {frontType !== 'audio' && (
+                  <Button
+                    type="text"
+                    icon={<SoundOutlined />}
+                    onClick={handleBackTTSClick}
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      color: isSpeaking ? '#1890ff' : '#666',
+                      fontSize: '16px',
+                      zIndex: 1000,
+                    }}
+                    title={isSpeaking ? '停止朗读' : '朗读答案'}
+                  />
+                )}
+              </div>
             )}
           </div>
         ) : (
