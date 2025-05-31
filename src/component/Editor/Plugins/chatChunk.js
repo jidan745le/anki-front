@@ -1,14 +1,6 @@
-import { h } from 'snabbdom';
-import {
-  DomEditor,
-  IDomEditor,
-  SlateElement,
-  SlateDescendant,
-  SlateTransforms,
-  SlateEditor,
-  SlateNode,
-} from '@wangeditor/editor';
+import { DomEditor, SlateEditor, SlateElement, SlateTransforms } from '@wangeditor/editor';
 import { omit } from 'lodash';
+import { h } from 'snabbdom';
 import apiClient from '../../../common/http/apiClient';
 
 // 定义节点的数据结构和类型
@@ -183,8 +175,8 @@ function renderChatChunk(elem, children, editor) {
         position: 'relative', // Needed for absolute positioning of children
         display: 'inline-flex',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 204, 153)',
-        border: '1px solid #e8e8e8',
+        backgroundColor: '#e3f2f9', // 舒适的青色背景
+        border: '1px solid #c5e0ed', // 配套边框
         lineHeight: '1.5',
       },
     },
@@ -216,10 +208,10 @@ function renderAiLoadingChunk(elem, children, editor) {
     const style = document.createElement('style');
     style.id = 'ai-loading-flash-style';
     style.textContent = `
-      @keyframes background-flash {
-        0% { background-color: yellow; }
-        50% { background-color: #ffffaa; }
-        100% { background-color: yellow; }
+      @keyframes pulse {
+        0% { background-color: #f0f7f4; }
+        50% { background-color: #c5e8d5; }
+        100% { background-color: #f0f7f4; }
       }
     `;
     document.head.appendChild(style);
@@ -235,7 +227,7 @@ function renderAiLoadingChunk(elem, children, editor) {
         alignItems: 'center',
         backgroundColor: 'yellow',
         lineHeight: '1.5',
-        animation: 'background-flash 1.5s infinite', // 添加背景闪烁动画
+        animation: 'pulse 1.5s infinite', // 添加背景闪烁动画
       },
     },
     children || []
