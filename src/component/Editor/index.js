@@ -143,9 +143,28 @@ const CardEditor = forwardRef(
     };
 
     // 隐藏笔记面板
-    const hideNotePanel = () => {
-      setNotePanelVisible(false);
-
+    const hideNotePanel = noteData => {
+      const nodes = Array.from(
+        SlateEditor.nodes(editor, {
+          at: [],
+          match: n => {
+            return n && n['type'] === 'textnote' && n['noteId'] === noteData.noteId;
+          },
+        })
+      );
+      const node = nodes[0][0];
+      console.log(node, 'node');
+      if (!node.noteContent) {
+        setNotePanelVisible(false);
+        SlateTransforms.unwrapNodes(editor, {
+          at: [],
+          match: n => {
+            return n && n['type'] === 'textnote' && n['noteId'] === noteData.noteId;
+          },
+        });
+      } else {
+        setNotePanelVisible(false);
+      }
       setCurrentNoteData(null);
     };
 

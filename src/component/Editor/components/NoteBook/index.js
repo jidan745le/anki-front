@@ -25,7 +25,7 @@ const NotePanel = ({ noteData, onUpdateNote, onClose, isVisible }) => {
   useEffect(() => {
     const handleKeyDown = e => {
       if (e.key === 'Escape' && isVisible) {
-        onClose();
+        onClose(noteData);
       }
     };
 
@@ -39,7 +39,7 @@ const NotePanel = ({ noteData, onUpdateNote, onClose, isVisible }) => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isVisible, onClose]);
+  }, [isVisible, onClose, noteData]);
 
   const handleSave = () => {
     if (onUpdateNote && noteData) {
@@ -78,7 +78,7 @@ const NotePanel = ({ noteData, onUpdateNote, onClose, isVisible }) => {
             cursor: 'pointer',
             zIndex: 1001,
           }}
-          onClick={onClose}
+          onClick={() => onClose(noteData)}
           title="关闭笔记面板"
         >
           <div
