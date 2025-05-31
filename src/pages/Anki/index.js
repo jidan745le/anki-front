@@ -1,5 +1,6 @@
-import { CloseOutlined, SendOutlined } from '@ant-design/icons';
+import { CloseOutlined, LoadingOutlined, SendOutlined } from '@ant-design/icons';
 import { Button, Input, message, Select, Spin } from 'antd';
+import { debounce } from 'lodash';
 import { marked } from 'marked';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -33,7 +34,33 @@ function Anki() {
   const [useStreamingApi, setUseStreamingApi] = useState(true);
   const [chatStatus, setChatStatus] = useState([]);
   const [aiChatLoading, setAiChatLoading] = useState(false);
+  const editorRef = useRef(null);
   console.log(params, 'params');
+
+  const updateCardRef = useRef(
+    debounce((value, cardUuid) => {
+      console.log({ id: cardUuid, back: value });
+      apiClient
+        .post(`/anki/updateCard`, { id: cardUuid, custom_back: value })
+        .then(res => {
+          // 处理响应
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    }, 800) // 800ms 防抖延迟
+  );
+
+  useEffect(() => {
+    return () => {
+      // 组件卸载时取消待处理的防抖调用
+      updateCardRef.current.cancel();
+    };
+  }, []);
+
+  const updateCard = value => {
+    updateCardRef.current(value, card['uuid']);
+  };
 
   useEffect(() => {
     getNextCard(params.deckId, true);
@@ -401,6 +428,7 @@ function Anki() {
       setAiChatVisible(false);
       setChunkId(undefined);
       setAiChatLoading(false);
+      editorRef.current.getEditor().clearAiLoadingChunk();
       await updateQualityForThisCard(deckId, quality);
       getNextCard(deckId);
       setChatContext('Card');
@@ -462,23 +490,6 @@ function Anki() {
       })
       .catch(err => {
         setLoading(false);
-        console.log(err);
-      });
-  };
-
-  const updateCard = value => {
-    console.log({ id: card['id'], back: value });
-    apiClient
-      .post(`/anki/updateCard`, { id: card['uuid'], custom_back: value })
-      .then(res => {
-        // const data = res.data;
-        // if (data.success) {
-        //   setCard(data.data)
-        //   return;
-        // }
-        // message.error(data.message)
-      })
-      .catch(err => {
         console.log(err);
       });
   };
@@ -676,7 +687,12 @@ function Anki() {
           deckStats={deckStats}
         />
 
-        <div style={{ display: 'flex', height: 'calc(100vh - 120px)' }}>
+        <div
+          style={{
+            display: 'flex',
+            height: visualizerVisible ? 'calc(100vh - 300px)' : 'calc(100vh - 180px)',
+          }}
+        >
           <div
             style={{
               width: aiChatVisible ? '75%' : '100%',
@@ -689,9 +705,12 @@ function Anki() {
               style={{
                 flex: 1,
                 overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
               <AnkiCard
+                ref={editorRef}
                 config={config}
                 front={card['front']}
                 back={card['customBack']}
@@ -774,76 +793,83 @@ function Anki() {
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  height: 'calc(100% - 125px)',
+                  // height: 'calc(100% - 125px)',
+                  flex: 1,
                   overflow: 'hidden',
                 }}
               >
-                <div
-                  className="ai-chat-messages"
-                  ref={aiChatMessagesRef}
-                  style={{
-                    padding: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px',
-                    overflowY: 'auto',
-                    flex: 1,
-                    position: 'relative',
-                  }}
-                >
-                  {aiChatLoading && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                        zIndex: 10,
-                      }}
-                    >
-                      <Spin size="large" />
-                    </div>
-                  )}
-                  {chatMessages.map((message, index) => (
-                    <div
-                      key={index}
-                      className={`chat-message ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}
-                      style={{
-                        maxWidth: '80%',
-                        alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
-                      }}
-                    >
+                {aiChatLoading ? (
+                  <div
+                    style={{
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px',
+                      overflowY: 'auto',
+                      flex: 1,
+                      position: 'relative',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: 'rgba(255, 255, 255, 0.8) ',
+                    }}
+                  >
+                    <LoadingOutlined style={{ fontSize: '32px' }} />
+                  </div>
+                ) : (
+                  <div
+                    className="ai-chat-messages"
+                    ref={aiChatMessagesRef}
+                    style={{
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px',
+                      overflowY: 'auto',
+                      flex: 1,
+                      position: 'relative',
+                    }}
+                  >
+                    {chatMessages.map((message, index) => (
                       <div
-                        className="message-content"
+                        key={index}
+                        className={`chat-message ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}
                         style={{
-                          padding: '12px 16px',
-                          borderRadius: '12px',
-                          fontSize: '14px',
-                          lineHeight: '1.5',
-                          backgroundColor: message.role === 'user' ? '#1890ff' : '#f5f5f5',
-                          color: message.role === 'user' ? 'white' : 'rgba(0, 0, 0, 0.85)',
+                          maxWidth: '80%',
+                          alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
                         }}
                       >
-                        {message.pending
-                          ? message.content
-                            ? renderContent(message.content)
-                            : 'thinking...'
-                          : message.role === 'user'
+                        <div
+                          className="message-content"
+                          style={{
+                            padding: '12px 16px',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            lineHeight: '1.5',
+                            backgroundColor: message.role === 'user' ? '#1890ff' : '#f5f5f5',
+                            color: message.role === 'user' ? 'white' : 'rgba(0, 0, 0, 0.85)',
+                          }}
+                        >
+                          {message.pending
                             ? message.content
-                            : renderContent(message.content)}
+                              ? renderContent(message.content)
+                              : 'thinking...'
+                            : message.role === 'user'
+                              ? message.content
+                              : renderContent(message.content)}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 <div
                   className="ai-chat-input"
-                  style={{ padding: '16px', borderTop: '1px solid #f0f0f0', background: 'white' }}
+                  style={{
+                    padding: '16px',
+                    borderTop: '1px solid #f0f0f0',
+                    borderBottom: '1px solid #f0f0f0',
+                    background: 'white',
+                  }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
                     <Input

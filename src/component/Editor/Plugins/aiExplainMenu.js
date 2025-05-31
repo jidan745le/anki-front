@@ -41,7 +41,14 @@ class AiExplain {
     return false;
   }
   isDisabled(editor) {
-    return false;
+    const nodes = Array.from(
+      SlateEditor.nodes(editor, {
+        match: n => {
+          return n && (n['type'] === 'chatchunk' || n['type'] === 'ailoadingchunk');
+        },
+      })
+    );
+    return nodes.length > 0;
   }
 
   async exec(editor, value) {
@@ -139,8 +146,16 @@ class AiGlobalExplain {
   isActive(editor) {
     return false;
   }
+
   isDisabled(editor) {
-    return false;
+    const nodes = Array.from(
+      SlateEditor.nodes(editor, {
+        match: n => {
+          return n && (n['type'] === 'chatchunk' || n['type'] === 'ailoadingchunk');
+        },
+      })
+    );
+    return nodes.length > 0;
   }
 
   async exec(editor, value) {

@@ -8,5 +8,11 @@
   "prettier.requireConfig": true,
   "[javascript]": {
     "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
-  }
+  },
+  "eslint.rules.customizations": [
+    {
+      "rule": "react-hooks/exhaustive-deps",
+      "severity": "off"
+    }
+  ]
 } 
