@@ -10,6 +10,7 @@ import {
   Select,
   Spin,
   Table,
+  Tabs,
   Tooltip,
   Typography,
   Upload,
@@ -25,6 +26,8 @@ const { Text } = Typography;
 
 const Decks = () => {
   const [decks, setDecks] = useState([]);
+  const [originalDecks, setOriginalDecks] = useState([]); // 自己创建的
+  const [duplicatedDecks, setDuplicatedDecks] = useState([]); // 复制的
   const [visible, setVisible] = useState(false);
   const [fileList, setFileList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,6 +42,7 @@ const Decks = () => {
   const { socket, emit, on, isConnected } = useSocket();
   const [progresses, setProgresses] = useState({});
   const [pendingTaskIds, setPendingTaskIds] = useState([]);
+  const [activeTab, setActiveTab] = useState('original'); // 'original' or 'duplicated'
 
   // APKG两步式处理相关状态
   const [apkgTemplates, setApkgTemplates] = useState(null);
@@ -98,6 +102,13 @@ const Decks = () => {
     if (data.success) {
       const newDecks = data.data;
       setDecks(newDecks);
+
+      // 分类deck：原创的和复制的
+      const original = newDecks.filter(deck => deck.owned);
+      const duplicated = newDecks.filter(deck => !deck.owned);
+
+      setOriginalDecks(original);
+      setDuplicatedDecks(duplicated);
 
       if (isInit) {
         // 等待 socket 连接就绪
@@ -378,7 +389,7 @@ const Decks = () => {
     //handleClose(); // Close the drawer after submission (for now)
   };
 
-  const columns = [
+  const getColumns = (isDuplicated = false) => [
     {
       title: 'Name',
       dataIndex: 'name',
@@ -394,6 +405,9 @@ const Decks = () => {
             </>
           )}
           {row.status == 'failed' && <div style={{ color: 'red' }}>failed </div>}
+          {isDuplicated && row.originalDeckName && (
+            <div style={{ color: '#666', fontSize: '12px' }}>原始: {row.originalDeckName}</div>
+          )}
         </div>
       ),
     },
@@ -459,7 +473,7 @@ const Decks = () => {
           >
             Delete
           </Button>
-          {row.owned && (
+          {row.owned && !isDuplicated && (
             <Button type="link" onClick={() => navigate(`/deck-original-cards/${row.id}`)}>
               {row.isShared ? 'Update' : 'Share'}
             </Button>
@@ -611,15 +625,44 @@ const Decks = () => {
     );
   };
 
+  const tabItems = [
+    {
+      key: 'original',
+      label: `Created (${originalDecks.length})`,
+      children: (
+        <Table
+          loading={decksLoading}
+          dataSource={originalDecks}
+          rowKey={row => row.id}
+          pagination={false}
+          columns={getColumns(false)}
+        />
+      ),
+    },
+    {
+      key: 'duplicated',
+      label: `Duplicated (${duplicatedDecks.length})`,
+      children: (
+        <Table
+          loading={decksLoading}
+          dataSource={duplicatedDecks}
+          rowKey={row => row.id}
+          pagination={false}
+          columns={getColumns(true)}
+        />
+      ),
+    },
+  ];
+
   return (
     <div style={{ padding: '12px', marginBottom: '64px' }}>
-      <Table
-        loading={decksLoading}
-        dataSource={decks}
-        rowKey={row => row.id}
-        pagination={false}
-        columns={columns}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabItems}
+        style={{ marginBottom: '16px' }}
       />
+
       <FooterBar>
         <Button danger type="primary" onClick={handleAddDeck}>
           添加 Deck
