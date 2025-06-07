@@ -3,7 +3,6 @@ import {
   Drawer,
   Form,
   Input,
-  InputNumber,
   message,
   Modal,
   Progress,
@@ -351,7 +350,7 @@ const Decks = () => {
     {
       title: 'Action',
       key: 'action',
-      width: 150,
+      width: 200,
       render: (text, row) => (
         <div>
           <Button
@@ -369,15 +368,11 @@ const Decks = () => {
           >
             Delete
           </Button>
-          <Button
-            type="link"
-            onClick={() => {
-              setDeckConfigureVisible(true);
-              setDeckConfigureDeckId(row.id);
-            }}
-          >
-            Configure
-          </Button>
+          {row.owned && (
+            <Button type="link" onClick={() => navigate(`/deck-original-cards/${row.id}`)}>
+              {row.isShared ? 'Update' : 'Share'}
+            </Button>
+          )}
         </div>
       ),
     },
@@ -539,63 +534,6 @@ const Decks = () => {
         width={600}
       >
         {renderDrawerContent()}
-      </Drawer>
-      <Drawer
-        title="Configure Deck"
-        placement="right"
-        onClose={() => {
-          setDeckConfigureVisible(false);
-          setDeckConfigureDeckId(null);
-          configureForm.resetFields();
-        }}
-        open={deckConfigureVisible}
-        width={400}
-      >
-        <Form
-          form={configureForm}
-          layout="vertical"
-          onFinish={async values => {
-            const response = await apiClient
-              .post(`/anki/configureDeck/${deckConfigureDeckId}`, values)
-              .catch(err => err.response);
-
-            if (response.data.success) {
-              message.success('Deck configured successfully!');
-              setDeckConfigureVisible(false);
-              getDecks();
-            } else {
-              message.error(response.data.message);
-            }
-          }}
-        >
-          <Form.Item
-            label="Easy Interval (minutes)"
-            name="easyInterval"
-            rules={[
-              { required: true, message: 'Please input easy interval!' },
-              { type: 'number', min: 1, message: 'Must be greater than 0!' },
-            ]}
-          >
-            <InputNumber />
-          </Form.Item>
-
-          <Form.Item
-            label="Hard Interval (minutes)"
-            name="hardInterval"
-            rules={[
-              { required: true, message: 'Please input hard interval!' },
-              { type: 'number', min: 1, message: 'Must be greater than 0!' },
-            ]}
-          >
-            <InputNumber />
-          </Form.Item>
-
-          <Form.Item>
-            <Button type="primary" htmlType="submit">
-              Save Configuration
-            </Button>
-          </Form.Item>
-        </Form>
       </Drawer>
     </div>
   );

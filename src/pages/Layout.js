@@ -64,7 +64,10 @@ const Layout = ({ children }) => {
         {['/login', '/signup'].includes(location.pathname) ? null : (
           <ul className={styles.navLeft}>
             <li>
-              <a onClick={() => navigate('/decks')}>decks</a>
+              <a onClick={() => navigate('/decks')}>My Decks</a>
+            </li>
+            <li>
+              <a onClick={() => navigate('/shared-decks')}>Shared Decks</a>
             </li>
             <li>
               <a>search</a>

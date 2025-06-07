@@ -1,10 +1,9 @@
-import React, { useState, useTransition, useDeferredValue, useEffect, Suspense } from 'react';
-import ReactDOM from 'react-dom';
-import { createRoot } from 'react-dom/client';
-import './styles/global.less';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import '@wangeditor/editor/dist/css/style.css'; // 引入 css
+import React, { Suspense, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import AnkiCreate from './pages/AnkiCreate';
+import './styles/global.less';
 // @ts-ignore
 import wsClient from './common/websocket/wsClient';
 
@@ -14,6 +13,9 @@ const Layout = React.lazy(() => import('./pages/Layout'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Signup = React.lazy(() => import('./pages/Signup'));
 const OAuthRegister = React.lazy(() => import('./pages/OAuthRegister'));
+const DeckOriginalCards = React.lazy(() => import('./pages/DeckOriginalCards'));
+const SharedDeckView = React.lazy(() => import('./pages/SharedDeckView'));
+const SharedDecks = React.lazy(() => import('./pages/SharedDecks'));
 
 function App() {
   useEffect(() => {
@@ -34,6 +36,9 @@ function App() {
             <Route path="/anki/:deckId" element={<Anki />} />
             <Route path="/anki/empty" element={<div>今日已学完</div>} />
             <Route path="/anki/create/:deckId" element={<AnkiCreate />} />
+            <Route path="/deck-original-cards/:deckId" element={<DeckOriginalCards />} />
+            <Route path="/shared-deck-view/:deckId" element={<SharedDeckView />} />
+            <Route path="/shared-decks" element={<SharedDecks />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/oauth/register" element={<OAuthRegister />} />
