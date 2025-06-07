@@ -8,15 +8,20 @@ import {
   Progress,
   Radio,
   Select,
+  Spin,
   Table,
   Tooltip,
+  Typography,
   Upload,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useSocket from '../../common/hooks/useSocket';
 import apiClient from '../../common/http/apiClient';
+import ApkgTemplateSelector from '../../component/ApkgTemplateSelector';
 import FooterBar from '../../component/Footbar';
+
+const { Text } = Typography;
 
 const Decks = () => {
   const [decks, setDecks] = useState([]);
@@ -34,9 +39,13 @@ const Decks = () => {
   const { socket, emit, on, isConnected } = useSocket();
   const [progresses, setProgresses] = useState({});
   const [pendingTaskIds, setPendingTaskIds] = useState([]);
-  const [deckConfigureVisible, setDeckConfigureVisible] = useState(false);
-  const [deckConfigureDeckId, setDeckConfigureDeckId] = useState(null);
-  const [configureForm] = Form.useForm();
+
+  // APKG两步式处理相关状态
+  const [apkgTemplates, setApkgTemplates] = useState(null);
+  const [apkgTaskId, setApkgTaskId] = useState(null);
+  const [selectedTemplates, setSelectedTemplates] = useState([]);
+  const [templateModalVisible, setTemplateModalVisible] = useState(false);
+  const [templateLoading, setTemplateLoading] = useState(false);
 
   // useEffect(() => {
 
@@ -80,25 +89,6 @@ const Decks = () => {
       });
     });
   }, [isConnected]);
-
-  useEffect(() => {
-    if (deckConfigureVisible && deckConfigureDeckId) {
-      // Load current configuration
-      apiClient
-        .get(`/anki/getDeckConfig/${deckConfigureDeckId}`)
-        .then(response => {
-          if (response.data.success) {
-            configureForm.setFieldsValue({
-              easyInterval: response.data.data.easyInterval,
-              hardInterval: response.data.data.hardInterval,
-            });
-          }
-        })
-        .catch(err => {
-          message.error('Failed to load deck configuration');
-        });
-    }
-  }, [deckConfigureVisible, deckConfigureDeckId]);
 
   const getDecks = async (isInit = false) => {
     setDecksLoading(true);
@@ -167,6 +157,100 @@ const Decks = () => {
     setFileList([]);
     setAudioFile(null);
     form.resetFields(); // Reset form fields when closing
+    // 重置APKG相关状态
+    setApkgTemplates(null);
+    setApkgTaskId(null);
+    setSelectedTemplates([]);
+    setTemplateModalVisible(false);
+  };
+
+  // 检测文件类型
+  const isApkgFile = file => {
+    return file.name.toLowerCase().endsWith('.apkg');
+  };
+
+  // 第一步：解析APKG模板
+  const parseApkgTemplates = async file => {
+    setTemplateLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiClient.post('/anki/parseApkgTemplates', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (response.data.success) {
+        const { taskId, templates, totalNotes, totalCards } = response.data.data;
+        setApkgTaskId(taskId);
+        setApkgTemplates({ templates, totalNotes, totalCards });
+        setSelectedTemplates(templates.map(t => ({ name: t.name, selected: true })));
+        setTemplateModalVisible(true);
+        message.success(
+          `解析成功！发现 ${templates.length} 个模板，共 ${totalNotes} 个笔记，${totalCards} 张卡片`
+        );
+      } else {
+        message.error(response.data.message);
+      }
+    } catch (error) {
+      message.error('解析APKG文件失败');
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
+  // 第二步：处理选择的模板
+  const processSelectedTemplates = async selectedTemplates => {
+    if (!apkgTaskId || selectedTemplates.length === 0) {
+      message.error('请至少选择一个模板');
+      return;
+    }
+
+    const formValues = form.getFieldsValue();
+    const selectedTemplateData = selectedTemplates.map(t => {
+      return {
+        name: t.name,
+        front: t.front || apkgTemplates.templates.find(orig => orig.name === t.name)?.front,
+        back: t.back || apkgTemplates.templates.find(orig => orig.name === t.name)?.back,
+      };
+    });
+
+    try {
+      const response = await apiClient.post('/anki/processSelectedTemplates', {
+        taskId: apkgTaskId,
+        selectedTemplates: selectedTemplateData,
+        deckInfo: {
+          name: formValues.name,
+          description: formValues.description,
+          type: 'APKG',
+        },
+      });
+
+      if (response.data.success) {
+        const { taskId } = response.data.data;
+        message.success('开始处理选择的模板，请等待...');
+
+        // 监听处理进度
+        setPendingTaskIds(prev => [...prev, taskId]);
+        on(`task-${taskId}-pending`, data => {
+          const { progress, message: progressMessage } = data;
+          if (progress == 100) {
+            socket.off(`task-${taskId}-pending`);
+            setPendingTaskIds(prev => prev.filter(id => id !== taskId));
+            getDecks();
+            message.success('APKG导入完成！');
+          }
+          setProgresses(prev => ({ ...prev, [taskId]: { progress, message: progressMessage } }));
+        });
+
+        handleClose();
+        getDecks();
+      } else {
+        message.error(response.data.message);
+      }
+    } catch (error) {
+      message.error('处理模板失败');
+    }
   };
 
   // 新增的音频处理函数
@@ -255,6 +339,13 @@ const Decks = () => {
     if (deckType === 'podcast') {
       //播客模式
       await handlePodcastSubmit(values);
+      return;
+    }
+
+    // 检查是否是APKG文件
+    if (fileList.length > 0 && isApkgFile(fileList[0])) {
+      // APKG文件：先解析模板
+      await parseApkgTemplates(fileList[0]);
       return;
     }
 
@@ -441,6 +532,15 @@ const Decks = () => {
             <Upload {...uploadProps}>
               <Button>点击上传</Button>
             </Upload>
+            {fileList.length > 0 && (
+              <div style={{ marginTop: '8px' }}>
+                {isApkgFile(fileList[0]) ? (
+                  <Text type="success">检测到APKG文件，将使用两步式导入流程</Text>
+                ) : (
+                  <Text type="secondary">普通文件，将直接导入</Text>
+                )}
+              </div>
+            )}
           </Form.Item>
         ) : form.getFieldValue('deckType') === 'audio' ? (
           <>
@@ -533,8 +633,30 @@ const Decks = () => {
         open={visible}
         width={600}
       >
-        {renderDrawerContent()}
+        {templateLoading ? (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '200px',
+            }}
+          >
+            <Spin size="large" />
+            <Text style={{ marginLeft: '12px' }}>正在解析APKG文件...</Text>
+          </div>
+        ) : (
+          renderDrawerContent()
+        )}
       </Drawer>
+      <ApkgTemplateSelector
+        visible={templateModalVisible}
+        onCancel={() => setTemplateModalVisible(false)}
+        onConfirm={processSelectedTemplates}
+        templates={apkgTemplates?.templates}
+        totalNotes={apkgTemplates?.totalNotes}
+        totalCards={apkgTemplates?.totalCards}
+      />
     </div>
   );
 };
