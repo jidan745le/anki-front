@@ -535,13 +535,123 @@ const CardEditor = forwardRef(
     const toolbarConfig = {
       insertKeys: {
         index: 0,
-        keys: ['aiExplain', 'aiGlobalExplain', 'textNote'], // 添加笔记菜单
+        keys: ['aiExplain', 'aiGlobalExplain', 'textNote'], // 添加图片上传菜单
       },
       excludeKeys: ['todo', 'redo', 'undo', 'fullScreen'],
     };
     const editorConfig = {
       placeholder: '请输入内容...',
 
+      // 图片上传配置
+
+      MENU_CONF: {
+        uploadImage: {
+          // 服务端地址 - 使用现有的upload-temp接口
+          server: '/api/file/upload-temp',
+
+          // form-data fieldName，默认值 'wangeditor-uploaded-image'
+          fieldName: 'file',
+
+          // 单个文件的最大体积限制，默认为 2M
+          maxFileSize: 5 * 1024 * 1024, // 5M
+
+          // 最多可上传几个文件，默认为 100
+          maxNumberOfFiles: 10,
+
+          // 选择文件时的类型限制，默认为 ['image/*']
+          allowedFileTypes: ['image/*'],
+
+          // 自定义增加 http header
+          headers: {
+            authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          },
+
+          // 跨域是否传递 cookie ，默认为 false
+          withCredentials: false,
+
+          // 超时时间，默认为 10 秒
+          timeout: 10 * 1000, // 10 秒
+
+          // 小于该值就插入 base64 格式（而不上传），默认为 0
+          base64LimitSize: 5 * 1024, // 5kb
+
+          // 上传之前触发 - 完全跳过验证（调试版本）
+          onBeforeUpload(file) {
+            console.log(file, 'file');
+            return file;
+          },
+
+          // 上传进度的回调函数
+          onProgress(progress) {
+            console.log('📈 上传进度:', progress + '%');
+          },
+
+          // 单个文件上传成功之后
+          onSuccess(file, res) {
+            console.log('✅ 上传成功:', file.name, res);
+          },
+
+          // 单个文件上传失败
+          onFailed(file, res) {
+            console.error('❌ 上传失败:', file.name, res);
+          },
+
+          // 上传错误，或者触发 timeout 超时
+          onError(file, err, res) {
+            console.error('💥 上传出错:', file.name, err, res);
+          },
+
+          // 自定义插入图片（适配upload-temp接口返回格式）
+          customInsert(res, insertFn) {
+            console.log('🖼️ 处理服务器响应:', res);
+
+            try {
+              // 适配不同的响应格式
+              let imageUrl = '';
+              let alt = '';
+              let href = '';
+
+              // 标准wangEditor格式
+              if (res.errno === 0 && res.data && res.data.url) {
+                imageUrl = res.data.url;
+                alt = res.data.alt || '';
+                href = res.data.href || '';
+              }
+              // 自定义格式 - success字段
+              else if (res.success && res.data) {
+                imageUrl = res.data.url || res.data.fileUrl || res.data.path || res.data.tempFileId;
+                alt = res.data.alt || res.data.originalName || '';
+                href = res.data.href || '';
+              }
+              // 直接返回URL的格式
+              else if (typeof res === 'string' && res.startsWith('http')) {
+                imageUrl = res;
+              }
+              // 其他可能的格式
+              else if (res.url) {
+                imageUrl = res.url;
+                alt = res.alt || '';
+                href = res.href || '';
+              }
+
+              if (imageUrl) {
+                console.log('✨ 插入图片:', imageUrl);
+                insertFn(imageUrl, alt, href);
+              } else {
+                console.error('❌ 无法从响应中提取图片URL:', res);
+                // 如果是tempFileId，尝试构造URL
+                if (res.data && res.data.tempFileId) {
+                  const tempUrl = `/api/file/temp/${res.data.tempFileId}`;
+                  console.log('🔄 尝试使用临时文件URL:', tempUrl);
+                  insertFn(tempUrl, alt, href);
+                }
+              }
+            } catch (error) {
+              console.error('💥 处理响应时出错:', error, res);
+            }
+          },
+        },
+      },
       hoverbarKeys: {
         link: {
           menuKeys: ['editLink', 'unLink', 'viewLink'],
