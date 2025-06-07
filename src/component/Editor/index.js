@@ -1,4 +1,4 @@
-import { Boot, SlateEditor, SlatePath, SlateTransforms } from '@wangeditor/editor';
+import { Boot, SlateEditor, SlateElement, SlatePath, SlateTransforms } from '@wangeditor/editor';
 import { Editor, Toolbar } from '@wangeditor/editor-for-react';
 import React, {
   forwardRef,
@@ -408,6 +408,7 @@ const CardEditor = forwardRef(
         }
 
         setTimeout(() => {
+          console.log(editorContainerRef.current, 'editorContainerRef.current');
           editor.dangerouslyInsertHtml(value);
           initialFlag.current = true;
         });
@@ -441,11 +442,35 @@ const CardEditor = forwardRef(
           if (isNew) {
             console.log(html, editor, editor.marks, editor.getHtml(), 'initial3');
             editor.selectAll();
-            editor.addMark('fontSize', '22px');
+            editor.addMark('fontSize', '24px');
+            //每一个段落居中
+            SlateTransforms.setNodes(
+              editor,
+              { textAlign: 'center' },
+              {
+                at: [],
+                match: n => SlateElement.isElement(n) && n.type === 'paragraph',
+              }
+            );
+            editor.deselect();
+          } else {
+            //防止滚动
+            editor.selectAll();
+            // editor.addMark('fontSize', '24px');
+            //每一个段落居中
+            // SlateTransforms.setNodes(
+            //   editor,
+            //   { textAlign: 'center' },
+            //   { at: [], match: n => SlateElement.isElement(n) && n.type === 'paragraph' }
+            // );
             editor.deselect();
           }
 
           initialFlag.current = false;
+          // setTimeout(() => {
+          //   editorContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+          // }, 100);
+
           return;
         } else {
           let curHtmlStr = editor.getHtml();
@@ -709,6 +734,7 @@ const CardEditor = forwardRef(
             marginTop: '15px',
             display: 'flex',
             flex: 1,
+            height: '100%',
           }}
         >
           <div
@@ -719,6 +745,7 @@ const CardEditor = forwardRef(
               border: '1px solid #ccc',
               flex: 1,
               flexDirection: 'column',
+              height: '100%',
             }}
           >
             <Toolbar
@@ -732,7 +759,7 @@ const CardEditor = forwardRef(
               onCreated={handleEditorCreated}
               onChange={handleEditorChange}
               mode="default"
-              style={{ flex: 1, overflow: 'auto' }}
+              style={{ flex: 1, overflow: 'auto', height: '100%' }}
             />
           </div>
 

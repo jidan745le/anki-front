@@ -28,6 +28,7 @@ const AnkiCard = forwardRef(
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const editorRef = useRef(null);
+    const frontRef = useRef(null);
 
     useImperativeHandle(ref, () => ({
       getEditor: () => editorRef.current,
@@ -92,7 +93,8 @@ const AnkiCard = forwardRef(
       if (isSpeaking) {
         stopSpeaking();
       } else {
-        const textToSpeak = frontType !== 'audio' ? front : '这是一个音频卡片';
+        const textToSpeak =
+          frontType !== 'audio' ? frontRef.current.textContent : '这是一个音频卡片';
         speakText(textToSpeak);
       }
     };
@@ -229,19 +231,24 @@ const AnkiCard = forwardRef(
         <Card
           className="anki-card"
           bordered={false}
+          style={{
+            height: '100%',
+          }}
           title={
             <div
               style={{
-                height: '63px',
+                minHeight: '63px',
+                height: flipped ? '63px' : 'auto',
                 boxSizing: 'border-box',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
                 fontSize: '24px',
                 fontWeight: 'bold',
-                padding: '12px',
+                // padding: '12px',
                 position: 'relative',
                 flexDirection: 'column',
+                overflow: 'auto',
                 flex: 1,
               }}
             >
@@ -251,7 +258,13 @@ const AnkiCard = forwardRef(
                 </audio>
               ) : (
                 <>
-                  <span>{front}</span>
+                  <div
+                    ref={frontRef}
+                    dangerouslySetInnerHTML={{ __html: front }}
+                    style={{
+                      minHeight: '63px',
+                    }}
+                  />
                   {/* TTS朗读按钮 */}
                   <Button
                     type="text"
@@ -273,7 +286,15 @@ const AnkiCard = forwardRef(
           }
         >
           {flipped ? (
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                height: '100%',
+                overflow: 'hidden',
+              }}
+            >
               {isMobile ? (
                 // 移动端显示只读内容
                 <div style={{ position: 'relative' }}>
@@ -313,6 +334,9 @@ const AnkiCard = forwardRef(
                     display: 'flex',
                     flexDirection: 'column',
                     flex: 1,
+                    overflow: 'hidden',
+                    height: '100%',
+                    borderBottom: '1px solid rgb(204, 204, 204)',
                   }}
                 >
                   <MyEditor
@@ -322,7 +346,7 @@ const AnkiCard = forwardRef(
                     showAIChatSidebar={showAIChatSidebar}
                     cardUUID={cardUUID}
                     config={config}
-                    title={frontType !== 'audio' ? front : undefined}
+                    title={frontType !== 'audio' ? frontRef.current.textContent : undefined}
                     onChange={onChange}
                     isNew={isNew}
                     value={`${back}`}

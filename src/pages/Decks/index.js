@@ -70,6 +70,7 @@ const Decks = () => {
       });
 
       socket.on(`task-${taskId}-pending`, data => {
+        console.log('Decks.js socket.on11', data);
         if (data.progress == 100) {
           socket.off(`task-${taskId}-pending`);
           setPendingTaskIds(prev => prev.filter(id => id !== taskId));
