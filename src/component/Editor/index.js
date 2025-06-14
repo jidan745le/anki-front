@@ -444,14 +444,14 @@ const CardEditor = forwardRef(
             editor.selectAll();
             editor.addMark('fontSize', '24px');
             //每一个段落居中
-            SlateTransforms.setNodes(
-              editor,
-              { textAlign: 'center' },
-              {
-                at: [],
-                match: n => SlateElement.isElement(n) && n.type === 'paragraph',
-              }
-            );
+            // SlateTransforms.setNodes(
+            //   editor,
+            //   { textAlign: 'left' },
+            //   {
+            //     at: [],
+            //     match: n => SlateElement.isElement(n) && n.type === 'paragraph',
+            //   }
+            // );
             editor.deselect();
           } else {
             //防止滚动

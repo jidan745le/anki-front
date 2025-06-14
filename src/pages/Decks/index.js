@@ -1,16 +1,17 @@
+import { DownOutlined, InboxOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import {
   Button,
-  Drawer,
+  Dropdown,
   Form,
   Input,
   message,
   Modal,
   Progress,
-  Radio,
   Select,
   Spin,
   Table,
   Tabs,
+  Tag,
   Tooltip,
   Typography,
   Upload,
@@ -20,29 +21,27 @@ import { useNavigate } from 'react-router-dom';
 import useSocket from '../../common/hooks/useSocket';
 import apiClient from '../../common/http/apiClient';
 import ApkgTemplateSelector from '../../component/ApkgTemplateSelector';
+import DeckConfigModal from '../../component/DeckConfigModal';
 import FooterBar from '../../component/Footbar';
 
 const { Text } = Typography;
+const { Dragger } = Upload;
 
 const Decks = () => {
   const [decks, setDecks] = useState([]);
   const [originalDecks, setOriginalDecks] = useState([]); // 自己创建的
   const [duplicatedDecks, setDuplicatedDecks] = useState([]); // 复制的
   const [visible, setVisible] = useState(false);
-  const [fileList, setFileList] = useState([]);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [fileType, setFileType] = useState(''); // 'txt', 'apkg', 'epub'
   const [loading, setLoading] = useState(false);
   const [decksLoading, setDecksLoading] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
-  const [audioFile, setAudioFile] = useState(null);
-  const [audioLoading, setAudioLoading] = useState(false);
-  const [deckType, setDeckType] = useState('normal'); // 'normal' or 'audio' or 'podcast'
-  const [podcastFile, setPodcastFile] = useState(null);
-  const [podcastMode, setPodcastMode] = useState('existing');
   const { socket, emit, on, isConnected } = useSocket();
   const [progresses, setProgresses] = useState({});
   const [pendingTaskIds, setPendingTaskIds] = useState([]);
-  const [activeTab, setActiveTab] = useState('original'); // 'original' or 'duplicated'
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'original' or 'duplicated'
 
   // APKG两步式处理相关状态
   const [apkgTemplates, setApkgTemplates] = useState(null);
@@ -50,6 +49,11 @@ const Decks = () => {
   const [selectedTemplates, setSelectedTemplates] = useState([]);
   const [templateModalVisible, setTemplateModalVisible] = useState(false);
   const [templateLoading, setTemplateLoading] = useState(false);
+
+  // Deck配置相关状态
+  const [configModalVisible, setConfigModalVisible] = useState(false);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [currentDeck, setCurrentDeck] = useState(null);
 
   // useEffect(() => {
 
@@ -95,6 +99,7 @@ const Decks = () => {
   }, [isConnected]);
 
   const getDecks = async (isInit = false) => {
+    // console.log(new Error().stack);
     setDecksLoading(true);
     const res = await apiClient.get(`/anki/getDecks`).catch(err => err.response);
     const data = res.data;
@@ -159,14 +164,13 @@ const Decks = () => {
   };
 
   const handleAddDeck = () => {
-    form.setFieldValue('deckType', 'normal');
     setVisible(true);
   };
 
   const handleClose = () => {
     setVisible(false);
-    setFileList([]);
-    setAudioFile(null);
+    setUploadedFile(null);
+    setFileType('');
     form.resetFields(); // Reset form fields when closing
     // 重置APKG相关状态
     setApkgTemplates(null);
@@ -176,8 +180,16 @@ const Decks = () => {
   };
 
   // 检测文件类型
-  const isApkgFile = file => {
-    return file.name.toLowerCase().endsWith('.apkg');
+  const detectFileType = file => {
+    const fileName = file.name.toLowerCase();
+    if (fileName.endsWith('.txt')) {
+      return 'txt';
+    } else if (fileName.endsWith('.apkg')) {
+      return 'apkg';
+    } else if (fileName.endsWith('.epub')) {
+      return 'epub';
+    }
+    return '';
   };
 
   // 第一步：解析APKG模板
@@ -238,24 +250,24 @@ const Decks = () => {
       });
 
       if (response.data.success) {
-        const { taskId } = response.data.data;
+        // const { taskId } = response.data.data;
         message.success('开始处理选择的模板，请等待...');
 
         // 监听处理进度
-        setPendingTaskIds(prev => [...prev, taskId]);
-        on(`task-${taskId}-pending`, data => {
-          const { progress, message: progressMessage } = data;
-          if (progress == 100) {
-            socket.off(`task-${taskId}-pending`);
-            setPendingTaskIds(prev => prev.filter(id => id !== taskId));
-            getDecks();
-            message.success('APKG导入完成！');
-          }
-          setProgresses(prev => ({ ...prev, [taskId]: { progress, message: progressMessage } }));
-        });
+        // setPendingTaskIds(prev => [...prev, taskId]);
+        // on(`task-${taskId}-pending`, data => {
+        //   const { progress, message: progressMessage } = data;
+        //   if (progress == 100) {
+        //     socket.off(`task-${taskId}-pending`);
+        //     setPendingTaskIds(prev => prev.filter(id => id !== taskId));
+        //     getDecks();
+        //     message.success('APKG导入完成！');
+        //   }
+        //   setProgresses(prev => ({ ...prev, [taskId]: { progress, message: progressMessage } }));
+        // });
 
         handleClose();
-        getDecks();
+        // getDecks();
       } else {
         message.error(response.data.message);
       }
@@ -264,70 +276,38 @@ const Decks = () => {
     }
   };
 
-  // 新增的音频处理函数
-  const handleAudioSubmit = async values => {
-    const formData = new FormData();
-    formData.append('file', audioFile);
-    formData.append('text', values.transcriptText);
-    formData.append('name', values.name);
-    values.description && formData.append('description', values.description);
-
-    setAudioLoading(true);
-    try {
-      const response = await apiClient.post('/anki/createAdvancedDeckWithAudio', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      if (response.data.success) {
-        message.success('Audio deck created successfully!');
-        handleClose();
-        getDecks();
-      } else {
-        message.error(response.data.message);
-      }
-    } catch (error) {
-      message.error('Failed to create audio deck');
-    } finally {
-      setAudioLoading(false);
+  // EPUB模式提交
+  const handleEpubSubmit = async values => {
+    if (!uploadedFile) {
+      message.error('Please select an EPUB file');
+      return;
     }
-  };
 
-  // 播客模式提交
-  const handlePodcastSubmit = async values => {
     const formData = new FormData();
     formData.append('name', values.name);
-    values.description && formData.append('description', values.description);
-    console.log(values, 'values');
+    formData.append('file', uploadedFile);
 
-    if (podcastMode === 'existing') {
-      formData.append('podcastType', values.podcastType);
-      formData.append('podcastUrl', values.podcastUrl);
-    } else {
-      formData.append('file', podcastFile);
+    // 添加可选参数
+    if (values.description) {
+      formData.append('description', values.description);
+    }
+    if (values.chunkSize) {
+      formData.append('chunkSize', values.chunkSize);
+    }
+    if (values.chunkOverlap) {
+      formData.append('chunkOverlap', values.chunkOverlap);
     }
 
     setLoading(true);
     try {
-      const response = await apiClient.post('/anki/createDeckWithPodcast', formData, {
+      const response = await apiClient.post('/anki/addEpubDeck', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       if (response.data.success) {
-        message.success('Podcast deck created successfully!');
-        const { taskId } = response.data.data;
-
-        // 等待 socket 连接
-
-        setPendingTaskIds(prev => [...prev, taskId]);
-        on(`task-${taskId}-pending`, data => {
-          const { progress, message } = data;
-          if (progress == 100) {
-            socket.off(`task-${taskId}-pending`);
-            setPendingTaskIds(prev => prev.filter(id => id !== taskId));
-            getDecks();
-          }
-          setProgresses(prev => ({ ...prev, [taskId]: { progress, message } }));
-        });
+        message.success(
+          `EPUB deck created successfully! Generated ${response.data.data.cardsCount} cards.`
+        );
 
         handleClose();
         getDecks();
@@ -335,61 +315,128 @@ const Decks = () => {
         message.error(response.data.message);
       }
     } catch (error) {
-      message.error('Failed to create podcast deck');
+      message.error(
+        'Failed to create EPUB deck: ' + (error.response?.data?.message || error.message)
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // TXT模式提交
+  const handleTxtSubmit = async values => {
+    if (!uploadedFile) {
+      message.error('Please select a TXT file');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('name', values.name);
+    formData.append('file', uploadedFile);
+    if (values.description) {
+      formData.append('description', values.description);
+    }
+    if (values.separator) {
+      formData.append('separator', values.separator);
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiClient.post('/anki/addDeck', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (response.data.success) {
+        message.success('TXT deck created successfully!');
+        handleClose();
+        getDecks();
+      } else {
+        message.error(response.data.message);
+      }
+    } catch (error) {
+      message.error('Failed to create TXT deck');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSubmit = async values => {
-    if (deckType === 'audio') {
-      await handleAudioSubmit(values);
+    if (fileType === 'txt') {
+      await handleTxtSubmit(values);
       return;
     }
 
-    if (deckType === 'podcast') {
-      //播客模式
-      await handlePodcastSubmit(values);
+    if (fileType === 'epub') {
+      await handleEpubSubmit(values);
       return;
     }
 
-    // 检查是否是APKG文件
-    if (fileList.length > 0 && isApkgFile(fileList[0])) {
+    if (fileType === 'apkg') {
       // APKG文件：先解析模板
-      await parseApkgTemplates(fileList[0]);
+      await parseApkgTemplates(uploadedFile);
       return;
     }
 
-    // 一般模式
-    let formData = new FormData();
-    Object.keys(values).forEach(key => {
-      values[key] && formData.set(key, values[key]);
-    });
-    console.log('Received values:', values);
-    if (fileList.length > 0) {
-      console.log(fileList[0], 'fileList[0]');
-      formData.set('file', fileList[0]);
-    }
-    setLoading(true);
-    const response = await apiClient
-      .post('/anki/addDeck', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-      .catch(err => err.response);
-    console.log(response, 'response');
-    setLoading(false);
-
-    if (response.data.success) {
-      message.success('Deck added successfully!');
-      // Optionally refresh the decks list
-      handleClose();
-      getDecks();
-    } else {
-      message.error(response.data.message);
-    }
-
-    //handleClose(); // Close the drawer after submission (for now)
+    message.error('Please select a valid file');
   };
 
-  const getColumns = (isDuplicated = false) => [
+  // 打开配置模态框
+  const handleConfigureDeck = deck => {
+    setCurrentDeck(deck);
+    setConfigModalVisible(true);
+  };
+
+  // 保存配置
+  const handleSaveConfig = async config => {
+    if (!currentDeck) return;
+
+    setConfigLoading(true);
+    try {
+      const response = await apiClient.post(`/anki/updateDeckConfig/${currentDeck.id}`, {
+        config: {
+          size: config.size,
+          align: config.align,
+        },
+        fsrsParameters: config.fsrsParameters,
+      });
+
+      if (response.data.success) {
+        message.success('配置保存成功！');
+        setConfigModalVisible(false);
+        setCurrentDeck(null);
+        getDecks(); // 刷新数据
+      } else {
+        message.error(response.data.message);
+      }
+    } catch (error) {
+      message.error('保存配置失败');
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  // 关闭配置模态框
+  const handleCloseConfig = () => {
+    setConfigModalVisible(false);
+    setCurrentDeck(null);
+  };
+
+  // 处理嵌入功能
+  const handleEmbedDeck = async deck => {
+    try {
+      const response = await apiClient.post(`/anki/embedding/${deck.id}`);
+      if (response.data.success) {
+        message.success('嵌入功能已启用！');
+        // getDecks(); // 刷新数据
+      } else {
+        message.error(response.data.message);
+      }
+    } catch (error) {
+      message.error('启用嵌入功能失败');
+    }
+  };
+
+  const getColumns = () => [
     {
       title: 'Name',
       dataIndex: 'name',
@@ -397,7 +444,14 @@ const Decks = () => {
       width: 200,
       render: (text, row) => (
         <div>
-          <a onClick={() => navigate(`/anki/${row.id}`)}>{text}</a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <a onClick={() => navigate(`/anki/${row.id}`)}>{text}</a>
+            {row.isShared && row.owned && (
+              <Tag color="blue" style={{ fontSize: '12px', padding: '0 6px' }}>
+                Shared
+              </Tag>
+            )}
+          </div>
           {row.status == 'processing' && row.taskId && (
             <>
               <Progress percent={progresses[row.taskId]?.progress || 0} />
@@ -405,9 +459,6 @@ const Decks = () => {
             </>
           )}
           {row.status == 'failed' && <div style={{ color: 'red' }}>failed </div>}
-          {isDuplicated && row.originalDeckName && (
-            <div style={{ color: '#666', fontSize: '12px' }}>原始: {row.originalDeckName}</div>
-          )}
         </div>
       ),
     },
@@ -416,13 +467,6 @@ const Decks = () => {
       dataIndex: 'description',
       key: 'description',
       width: 200,
-      render: text => text || '',
-    },
-    {
-      title: 'deckType',
-      dataIndex: 'deckType',
-      key: 'deckType',
-      width: 100,
       render: text => text || '',
     },
     {
@@ -455,177 +499,194 @@ const Decks = () => {
     {
       title: 'Action',
       key: 'action',
-      width: 200,
-      render: (text, row) => (
-        <div>
-          <Button
-            disabled={row.status == 'processing'}
-            type="link"
-            onClick={() => navigate(`/anki/create/${row.id}`)}
+      width: 100,
+      render: (text, row) => {
+        const handleMenuClick = ({ key }) => {
+          switch (key) {
+            case 'add':
+              navigate(`/anki/create/${row.id}`);
+              break;
+            case 'embed':
+              handleEmbedDeck(row);
+              break;
+            case 'configure':
+              handleConfigureDeck(row);
+              break;
+            case 'delete':
+              deleteDeck(row.id);
+              break;
+            case 'share':
+              navigate(`/deck-original-cards/${row.id}`);
+              break;
+          }
+        };
+
+        const menuItems = [
+          {
+            key: 'add',
+            label: 'Add',
+            disabled: row.status === 'processing',
+          },
+          {
+            key: 'share',
+            label: row.isShared ? 'Update' : 'Share',
+            disabled: !row.owned,
+          },
+          {
+            key: 'delete',
+            label: 'Delete',
+            danger: true,
+            // disabled: row.status === 'processing',
+          },
+
+          {
+            type: 'divider',
+          },
+          {
+            key: 'configure',
+            label: 'Configure',
+            disabled: row.status === 'processing' || !row.owned,
+          },
+          {
+            key: 'embed',
+            label: 'Embedding',
+            disabled: !row.owned || row.status === 'processing',
+          },
+        ];
+
+        return (
+          <Dropdown
+            menu={{
+              items: menuItems,
+              onClick: handleMenuClick,
+            }}
+            trigger={['click']}
+            placement="bottomRight"
           >
-            Add
-          </Button>
-          <Button
-            disabled={false && row.status == 'processing'}
-            danger
-            type="link"
-            onClick={() => deleteDeck(row.id)}
-          >
-            Delete
-          </Button>
-          {row.owned && !isDuplicated && (
-            <Button type="link" onClick={() => navigate(`/deck-original-cards/${row.id}`)}>
-              {row.isShared ? 'Update' : 'Share'}
+            <Button type="link">
+              Actions
+              <DownOutlined />
             </Button>
-          )}
-        </div>
-      ),
+          </Dropdown>
+        );
+      },
     },
   ];
 
+  // 文件上传配置
   const uploadProps = {
-    onRemove: file => {
-      setFileList([]);
-    },
+    name: 'file',
+    multiple: false,
+    maxCount: 1,
     beforeUpload: file => {
-      console.log(file, 'file');
-      setFileList([file]);
+      const detectedType = detectFileType(file);
+      if (!detectedType) {
+        message.error('Please upload a valid file (TXT, APKG, or EPUB)');
+        return false;
+      }
 
-      return false;
+      setUploadedFile(file);
+      setFileType(detectedType);
+
+      // 为不同文件类型设置默认值
+      if (detectedType === 'epub') {
+        form.setFieldsValue({
+          chunkSize: 2000,
+          chunkOverlap: 50,
+        });
+      } else if (detectedType === 'txt') {
+        form.setFieldsValue({
+          separator: '|',
+        });
+      }
+
+      return false; // 阻止自动上传
     },
-    onChange: info => {
-      console.log(info);
+    onRemove: () => {
+      setUploadedFile(null);
+      setFileType('');
+      form.resetFields(['separator', 'chunkSize', 'chunkOverlap']);
     },
-    fileList,
+    fileList: uploadedFile ? [uploadedFile] : [],
   };
 
-  // 修改Drawer内容
-  const renderDrawerContent = () => {
-    console.log(deckType, 'deckType');
+  // 渲染文件类型说明
+  const renderFileTypeDescription = (inDragArea = false) => {
+    const descriptions = {
+      txt: '已检测到TXT文件，将根据分隔符处理文本内容',
+      apkg: '已检测到APKG文件，将使用两步式导入流程进行模板处理',
+      epub: '已检测到EPUB文件，将自动提取内容并分段处理',
+    };
+
+    if (!fileType) {
+      return null;
+    }
+
+    // 使用内联样式对象
     return (
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-        onValuesChange={changedValues => {
-          if (changedValues.deckType) {
-            setDeckType(changedValues.deckType);
-            if (changedValues.deckType === 'podcast') {
-              form.setFieldsValue({ podcastMode: 'existing' });
-              form.setFieldsValue({ podcastType: 'this american life' });
-            }
-          }
-
-          if (changedValues.podcastMode) {
-            setPodcastMode(changedValues.podcastMode);
-          }
-        }}
+      <div
+        style={
+          inDragArea
+            ? { textAlign: 'center', margin: '8px 0', fontSize: '14px', color: '#666' }
+            : { textAlign: 'center', margin: '16px 0', fontSize: '14px', color: '#666' }
+        }
       >
-        <Form.Item label="Deck Type" name="deckType">
-          <Radio.Group buttonStyle="solid">
-            <Radio.Button value="normal">Normal Deck</Radio.Button>
-            <Radio.Button value="audio">Custom Audio Deck</Radio.Button>
-            <Radio.Button value="podcast">Podcast Deck</Radio.Button>
-          </Radio.Group>
-        </Form.Item>
-
-        <Form.Item
-          name="name"
-          label="Deck Name"
-          rules={[{ required: true, message: '请输入 Deck 名称!' }]}
-        >
-          <Input />
-        </Form.Item>
-
-        <Form.Item name="description" label="Description">
-          <Input.TextArea />
-        </Form.Item>
-
-        {form.getFieldValue('deckType') === 'normal' ? (
-          <Form.Item name="file" label="Upload File">
-            <Upload {...uploadProps}>
-              <Button>点击上传</Button>
-            </Upload>
-            {fileList.length > 0 && (
-              <div style={{ marginTop: '8px' }}>
-                {isApkgFile(fileList[0]) ? (
-                  <Text type="success">检测到APKG文件，将使用两步式导入流程</Text>
-                ) : (
-                  <Text type="secondary">普通文件，将直接导入</Text>
-                )}
-              </div>
-            )}
-          </Form.Item>
-        ) : form.getFieldValue('deckType') === 'audio' ? (
-          <>
-            <Form.Item label="Audio File">
-              <Upload
-                beforeUpload={file => {
-                  setAudioFile(file);
-                  return false;
-                }}
-                onRemove={() => setAudioFile(null)}
-                fileList={audioFile ? [audioFile] : []}
-              >
-                <Button>Upload Audio</Button>
-              </Upload>
-            </Form.Item>
-            <Form.Item label="Transcript Text" name="transcriptText">
-              <Input.TextArea rows={6} placeholder="00:00:00.84|Ira Glass: Hello..." />
-            </Form.Item>
-          </>
-        ) : (
-          <>
-            <Form.Item label="Podcast Mode" name="podcastMode">
-              <Radio.Group buttonStyle="solid">
-                <Radio.Button value="existing">Use Existing Podcast</Radio.Button>
-                <Radio.Button value="ai">Use AI to Split Podcast</Radio.Button>
-              </Radio.Group>
-            </Form.Item>
-
-            {form.getFieldValue('podcastMode') === 'existing' ? (
-              <>
-                <Form.Item label="Podcast" name="podcastType">
-                  <Select>
-                    <Select.Option value="this american life">This American Life</Select.Option>
-                    <Select.Option value="overthink">Overthink</Select.Option>
-                  </Select>
-                </Form.Item>
-                <Form.Item label="URL" name="podcastUrl">
-                  <Input placeholder="Enter URL, e.g., https://www.thisamericanlife.org/846/transcript" />
-                </Form.Item>
-              </>
-            ) : (
-              <Form.Item label="Upload Podcast File" name="podcastFile">
-                <Upload
-                  beforeUpload={file => {
-                    setPodcastFile(file);
-                    return false;
-                  }}
-                  onRemove={() => setPodcastFile(null)}
-                  fileList={podcastFile ? [podcastFile] : []}
-                >
-                  <Button>Upload Podcast</Button>
-                </Upload>
-              </Form.Item>
-            )}
-          </>
-        )}
-
-        <Form.Item>
-          <Button
-            loading={deckType === 'audio' ? audioLoading : loading}
-            type="primary"
-            htmlType="submit"
-          >
-            提交
-          </Button>
-        </Form.Item>
-      </Form>
+        {descriptions[fileType]}
+      </div>
     );
   };
 
+  // 渲染文件类型特定的配置项
+  const renderFileTypeConfig = () => {
+    if (fileType === 'txt') {
+      return (
+        <Form.Item label="分隔符" name="separator" tooltip="用于分割文本内容的分隔符">
+          <Select placeholder="选择分隔符" defaultValue="|">
+            <Select.Option value="|">| (竖线)</Select.Option>
+          </Select>
+        </Form.Item>
+      );
+    }
+
+    if (fileType === 'epub') {
+      return (
+        <>
+          <Form.Item label="分段大小" name="chunkSize" tooltip="文本分段大小 (100-3000 字符)">
+            <Input type="number" placeholder="2000" min={100} max={3000} />
+          </Form.Item>
+
+          <Form.Item
+            label="分段重叠"
+            name="chunkOverlap"
+            tooltip="文本段落之间的重叠字符数 (0-200 字符)"
+          >
+            <Input type="number" placeholder="50" min={0} max={200} />
+          </Form.Item>
+        </>
+      );
+    }
+
+    return null;
+  };
+
   const tabItems = [
+    {
+      key: 'all',
+      label: `All (${decks.length})`,
+      children: (
+        <Table
+          loading={decksLoading}
+          dataSource={decks}
+          rowKey={row => row.id}
+          showHeader={false}
+          pagination={{
+            pageSize: 10,
+            showTotal: total => `Total ${total} items`,
+          }}
+          columns={getColumns()}
+        />
+      ),
+    },
     {
       key: 'original',
       label: `Created (${originalDecks.length})`,
@@ -633,9 +694,13 @@ const Decks = () => {
         <Table
           loading={decksLoading}
           dataSource={originalDecks}
+          showHeader={false}
           rowKey={row => row.id}
-          pagination={false}
-          columns={getColumns(false)}
+          pagination={{
+            pageSize: 10,
+            showTotal: total => `Total ${total} items`,
+          }}
+          columns={getColumns()}
         />
       ),
     },
@@ -647,8 +712,12 @@ const Decks = () => {
           loading={decksLoading}
           dataSource={duplicatedDecks}
           rowKey={row => row.id}
-          pagination={false}
-          columns={getColumns(true)}
+          showHeader={false}
+          pagination={{
+            pageSize: 10,
+            showTotal: total => `Total ${total} items`,
+          }}
+          columns={getColumns()}
         />
       ),
     },
@@ -656,25 +725,65 @@ const Decks = () => {
 
   return (
     <div style={{ padding: '12px', marginBottom: '64px' }}>
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={tabItems}
-        style={{ marginBottom: '16px' }}
-      />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px',
+        }}
+      >
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={tabItems}
+          style={{ flex: 1 }}
+          tabBarExtraContent={{
+            right: (
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '16px' }}
+              >
+                <div
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: isConnected ? '#52c41a' : '#ff4d4f',
+                    boxShadow: isConnected
+                      ? '0 0 8px rgba(82, 196, 26, 0.6)'
+                      : '0 0 8px rgba(255, 77, 79, 0.6)',
+                    transition: 'all 0.3s ease',
+                  }}
+                  title={isConnected ? 'Socket连接正常' : 'Socket连接断开'}
+                />
+                <Text
+                  style={{
+                    fontSize: '12px',
+                    color: isConnected ? '#52c41a' : '#ff4d4f',
+                    fontWeight: '500',
+                  }}
+                >
+                  {isConnected ? 'connected' : 'disconnected'}
+                </Text>
+              </div>
+            ),
+          }}
+        />
+      </div>
 
       <FooterBar>
         <Button danger type="primary" onClick={handleAddDeck}>
           添加 Deck
         </Button>
       </FooterBar>
-      <Drawer
+
+      <Modal
         title="添加 Deck"
-        placement="right"
-        onClose={handleClose}
-        maskClosable={false}
         open={visible}
-        width={600}
+        onCancel={handleClose}
+        footer={null}
+        width={680}
+        destroyOnClose={true}
       >
         {templateLoading ? (
           <div
@@ -689,9 +798,92 @@ const Decks = () => {
             <Text style={{ marginLeft: '12px' }}>正在解析APKG文件...</Text>
           </div>
         ) : (
-          renderDrawerContent()
+          <Form form={form} layout="vertical" onFinish={handleSubmit}>
+            <Form.Item
+              name="name"
+              label="Deck 名称"
+              rules={[{ required: true, message: '请输入 Deck 名称!' }]}
+            >
+              <Input placeholder="请输入Deck名称" />
+            </Form.Item>
+
+            <Form.Item name="description" label="描述">
+              <Input.TextArea placeholder="请输入Deck描述（可选）" rows={3} />
+            </Form.Item>
+
+            <Form.Item
+              label={
+                <>
+                  上传文件
+                  <Tooltip
+                    title={
+                      <div style={{ textAlign: 'left' }}>
+                        <p>
+                          <strong>支持的文件类型：</strong>
+                        </p>
+                        <p>
+                          <strong>TXT文件：</strong> 文本内容，支持自定义分隔符
+                        </p>
+                        <p>
+                          <strong>APKG文件：</strong> Anki卡包文件，支持模板选择和编辑
+                        </p>
+                        <p>
+                          <strong>EPUB文件：</strong> 电子书文件，自动分章节处理
+                        </p>
+                      </div>
+                    }
+                  >
+                    <QuestionCircleOutlined style={{ marginLeft: '4px' }} />
+                  </Tooltip>
+                </>
+              }
+              required
+            >
+              <Dragger {...uploadProps} style={{ marginBottom: '16px' }}>
+                {!uploadedFile ? (
+                  <>
+                    <p className="ant-upload-drag-icon">
+                      <InboxOutlined />
+                    </p>
+                    <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+                    <p className="ant-upload-hint">支持 TXT、APKG、EPUB 格式文件</p>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ fontSize: '16px', margin: '8px 0' }}>
+                      {uploadedFile.name}
+                      <Button
+                        type="text"
+                        danger
+                        onClick={e => {
+                          e.stopPropagation();
+                          uploadProps.onRemove();
+                        }}
+                        style={{ marginLeft: '8px' }}
+                      >
+                        移除
+                      </Button>
+                    </p>
+                    {renderFileTypeDescription(true)}
+                  </>
+                )}
+              </Dragger>
+            </Form.Item>
+
+            {renderFileTypeConfig()}
+
+            <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+              <Button onClick={handleClose} style={{ marginRight: '8px' }}>
+                取消
+              </Button>
+              <Button loading={loading} type="primary" htmlType="submit" disabled={!uploadedFile}>
+                提交
+              </Button>
+            </Form.Item>
+          </Form>
         )}
-      </Drawer>
+      </Modal>
+
       <ApkgTemplateSelector
         visible={templateModalVisible}
         onCancel={() => setTemplateModalVisible(false)}
@@ -699,6 +891,14 @@ const Decks = () => {
         templates={apkgTemplates?.templates}
         totalNotes={apkgTemplates?.totalNotes}
         totalCards={apkgTemplates?.totalCards}
+      />
+
+      <DeckConfigModal
+        visible={configModalVisible}
+        onCancel={handleCloseConfig}
+        onConfirm={handleSaveConfig}
+        deckData={currentDeck}
+        loading={configLoading}
       />
     </div>
   );

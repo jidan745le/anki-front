@@ -53,6 +53,8 @@ class WebSocketClient {
 
     this.socket.on('disconnect', () => {
       this.client.emit('disconnect');
+      setTimeout(() => this.connect(), 1000);
+
       console.log('Disconnected from socket server');
     });
 
@@ -82,6 +84,12 @@ class WebSocketClient {
           localStorage.removeItem('refreshToken');
           window.location.href = '/login';
         }
+      } else {
+        // 断开当前连接
+        console.log('reconnect');
+        this.disconnect();
+        // 使用新 token 重新连接
+        setTimeout(() => this.connect(), 1000);
       }
     });
   }

@@ -494,6 +494,53 @@ function Anki() {
       });
   };
 
+  // 新增：通过UUID获取特定卡片
+  const getCardByUuid = cardUuid => {
+    setFlipped(false);
+    setLoading(true);
+    apiClient
+      .get(`/anki/getCard?uuid=${cardUuid}`)
+      .then(res => {
+        setLoading(false);
+        const data = res.data;
+        if (data.success && data.data?.card) {
+          cardIdRef.current = data.data.card.uuid;
+          setCard(data.data.card);
+
+          // 如果返回了统计信息和所有卡片数据，也更新它们
+          if (data.data.stats) {
+            setDeckStats(data.data.stats);
+          }
+          if (data.data.allCards) {
+            setAllCards(data.data.allCards);
+          }
+
+          console.log('切换到卡片:', data.data.card);
+        } else {
+          message.error(data.message || '获取卡片失败');
+        }
+      })
+      .catch(err => {
+        setLoading(false);
+        console.error('获取卡片失败:', err);
+        message.error('获取卡片失败');
+      });
+  };
+
+  // 新增：处理卡片点击事件
+  const handleCardClick = (cardUuid, cardData) => {
+    console.log('点击卡片:', cardUuid, cardData);
+
+    // 如果点击的是当前卡片，不需要重新加载
+    if (cardUuid === card?.['uuid']) {
+      console.log('点击的是当前卡片，无需切换');
+      return;
+    }
+
+    // 通过UUID获取卡片详情
+    getCardByUuid(cardUuid);
+  };
+
   const getChatMessageAndShowSidebar = chunkId => {
     if (!aiChatVisible) {
       setAiChatVisible(true);
@@ -685,6 +732,7 @@ function Anki() {
           currentCardId={card?.['uuid']}
           currentCardState={card?.['state']}
           deckStats={deckStats}
+          onCardClick={handleCardClick}
         />
 
         <div
@@ -845,6 +893,7 @@ function Anki() {
                             borderRadius: '12px',
                             fontSize: '14px',
                             lineHeight: '1.5',
+                            wordBreak: 'break-word',
                             backgroundColor: message.role === 'user' ? '#1890ff' : '#f5f5f5',
                             color: message.role === 'user' ? 'white' : 'rgba(0, 0, 0, 0.85)',
                           }}
@@ -871,26 +920,48 @@ function Anki() {
                     background: 'white',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
-                    <Input
-                      placeholder="Ask AI anything..."
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0',
+                      border: '1px solid #f0f0f0',
+                    }}
+                  >
+                    <Input.TextArea
+                      placeholder="Ask AI anything... (Enter to send, Shift+Enter for new line)"
+                      style={{
+                        fontSize: '12px',
+                      }}
                       value={aiChatPrompt}
                       onChange={e => setAiChatPrompt(e.target.value)}
                       ref={aiChatInputRef}
-                      onPressEnter={() => {
+                      autoSize={{ minRows: 1, maxRows: 4 }}
+                      onPressEnter={e => {
+                        // Shift + Enter: 换行，不发送消息
+                        if (e.shiftKey) {
+                          return; // 允许默认的换行行为
+                        }
+
+                        // Enter: 发送消息
+                        e.preventDefault(); // 阻止默认的换行行为
+
                         if (
                           chatMessages.length > 0 &&
                           chatMessages[chatMessages.length - 1].pending
                         ) {
                           return;
                         }
-                        if (aiChatPrompt) {
+
+                        if (aiChatPrompt.trim()) {
+                          // 使用trim()避免发送空白消息
                           sendAiChatMessage(aiChatPrompt);
                           setAiChatPrompt('');
                         }
                       }}
                     />
                     <Select
+                      bordered={false}
                       value={chatContext}
                       size="middle"
                       dropdownMatchSelectWidth={false}
@@ -907,9 +978,10 @@ function Anki() {
                         { value: 'None', label: 'None' },
                       ]}
                     />
-                    <Button
-                      type="primary"
-                      icon={<SendOutlined />}
+                    <SendOutlined
+                      style={{
+                        padding: '0px 12px 0px 2px',
+                      }}
                       onClick={() => {
                         if (
                           chatMessages.length > 0 &&
@@ -917,7 +989,8 @@ function Anki() {
                         ) {
                           return;
                         }
-                        if (aiChatPrompt) {
+                        if (aiChatPrompt.trim()) {
+                          // 使用trim()避免发送空白消息
                           sendAiChatMessage(aiChatPrompt);
                           setAiChatPrompt('');
                         }

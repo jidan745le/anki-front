@@ -135,7 +135,7 @@ module.exports = {
         },
         hot: true, // 启用热模块替换
         compress: true, // 启用 gzip 压缩
-        port: 3006, // 开发服务器端口
+        port: 3007, // 开发服务器端口
         open: true, // 自动打开浏览器
         historyApiFallback: true, // 支持 HTML5 History API
         client: {

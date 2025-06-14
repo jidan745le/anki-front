@@ -22,6 +22,7 @@ const AnkiBar = ({
   currentCardState,
   deckStats,
   debugModeForVisualizer = false,
+  onCardClick,
 }) => {
   return (
     <div
@@ -66,6 +67,7 @@ const AnkiBar = ({
           cards={allCards}
           currentCardId={currentCardId}
           debugMode={debugModeForVisualizer}
+          onCardClick={onCardClick}
         />
       )}
       <div style={{ display: 'flex', alignItems: 'center' }}>

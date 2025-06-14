@@ -57,9 +57,12 @@ apiClient.interceptors.response.use(
 
     if (data.statusCode === 401 && !config.url.includes('/user/refresh')) {
       refreshing = true;
-      const res = await refreshToken();
+      const res = await refreshToken().catch(e => {
+        console.log('refreshToken error', e);
+        return Promise.resolve(e);
+      });
       refreshing = false;
-
+      console.log('refreshToken', res);
       if (res.status === 200) {
         queue.forEach(({ config, resolve }) => {
           resolve(apiClient(config));
@@ -67,6 +70,7 @@ apiClient.interceptors.response.use(
 
         return apiClient(config);
       } else {
+        console.log('401');
         message.error('登录过期，请重新登录');
         window.location.href = '/login';
         return Promise.reject(res.data);

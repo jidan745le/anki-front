@@ -1,4 +1,4 @@
-import { SoundOutlined } from '@ant-design/icons';
+import { CompressOutlined, ExpandOutlined, SoundOutlined } from '@ant-design/icons';
 import { Button, Card } from 'antd';
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import MyEditor from '../Editor';
@@ -29,6 +29,7 @@ const AnkiCard = forwardRef(
     const [isSpeaking, setIsSpeaking] = useState(false);
     const editorRef = useRef(null);
     const frontRef = useRef(null);
+    const [frontExpanded, setFrontExpanded] = useState(false);
 
     useImperativeHandle(ref, () => ({
       getEditor: () => editorRef.current,
@@ -238,14 +239,13 @@ const AnkiCard = forwardRef(
             <div
               style={{
                 minHeight: '63px',
-                height: flipped ? '63px' : 'auto',
+                height: flipped && !frontExpanded ? '63px' : 'auto',
                 boxSizing: 'border-box',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
                 fontSize: '24px',
                 fontWeight: 'bold',
-                // padding: '12px',
                 position: 'relative',
                 flexDirection: 'column',
                 overflow: 'auto',
@@ -272,7 +272,7 @@ const AnkiCard = forwardRef(
                     onClick={handleTTSClick}
                     style={{
                       position: 'absolute',
-                      right: '12px',
+                      right: flipped ? '52px' : '12px',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       color: isSpeaking ? '#1890ff' : '#666',
@@ -280,6 +280,23 @@ const AnkiCard = forwardRef(
                     }}
                     title={isSpeaking ? '停止朗读' : '朗读文本'}
                   />
+                  {/* 展开/收缩按钮 - 只在翻转状态下显示 */}
+                  {flipped && (
+                    <Button
+                      type="text"
+                      icon={frontExpanded ? <CompressOutlined /> : <ExpandOutlined />}
+                      onClick={() => setFrontExpanded(!frontExpanded)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#666',
+                        fontSize: '16px',
+                      }}
+                      title={frontExpanded ? '收缩正面内容' : '展开正面内容'}
+                    />
+                  )}
                 </>
               )}
             </div>

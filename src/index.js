@@ -2,10 +2,10 @@ import '@wangeditor/editor/dist/css/style.css'; // 引入 css
 import React, { Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import wsClient from './common/websocket/wsClient';
 import AnkiCreate from './pages/AnkiCreate';
 import './styles/global.less';
 // @ts-ignore
-import wsClient from './common/websocket/wsClient';
 
 const Anki = React.lazy(() => import('./pages/Anki'));
 const Decks = React.lazy(() => import('./pages/Decks'));
@@ -19,13 +19,10 @@ const SharedDecks = React.lazy(() => import('./pages/SharedDecks'));
 
 function App() {
   useEffect(() => {
-    // Try to connect if token exists
-    wsClient.connect();
     return () => {
       wsClient.disconnect();
     };
-  }, []);
-
+  });
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <Router>

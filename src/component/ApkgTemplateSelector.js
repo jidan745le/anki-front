@@ -12,10 +12,106 @@ import {
   Typography,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
+import './ApkgTemplateSelector.less';
 
 const { Text, Title } = Typography;
 const { Panel } = Collapse;
 const { TextArea } = Input;
+
+// Anki 模板解析器
+const parseAnkiTemplate = (template, fields) => {
+  let result = template;
+
+  // 1. 处理基础字段替换 {{fieldName}}
+  for (const [fieldName, fieldValue] of Object.entries(fields)) {
+    const regex = new RegExp(`{{${fieldName}}}`, 'g');
+    result = result.replace(regex, fieldValue || '');
+  }
+
+  // 2. 处理条件语句 {{#fieldName}} content {{/fieldName}}
+  let hasConditionals = true;
+  const maxIterations = 10; // 防止无限循环
+  let iterations = 0;
+
+  while (hasConditionals && iterations < maxIterations) {
+    const beforeReplace = result;
+
+    result = result.replace(/{{#([^}]+)}}([\s\S]*?){{\/\1}}/g, (match, fieldName, content) => {
+      const fieldValue = fields[fieldName];
+      if (fieldValue && fieldValue.trim() !== '') {
+        // 递归处理条件内容中的模板语法
+        return parseAnkiTemplate(content, fields);
+      }
+      return '';
+    });
+
+    // 如果没有替换，退出循环
+    hasConditionals = beforeReplace !== result;
+    iterations++;
+  }
+
+  // 3. 处理反向条件语句 {{^fieldName}} content {{/fieldName}}
+  let hasReverseConditionals = true;
+  iterations = 0;
+
+  while (hasReverseConditionals && iterations < maxIterations) {
+    const beforeReplace = result;
+
+    result = result.replace(/{{\^([^}]+)}}([\s\S]*?){{\/\1}}/g, (match, fieldName, content) => {
+      const fieldValue = fields[fieldName];
+      if (!fieldValue || fieldValue.trim() === '') {
+        // 递归处理条件内容中的模板语法
+        return parseAnkiTemplate(content, fields);
+      }
+      return '';
+    });
+
+    hasReverseConditionals = beforeReplace !== result;
+    iterations++;
+  }
+
+  // 4. 处理提示语法 {{hint:fieldName}}
+  result = result.replace(/{{hint:([^}]+)}}/g, (match, fieldName) => {
+    const fieldValue = fields[fieldName];
+    if (!fieldValue || fieldValue.trim() === '') {
+      return '';
+    }
+
+    const hintId = 'hint' + Math.random().toString(36).substr(2, 9);
+    return `<a class="hint" href="#" onclick="this.style.display='none';
+document.getElementById('${hintId}').style.display='block';
+return false;" draggable="false">
+${fieldName}</a>
+<div id="${hintId}" class="hint" style="display: none">${fieldValue}</div>`;
+  });
+
+  // 5. 处理音频文件 [sound:filename]
+  result = result.replace(/\[sound:([^\]]+)\]/g, (match, filename) => {
+    return `<audio controls><source src="${filename}" type="audio/mpeg"></audio>`;
+  });
+
+  // 6. 处理text:fieldName语法（提取纯文本）
+  result = result.replace(/{{text:([^}]+)}}/g, (match, fieldName) => {
+    const fieldValue = fields[fieldName] || '';
+    return fieldValue.replace(/<[^>]*>/g, '');
+  });
+
+  return result;
+};
+
+// 使用模板和字段渲染Anki卡片
+const renderAnkiCard = (frontTemplate, backTemplate, fields) => {
+  const frontSide = parseAnkiTemplate(frontTemplate, fields);
+
+  let backSide = backTemplate;
+  backSide = backSide.replace(/{{FrontSide}}/g, frontSide);
+  backSide = parseAnkiTemplate(backSide, fields);
+
+  return {
+    front: frontSide,
+    back: backSide,
+  };
+};
 
 const ApkgTemplateSelector = ({
   visible,
@@ -76,6 +172,26 @@ const ApkgTemplateSelector = ({
     }));
   };
 
+  // 渲染实时预览 - 使用真实的 sampleCards 数据
+  const renderLivePreview = template => {
+    const frontTemplate = editedTemplates[template.name]?.front || template.front;
+    const backTemplate = editedTemplates[template.name]?.back || template.back;
+
+    // 使用第一个样例卡片的真实字段数据
+    const sampleFields =
+      template.sampleCards && template.sampleCards.length > 0 ? template.sampleCards[0].fields : {};
+
+    try {
+      const rendered = renderAnkiCard(frontTemplate, backTemplate, sampleFields);
+      return rendered;
+    } catch (error) {
+      return {
+        front: '<div style="color: red;">模板解析错误</div>',
+        back: '<div style="color: red;">模板解析错误</div>',
+      };
+    }
+  };
+
   if (!templates) return null;
 
   return (
@@ -83,7 +199,14 @@ const ApkgTemplateSelector = ({
       title="选择并编辑APKG模板"
       open={visible}
       onCancel={onCancel}
-      width={1000}
+      width={1200}
+      style={{ top: 20 }}
+      // bodyStyle={{
+      //   height: '70vh',
+      //   overflowY: 'auto',
+      //   paddingBottom: '16px',
+      // }}
+      className="apkg-template-selector"
       footer={[
         <Button key="cancel" onClick={onCancel}>
           取消
@@ -111,6 +234,7 @@ const ApkgTemplateSelector = ({
       {templates.map(template => {
         const isSelected = selectedTemplates.find(t => t.name === template.name)?.selected || false;
         const isEditing = editMode[template.name] || false;
+        const livePreview = renderLivePreview(template);
 
         return (
           <Card
@@ -164,8 +288,11 @@ const ApkgTemplateSelector = ({
               字段：{template.fields.join(', ')}
             </Text>
 
-            <Collapse size="small">
-              <Panel header={isEditing ? '编辑模板' : '预览模板'} key="template">
+            <Collapse
+              size="small"
+              defaultActiveKey={isEditing ? ['template', 'preview'] : ['preview']}
+            >
+              <Panel header={isEditing ? '编辑模板' : '查看模板'} key="template">
                 <Row gutter={16}>
                   <Col span={12}>
                     <Title level={5}>正面模板：</Title>
@@ -222,49 +349,59 @@ const ApkgTemplateSelector = ({
                 </Row>
               </Panel>
 
-              {template.sampleCards && template.sampleCards.length > 0 && (
-                <Panel header="样例卡片" key="sample">
-                  {template.sampleCards.slice(0, 2).map((sample, sampleIndex) => (
-                    <div key={sampleIndex} style={{ marginBottom: '16px' }}>
-                      <Text strong>样例 {sampleIndex + 1}:</Text>
-                      <Row gutter={16} style={{ marginTop: '8px' }}>
-                        <Col span={12}>
-                          <Text type="secondary">正面：</Text>
-                          <div
-                            style={{
-                              border: '1px solid #d9d9d9',
-                              borderRadius: '4px',
-                              padding: '8px',
-                              maxHeight: '150px',
-                              overflow: 'auto',
-                              background: 'white',
-                            }}
-                            dangerouslySetInnerHTML={{
-                              __html: sample.renderedSample?.front || '无预览',
-                            }}
-                          />
-                        </Col>
-                        <Col span={12}>
-                          <Text type="secondary">背面：</Text>
-                          <div
-                            style={{
-                              border: '1px solid #d9d9d9',
-                              borderRadius: '4px',
-                              padding: '8px',
-                              maxHeight: '150px',
-                              overflow: 'auto',
-                              background: 'white',
-                            }}
-                            dangerouslySetInnerHTML={{
-                              __html: sample.renderedSample?.back || '无预览',
-                            }}
-                          />
-                        </Col>
-                      </Row>
+              <Panel header="实时预览" key="preview">
+                {template.sampleCards && template.sampleCards.length > 0 ? (
+                  <>
+                    <div style={{ marginBottom: '8px' }}>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        * 使用第一个样例卡片的真实数据进行预览
+                      </Text>
                     </div>
-                  ))}
-                </Panel>
-              )}
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Text strong>正面预览：</Text>
+                        <div
+                          style={{
+                            border: '1px solid #d9d9d9',
+                            borderRadius: '4px',
+                            padding: '12px',
+                            minHeight: '100px',
+                            maxHeight: '300px',
+                            overflow: 'auto',
+                            background: 'white',
+                            marginTop: '4px',
+                          }}
+                          dangerouslySetInnerHTML={{
+                            __html: livePreview.front || '无预览内容',
+                          }}
+                        />
+                      </Col>
+                      <Col span={12}>
+                        <Text strong>背面预览：</Text>
+                        <div
+                          style={{
+                            border: '1px solid #d9d9d9',
+                            borderRadius: '4px',
+                            padding: '12px',
+                            minHeight: '100px',
+                            maxHeight: '300px',
+                            overflow: 'auto',
+                            background: 'white',
+                            marginTop: '4px',
+                          }}
+                          dangerouslySetInnerHTML={{
+                            __html: livePreview.back || '无预览内容',
+                          }}
+                        />
+                      </Col>
+                    </Row>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
+                    <Text type="secondary">暂无样例数据可供预览</Text>
+                  </div>
+                )}
+              </Panel>
             </Collapse>
           </Card>
         );

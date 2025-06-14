@@ -8,7 +8,7 @@ const useSocket = () => {
   useEffect(() => {
     // Connect socket when component mounts
     console.log('useSocket.js useEffect connect 1');
-    wsClient.connect();
+    // wsClient.connect();
     console.log('useSocket.js useEffect connect 2');
 
     // Set socket instance and update connection status

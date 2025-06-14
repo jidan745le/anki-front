@@ -19,6 +19,7 @@ const Layout = ({ children }) => {
       if (response.data.success) {
         setUserInfo(response.data.data);
         console.log(response.data.data, 'response.data.data');
+        return response.data.data;
       } else {
         message.error('Failed to get user information');
       }
@@ -28,6 +29,7 @@ const Layout = ({ children }) => {
       if (error.response?.status !== 401) {
         message.error('Failed to get user information');
       }
+      return Promise.reject(error);
     } finally {
       setUserLoading(false);
     }
@@ -37,7 +39,13 @@ const Layout = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token && !['/login', '/signup'].includes(location.pathname)) {
-      fetchUserInfo();
+      fetchUserInfo()
+        .then(() => {
+          wsClient.connect();
+        })
+        .catch(e => {
+          console.log('fetchUserInfo error', e);
+        });
     }
   }, [location.pathname]);
 

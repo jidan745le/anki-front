@@ -39,10 +39,12 @@ const hexToRgb = hex => {
 // 常量定义
 const MAX_VISIBLE_CARDS = 100; // 最大显示的卡片数量
 
-const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false }) => {
+const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false, onCardClick }) => {
   const [now, setNow] = useState(new Date());
   const lastUpdateTimeRef = useRef(0);
   const rafRef = useRef(null);
+  const [clickedCardId, setClickedCardId] = useState(null); // 新增：跟踪被点击的卡片
+  const [animationType, setAnimationType] = useState('ripple'); // 新增：动画类型
 
   // 组件初始化日志
   useEffect(() => {
@@ -365,6 +367,49 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
     }
   }, [cards.length, visibleCards.length]);
 
+  // 修改点击处理函数
+  const handleCardClick = card => {
+    if (!onCardClick || typeof onCardClick !== 'function') return;
+
+    // 如果点击的是当前卡片，只播放动画不切换
+    if (card.uuid === currentCardId) {
+      setClickedCardId(card.uuid);
+      setAnimationType('pulse-effect');
+
+      if (debugMode) {
+        logInfo('点击当前卡片，播放脉冲动画', {
+          uuid: card.uuid,
+          animationType: 'pulse-effect',
+        });
+      }
+
+      // 动画结束后清除状态
+      setTimeout(() => {
+        setClickedCardId(null);
+      }, 500);
+      return;
+    }
+
+    // 设置点击动画
+    setClickedCardId(card.uuid);
+    setAnimationType('ripple-effect');
+
+    if (debugMode) {
+      logInfo('卡片被点击，开始滑动动画', {
+        uuid: card.uuid,
+        state: card.state,
+        dueDate: card.dueDate,
+        animationType: 'ripple-effect',
+      });
+    }
+
+    // 延迟执行卡片切换，让动画有时间播放
+    setTimeout(() => {
+      onCardClick(card.uuid, card);
+      setClickedCardId(null); // 清除动画状态
+    }, 300); // 动画持续时间的一半，让用户看到效果但不会等太久
+  };
+
   if (!cards.length) {
     logInfo('没有卡片数据');
     return null;
@@ -391,6 +436,7 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
           );
           const isDueStatus = isCardDue(card.dueDate);
           const isCurrentCard = card.uuid === currentCardId;
+          const isClicked = clickedCardId === card.uuid;
 
           // 对可见卡片进行调试
           debugCard(card, calculatedAppOpacity, {
@@ -413,7 +459,13 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false 
             }
           }
 
-          const cardClass = `card-block ${isCurrentCard ? 'current-card' : ''} ${isDueStatus ? 'due-card' : ''}`;
+          // 构建CSS类名
+          let cardClass = `card-block ${isCurrentCard ? 'current-card' : ''} ${isDueStatus ? 'due-card' : ''}`;
+
+          // 添加动画类名
+          if (isClicked) {
+            cardClass += ` ${animationType}`;
+          }
 
           // 获取卡片在原始数组中的索引
           const originalIndex = cards.indexOf(card);
@@ -428,14 +480,17 @@ ${timeRemaining}
 位置: ${originalIndex + 1}/${cards.length}
 记忆强度: ${Math.round(calculatedAppOpacity * 100)}%
 ${originalIndex === currentCardIndex ? '(当前卡片)' : ''}
+点击查看此卡片
               `}
             >
               <div
                 className={cardClass}
                 style={{
                   backgroundColor: getCardColor(card.state, calculatedAppOpacity),
+                  cursor: onCardClick ? 'pointer' : 'default',
                   ...extraStyles,
                 }}
+                onClick={() => handleCardClick(card)}
               />
             </Tooltip>
           );

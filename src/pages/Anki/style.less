@@ -63,6 +63,17 @@
     gap: 16px;
     overflow-y: auto;
     flex: 1;
+
+    /* 隐藏滚动条但保持滚动功能 */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+  }
+
+  /* 隐藏 Webkit 浏览器（Chrome、Safari）的滚动条 */
+  .ai-chat-messages::-webkit-scrollbar {
+    display: none;
   }
 
   .chat-message {
@@ -117,4 +128,95 @@
       }
     }
   }
+}
+
+/* 隐藏所有TextArea的滚动条 */
+.ant-input {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+}
+
+.ant-input::-webkit-scrollbar {
+  display: none;
+  /* Chrome、Safari */
+}
+
+/* 隐藏TextArea的滚动条并设置自动高度 */
+textarea {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  resize: none !important;
+  /* 禁用拖拽调整大小 */
+  min-height: 32px !important;
+  /* 默认最小高度 */
+  max-height: 120px !important;
+  /* 最大高度限制，约4行文本 */
+  overflow-y: auto;
+  /* 超过最大高度时显示滚动 */
+  transition: height 0.2s ease;
+  /* 高度变化平滑过渡 */
+  line-height: 1.5;
+  /* 设置行高 */
+}
+
+textarea::-webkit-scrollbar {
+  display: none;
+  /* Chrome、Safari */
+}
+
+/* 特别针对AI聊天输入框的样式 */
+.ai-chat-input textarea,
+.ai-chat-input .ant-input {
+  resize: none !important;
+  min-height: 32px !important;
+  max-height: 120px !important;
+  overflow-y: auto;
+  transition: height 0.2s ease;
+  line-height: 1.5;
+  padding: 6px 12px !important;
+  /* 调整内边距 */
+  border-radius: 6px !important;
+  /* 圆角 */
+}
+
+.ai-chat-input {
+  .ant-input-outlined {
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+    border-left: 1px solid transparent;
+    border-right: 1px solid transparent;
+    border-radius: 0px !important;
+
+    &:focus {
+      // border-top: 1px solid #f0f0f0;
+      // border-bottom: 1px solid #f0f0f0;
+      // border-radius: 0px !important;
+      box-shadow: none;
+    }
+  }
+
+  .ant-select-single {
+    border-radius: 0px !important;
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+    border-right: 1px solid transparent;
+    // height: 35px !important;
+
+    &:focus {
+      box-shadow: none;
+    }
+  }
+}
+
+/* 专门为自动调整大小的TextArea优化 */
+.ai-chat-input .ant-input-affix-wrapper .ant-input,
+.ai-chat-input .ant-input {
+  min-height: 32px !important;
+  // height: auto !important; /* 允许自动调整高度 */
+  line-height: 1.5 !important;
+  padding: 6px 12px !important;
 }
