@@ -41,7 +41,7 @@ const DeckConfigModal = ({ visible, onCancel, onConfirm, deckData, loading }) =>
 
   const handleSubmit = async values => {
     const config = {
-      size: `${values.fontSize}px`,
+      size: values.fontSize ? `${values.fontSize}px` : undefined,
       align: values.textAlign,
       fsrsParameters: {
         request_retention: values.requestRetention,
