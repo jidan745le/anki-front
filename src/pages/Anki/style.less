@@ -69,6 +69,29 @@
     /* Firefox */
     -ms-overflow-style: none;
     /* IE and Edge */
+
+    /* 引用链接样式 */
+    .card-reference-link {
+      color: #1890ff !important;
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 1px dashed #1890ff;
+      transition: all 0.2s ease;
+
+      &:hover {
+        color: #40a9ff !important;
+        border-bottom-color: #40a9ff;
+        background-color: rgba(24, 144, 255, 0.05);
+        padding: 1px 2px;
+        border-radius: 2px;
+      }
+
+      &:active {
+        color: #096dd9 !important;
+        border-bottom-color: #096dd9;
+      }
+    }
   }
 
   /* 隐藏 Webkit 浏览器（Chrome、Safari）的滚动条 */
@@ -175,6 +198,114 @@ textarea::-webkit-scrollbar {
   min-height: 32px !important;
   max-height: 120px !important;
   overflow-y: auto;
+}
+
+/* 引用卡片 Popover 动画和样式 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reference-card-popover {
+  font-size: 14px !important;
+
+  .markdown-content,
+  .popover-content {
+    font-size: 14px !important;
+    line-height: 1.4;
+
+    * {
+      font-size: 14px !important;
+    }
+
+    p {
+      margin-bottom: 6px;
+      font-size: 14px !important;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-size: 14px !important;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    pre {
+      background-color: #f5f5f5;
+      padding: 6px;
+      border-radius: 4px;
+      font-size: 14px !important;
+      overflow-x: auto;
+      margin-bottom: 6px;
+    }
+
+    code {
+      background-color: #f5f5f5;
+      padding: 1px 3px;
+      border-radius: 3px;
+      font-size: 14px !important;
+    }
+
+    ul,
+    ol {
+      margin-left: 12px;
+      margin-bottom: 6px;
+      font-size: 14px !important;
+
+      li {
+        font-size: 14px !important;
+        margin-bottom: 2px;
+      }
+    }
+
+    blockquote {
+      border-left: 3px solid #ddd;
+      padding-left: 8px;
+      margin: 6px 0;
+      color: #666;
+      font-size: 14px !important;
+    }
+
+    strong,
+    b {
+      font-size: 14px !important;
+      font-weight: bold;
+    }
+
+    em,
+    i {
+      font-size: 14px !important;
+      font-style: italic;
+    }
+
+    table {
+      font-size: 14px !important;
+
+      td,
+      th {
+        font-size: 14px !important;
+      }
+    }
+
+    div,
+    span {
+      font-size: 14px !important;
+    }
+  }
+}
+
+/* 恢复原有的textarea样式 */
+textarea {
   transition: height 0.2s ease;
   line-height: 1.5;
   padding: 6px 12px !important;

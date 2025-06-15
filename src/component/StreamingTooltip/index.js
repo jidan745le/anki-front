@@ -1,15 +1,9 @@
-import { Button, Input, Card, Space, Dropdown, Menu } from 'antd';
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import {
-  MessageOutlined,
-  LikeOutlined,
-  DislikeOutlined,
-  QuestionCircleOutlined,
-  DownOutlined,
-} from '@ant-design/icons';
-import apiClient from '../../common/http/apiClient';
-import ReactDOM from 'react-dom';
+import { MessageOutlined } from '@ant-design/icons';
+import { Button, Input, Menu } from 'antd';
 import { marked } from 'marked';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
+import apiClient from '../../common/http/apiClient';
 import './markdown.css';
 import './style.less';
 
@@ -213,12 +207,67 @@ const StreamingTooltip = ({
     return rawHtml;
   }, []);
 
+  // 处理引用格式并转换为可点击链接
+  const processCardReferences = useCallback(content => {
+    if (!content) return content;
+
+    // 匹配引用格式：[引用：卡片名称 (ID: 卡片UUID)]
+    const referenceRegex = /\[引用：([^(]+)\s*\(ID:\s*([^)]+)\)\]/g;
+
+    let processedContent = content.replace(referenceRegex, (match, cardName, cardId) => {
+      const trimmedCardName = cardName.trim();
+      const trimmedCardId = cardId.trim();
+
+      // 创建可点击的链接，使用data属性存储卡片ID
+      return `<a href="#" class="card-reference-link" data-card-id="${trimmedCardId}" style="color: #1890ff; text-decoration: none; font-weight: 500; cursor: pointer; border-bottom: 1px dashed #1890ff;">[引用：${trimmedCardName}]</a>`;
+    });
+
+    // 处理底部引用列表格式：- 卡片名1 (ID: uuid1)
+    const listReferenceRegex = /^(\s*[-*]\s*)([^(]+)\s*\(ID:\s*([^)]+)\)$/gm;
+    processedContent = processedContent.replace(
+      listReferenceRegex,
+      (match, listPrefix, cardName, cardId) => {
+        const trimmedCardName = cardName.trim();
+        const trimmedCardId = cardId.trim();
+
+        // 创建可点击的链接用于列表项
+        return `${listPrefix}<a href="#" class="card-reference-link" data-card-id="${trimmedCardId}" style="color: #1890ff; text-decoration: none; font-weight: 500; cursor: pointer;">${trimmedCardName}</a>`;
+      }
+    );
+
+    return processedContent;
+  }, []);
+
+  // 处理引用链接点击事件
+  const handleReferenceClick = useCallback(e => {
+    e.preventDefault();
+    if (e.target.classList.contains('card-reference-link')) {
+      const cardId = e.target.getAttribute('data-card-id');
+      if (cardId) {
+        // 通过回调函数通知父组件跳转到对应卡片
+        // 这里可以通过props传递跳转函数，或者使用其他方式
+        console.log('Click card reference:', cardId);
+        // TODO: 实现卡片跳转逻辑
+      }
+    }
+  }, []);
+
   // 修改内容渲染部分
   const renderContent = () => {
     if (!content) return null;
 
-    const htmlContent = getHtmlContent(content);
-    return <div className="markdown-content" dangerouslySetInnerHTML={{ __html: htmlContent }} />;
+    // 先处理引用格式
+    const processedContent = processCardReferences(content);
+    const htmlContent = getHtmlContent(processedContent);
+
+    return (
+      <div
+        className="markdown-content"
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+        onClick={handleReferenceClick}
+        style={{ cursor: 'default' }}
+      />
+    );
   };
 
   const tooltipContent = (

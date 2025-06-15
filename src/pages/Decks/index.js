@@ -451,6 +451,11 @@ const Decks = () => {
                 Shared
               </Tag>
             )}
+            {row.isEmbedding && (
+              <Tag color="green" style={{ fontSize: '12px', padding: '0 6px' }}>
+                Embedding
+              </Tag>
+            )}
           </div>
           {row.status == 'processing' && row.taskId && (
             <>
@@ -550,7 +555,7 @@ const Decks = () => {
           {
             key: 'embed',
             label: 'Embedding',
-            disabled: !row.owned || row.status === 'processing',
+            disabled: !row.owned || row.status === 'processing' || row.isEmbedding,
           },
         ];
 

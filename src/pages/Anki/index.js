@@ -35,6 +35,9 @@ function Anki() {
   const [chatStatus, setChatStatus] = useState([]);
   const [aiChatLoading, setAiChatLoading] = useState(false);
   const editorRef = useRef(null);
+  const [popoverVisible, setPopoverVisible] = useState(false);
+  const [popoverCard, setPopoverCard] = useState(null);
+  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
   console.log(params, 'params');
 
   const updateCardRef = useRef(
@@ -498,6 +501,9 @@ function Anki() {
   const getCardByUuid = cardUuid => {
     setFlipped(false);
     setLoading(true);
+    setAiChatVisible(false);
+    setAiChatLoading(false);
+    // editorRef.current.getEditor().clearAiLoadingChunk();
     apiClient
       .get(`/anki/getCard?uuid=${cardUuid}`)
       .then(res => {
@@ -681,15 +687,206 @@ function Anki() {
     return rawHtml;
   }, []);
 
+  // 处理引用格式并转换为可点击链接
+  const processCardReferences = useCallback(content => {
+    if (!content) return content;
+
+    // 更精确的匹配引用格式：[引用：卡片名称 (ID: 卡片UUID)]
+    // 只匹配以"引用："开头的格式，并且ID必须是UUID格式
+    const referenceRegex = /\[引用：([^[\]()]+?)\s*\(ID:\s*([a-f0-9-]{36}|[a-f0-9-]{8,})\)\]/g;
+
+    let processedContent = content.replace(referenceRegex, (match, cardName, cardId) => {
+      const trimmedCardName = cardName.trim();
+      const trimmedCardId = cardId.trim();
+
+      // 验证cardId格式（UUID或类似格式）
+      if (!/^[a-f0-9-]{8,}$/i.test(trimmedCardId)) {
+        return match; // 如果不是有效的ID格式，返回原文
+      }
+
+      // 创建可点击的链接，使用data属性存储卡片ID
+      return `<a href="#" class="card-reference-link" data-card-id="${trimmedCardId}" style="color: #1890ff; text-decoration: none; font-weight: 500; cursor: pointer; border-bottom: 1px dashed #1890ff;">[引用：${trimmedCardName}]</a>`;
+    });
+
+    // 更精确的底部引用列表格式：只在"引用卡片："或"**引用卡片：**"后面的列表项中匹配
+    // 匹配模式：在"引用卡片"标题后的列表项中查找 "- 卡片名 (ID: uuid)"
+    const referenceListRegex = /(\*\*引用卡片：?\*\*|引用卡片：?)([\s\S]*?)(?=\n\n|\n\*\*|$)/g;
+
+    processedContent = processedContent.replace(referenceListRegex, (match, title, listContent) => {
+      // 在引用列表内容中处理每个列表项
+      const processedListContent = listContent.replace(
+        /^(\s*[-*]\s*)([^(\n]+?)\s*\(ID:\s*([a-f0-9-]{8,})\)\s*$/gm,
+        (itemMatch, listPrefix, cardName, cardId) => {
+          const trimmedCardName = cardName.trim();
+          const trimmedCardId = cardId.trim();
+
+          // 验证cardId格式
+          if (!/^[a-f0-9-]{8,}$/i.test(trimmedCardId)) {
+            return itemMatch; // 如果不是有效的ID格式，返回原文
+          }
+
+          // 创建可点击的链接用于列表项
+          return `${listPrefix}<a href="#" class="card-reference-link" data-card-id="${trimmedCardId}" style="color: #1890ff; text-decoration: none; font-weight: 500; cursor: pointer;">${trimmedCardName}</a>`;
+        }
+      );
+
+      return title + processedListContent;
+    });
+
+    return processedContent;
+  }, []);
+
+  // 处理引用链接点击事件
+  const handleReferenceClick = useCallback(e => {
+    e.preventDefault();
+    if (e.target.classList.contains('card-reference-link')) {
+      const cardId = e.target.getAttribute('data-card-id');
+      if (cardId) {
+        // 获取点击位置，防止向下溢出屏幕
+        const rect = e.target.getBoundingClientRect();
+        const popoverHeight = 300; // 预估popover高度
+        const screenHeight = window.innerHeight;
+        const topPosition =
+          rect.top + popoverHeight > screenHeight
+            ? Math.max(10, rect.top - popoverHeight) // 如果会溢出，则显示在上方
+            : rect.top;
+
+        setPopoverPosition({ x: rect.left - 120, y: topPosition }); // 往左偏移50px
+
+        // 显示加载状态的 popover
+        setPopoverCard({ loading: true });
+        setPopoverVisible(true);
+
+        // 直接通过 API 查询完整的卡片数据
+        console.log('通过 API 查询卡片:', cardId);
+        apiClient
+          .get(`/anki/getCard?uuid=${cardId}`)
+          .then(res => {
+            const data = res.data;
+            if (data.success && data.data?.card) {
+              setPopoverCard(data.data.card);
+              console.log('获取到卡片数据:', data.data.card);
+            } else {
+              setPopoverVisible(false);
+              message.warning('未找到对应的卡片');
+              console.error('API 返回错误:', data.message);
+            }
+          })
+          .catch(err => {
+            setPopoverVisible(false);
+            console.error('获取引用卡片失败:', err);
+            message.error('获取引用卡片失败');
+          });
+      }
+    }
+  }, []);
+
   // 修改内容渲染部分
   const renderContent = content => {
     if (!content) return null;
 
-    const htmlContent = getHtmlContent(content);
-    return <div className="markdown-content" dangerouslySetInnerHTML={{ __html: htmlContent }} />;
+    // 先处理引用格式
+    const processedContent = processCardReferences(content);
+    const htmlContent = getHtmlContent(processedContent);
+
+    return (
+      <>
+        <div
+          className="markdown-content"
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
+          onClick={handleReferenceClick}
+          style={{ cursor: 'default' }}
+        />
+
+        {/* 引用卡片 Popover */}
+        {popoverVisible && popoverCard && (
+          <div
+            className="reference-card-popover"
+            style={{
+              position: 'fixed',
+              left: Math.max(10, popoverPosition.x - 400), // 确保不超出左边界，卡片宽度约380px
+              top: popoverPosition.y,
+              zIndex: 1000,
+              backgroundColor: 'white',
+              border: '1px solid #d9d9d9',
+              borderRadius: '6px',
+              boxShadow: '0 6px 16px 0 rgba(0, 0, 0, 0.08)',
+              padding: '16px',
+              maxWidth: '380px',
+              maxHeight: '400px',
+              overflow: 'auto',
+              animation: 'fadeIn 0.2s ease-in-out',
+            }}
+          >
+            <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px' }}>
+              引用卡片
+            </div>
+
+            {popoverCard.loading ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <Spin size="small" />
+                <div style={{ marginTop: '8px', color: '#666', fontSize: '14px' }}>加载中...</div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <div
+                    className="popover-content"
+                    style={{
+                      fontSize: '14px !important',
+                      lineHeight: '1.4',
+                      fontFamily: 'inherit',
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html: getHtmlContent(popoverCard.customBack || popoverCard.back || ''),
+                    }}
+                  />
+                </div>
+                <div style={{ marginTop: '12px', textAlign: 'right' }}>
+                  <Button
+                    size="small"
+                    type="link"
+                    style={{ fontSize: '14px', padding: '0' }}
+                    onClick={() => {
+                      setPopoverVisible(false);
+                      handleCardClick(popoverCard.uuid, popoverCard);
+                    }}
+                  >
+                    跳转到卡片
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </>
+    );
   };
 
   const isNew = card['state'] === 0;
+
+  // 点击页面其他地方关闭 Popover
+  const handlePageClick = useCallback(
+    e => {
+      if (
+        popoverVisible &&
+        !e.target.closest('.card-reference-link') &&
+        !e.target.closest('.reference-card-popover')
+      ) {
+        setPopoverVisible(false);
+      }
+    },
+    [popoverVisible]
+  );
+
+  useEffect(() => {
+    if (popoverVisible) {
+      document.addEventListener('click', handlePageClick);
+      return () => {
+        document.removeEventListener('click', handlePageClick);
+      };
+    }
+  }, [popoverVisible, handlePageClick]);
 
   console.log(card, 'card');
   return (

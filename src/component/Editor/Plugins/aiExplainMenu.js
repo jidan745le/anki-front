@@ -1,4 +1,5 @@
 import { SlateEditor, SlateElement, SlateTransforms } from '@wangeditor/editor';
+import { message } from 'antd';
 import { omit } from 'lodash';
 import apiClient from 'src/common/http/apiClient';
 
@@ -13,6 +14,7 @@ const initChunkSession = async requestData => {
     }
   } catch (err) {
     console.error('转换文本到对话块时出错:', err);
+    message.error(err.response.data.message);
   } finally {
   }
 };
@@ -182,9 +184,10 @@ class AiGlobalExplain {
     const textNode = node[0];
     console.log(textNode, 'textNode');
     const properties = omit(textNode, ['children', 'text']);
+    let chunkId = '';
 
     try {
-      const chunkId = 'chunk_' + Date.now();
+      chunkId = 'chunk_' + Date.now();
 
       const promptData = {
         localContextHtml: editor.getHtml(),
@@ -225,6 +228,13 @@ class AiGlobalExplain {
       editor.onInitChunkChatSession && editor.onInitChunkChatSession(requestData, sessionId);
     } catch (error) {
       console.error('转换文本到对话块时出错:', error);
+      SlateTransforms.unwrapNodes(editor, {
+        at: [],
+        match: n => {
+          const node = n;
+          return node && node.type === 'ailoadingchunk' && node.chunkId === chunkId;
+        },
+      });
     }
   }
 }
