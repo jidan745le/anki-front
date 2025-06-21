@@ -715,9 +715,10 @@ function Anki() {
   const processCardReferences = useCallback(content => {
     if (!content) return content;
 
-    // 更精确的匹配引用格式：[引用：卡片名称 (ID: 卡片UUID)]
-    // 只匹配以"引用："开头的格式，并且ID必须是UUID格式
-    const referenceRegex = /\[引用：([^[\]()]+?)\s*\(ID:\s*([a-f0-9-]{36}|[a-f0-9-]{8,})\)\]/g;
+    // 处理引用格式：支持简单和复杂格式
+    // 简单格式：[引用：卡片名称 (ID: 卡片UUID)]
+    // 复杂格式：[引用：CHAPTER:xxx|PROGRESS:xxx|LEVEL:xxx (ID: UUID)]
+    const referenceRegex = /\[引用：([^[\]]*?)\s*\(ID:\s*([a-f0-9-]{36}|[a-f0-9-]{8,})\)\]/g;
 
     let processedContent = content.replace(referenceRegex, (match, cardName, cardId) => {
       const trimmedCardName = cardName.trim();
