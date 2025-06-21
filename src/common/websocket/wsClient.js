@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { EventEmitter } from 'events';
 import { io } from 'socket.io-client';
+import { WS_BASE_URL } from '../util/env';
 
 class WebSocketClient {
   constructor(url) {
@@ -107,5 +108,5 @@ class WebSocketClient {
   }
 }
 
-export const wsClient = new WebSocketClient('https://ws.myanki.cc');
+export const wsClient = new WebSocketClient(WS_BASE_URL);
 export default wsClient;

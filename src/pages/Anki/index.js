@@ -144,7 +144,7 @@ function Anki() {
         // Create EventSource for this session's status
         const token = localStorage.getItem('token');
         const statusEventSource = new EventSource(
-          `${apiClient.defaults.baseURL}/aichat/status/${sessionId}`,
+          `${process.env.API_BASE_URL}/aichat/status/${sessionId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -277,7 +277,7 @@ function Anki() {
         // Step 2: Set up SSE connection
         const token = localStorage.getItem('token');
         const eventSource = new EventSource(
-          `${apiClient.defaults.baseURL}/aichat/stream/${sessionId}`,
+          `${process.env.API_BASE_URL}/aichat/stream/${sessionId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -604,14 +604,11 @@ function Anki() {
     setChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
 
     const token = localStorage.getItem('token');
-    const eventSource = new EventSource(
-      `${apiClient.defaults.baseURL}/aichat/stream/${sessionId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const eventSource = new EventSource(`${process.env.API_BASE_URL}/aichat/stream/${sessionId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     eventSourceRef.current = eventSource;
 
     let streamedContent = '';
