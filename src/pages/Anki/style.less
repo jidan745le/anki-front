@@ -153,6 +153,37 @@
   }
 }
 
+// 目录侧边栏样式
+.side-toc-container {
+  background: #fff;
+
+  .toc-header {
+    background: #fafafa;
+    font-weight: 500;
+    color: #2c3e50;
+
+    .ant-btn {
+      &:hover {
+        background-color: #f0f0f0;
+      }
+    }
+  }
+
+  .toc-container {
+    background: #fff;
+
+    /* 隐藏滚动条但保持滚动功能 */
+    .book-toc-tree {
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+
+      &::-webkit-scrollbar {
+        display: none; /* Chrome、Safari */
+      }
+    }
+  }
+}
+
 /* 隐藏所有TextArea的滚动条 */
 .ant-input {
   scrollbar-width: none;

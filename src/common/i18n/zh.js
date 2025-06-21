@@ -231,13 +231,31 @@ export const zh = {
     getCardFailed: '获取引用卡片失败',
     getCardError: '获取卡片失败',
     switchingToCurrentCard: '点击的是当前卡片，无需切换',
+    indexGenerated: '书本目录生成成功',
+    indexGenerateFailed: '生成书本目录失败',
 
     // AnkiBar 工具提示
     autoMarkTitle: '标记标题',
     toggleVisualizer: '记忆可视化',
     toggleAiChat: 'AI聊天',
+    generateIndex: '生成书本目录',
+    openToc: '打开目录',
+    closeToc: '关闭目录',
     newCards: '新卡片',
     dueLearning: '学习中',
     dueReview: '复习中',
+
+    // 书籍目录
+    toc: {
+      title: '书籍目录',
+      loading: '正在加载目录...',
+      noData: '没有找到卡片数据',
+      generateFailed: '生成目录失败',
+      jumpToCard: '跳转到卡片: {title}',
+      completed: '完成',
+      progress: '进度',
+      chapter: '章节',
+      section: '段落',
+    },
   },
 };

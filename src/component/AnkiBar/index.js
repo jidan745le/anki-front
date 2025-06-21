@@ -1,4 +1,5 @@
 import {
+  BookOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
   HighlightOutlined,
@@ -24,6 +25,9 @@ const AnkiBar = ({
   deckStats,
   debugModeForVisualizer = false,
   onCardClick,
+  deckId,
+  onGenerateIndex,
+  tocVisible,
 }) => {
   const { t } = useI18n();
 
@@ -70,6 +74,16 @@ const AnkiBar = ({
             </span>
           </Tooltip>
         )}
+        <Tooltip title={tocVisible ? t('anki.closeToc') : t('anki.openToc')}>
+          <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={onGenerateIndex}>
+            <BookOutlined
+              style={{
+                fontSize: '16px',
+                color: tocVisible ? '#1890ff' : '#d9d9d9',
+              }}
+            />
+          </span>
+        </Tooltip>
       </div>
       {visualizerVisible && (
         <CardVisualizer

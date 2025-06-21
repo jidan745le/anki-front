@@ -27,14 +27,14 @@ class WebSocketClient {
     const token = localStorage.getItem('token');
     console.log('connect', token, this.socket, 'token');
 
-    if (!token || this.socket) {
-      console.log('connect !token || this.socket', token, this.socket, 'token');
-      if (!token && !['/login', '/signup'].includes(window.location.pathname)) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
-      return;
-    }
+    // if (!token || this.socket) {
+    //   console.log('connect !token || this.socket', token, this.socket, 'token');
+    //   if (!token && !['/login', '/signup'].includes(window.location.pathname)) {
+    //     localStorage.removeItem('token');
+    //     window.location.href = '/login';
+    //   }
+    //   return;
+    // }
     console.log('start connect', token, this.socket, 'token');
 
     this.socket = io(this.url, {
@@ -93,7 +93,7 @@ class WebSocketClient {
         console.log('reconnect');
         this.disconnect();
         // 使用新 token 重新连接
-        setTimeout(() => this.connect(), 1000);
+        // setTimeout(() => this.connect(), 1000);
       }
     });
   }

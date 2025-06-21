@@ -285,7 +285,7 @@ module.exports = {
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             'process.env.API_BASE_URL': JSON.stringify(
-                isDevelopment ? 'http://localhost:3000' : 'https://api.myanki.cc'
+                isDevelopment ? 'http://localhost:3007/api' : 'https://api.myanki.cc'
             ),
             'process.env.WS_BASE_URL': JSON.stringify(
                 isDevelopment ? 'http://localhost:3000' : 'https://ws.myanki.cc'

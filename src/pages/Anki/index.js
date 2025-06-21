@@ -9,7 +9,8 @@ import { useI18n } from '../../common/hooks/useI18n';
 import apiClient from '../../common/http/apiClient';
 import { generateSimplifiedPromptDisplay } from '../../common/util/ai-util';
 import AnkiBar from '../../component/AnkiBar';
-import AnkiCard from '../../component/AnkiCard';
+import AnkiCard, { processBookIndex } from '../../component/AnkiCard';
+import BookTocTree from '../../component/BookTocTree';
 import './style.less';
 
 function Anki() {
@@ -41,6 +42,8 @@ function Anki() {
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [popoverCard, setPopoverCard] = useState(null);
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
+  const [tocDrawerVisible, setTocDrawerVisible] = useState(false);
+  const [tocStructure, setTocStructure] = useState([]);
   console.log(params, 'params');
 
   const updateCardRef = useRef(
@@ -511,7 +514,7 @@ function Anki() {
   };
 
   // 新增：通过UUID获取特定卡片
-  const getCardByUuid = cardUuid => {
+  const getCardByUuid = (cardUuid, flip = true) => {
     setFlipped(false);
     setLoading(true);
     setAiChatVisible(false);
@@ -532,6 +535,9 @@ function Anki() {
           }
           if (data.data.allCards) {
             setAllCards(data.data.allCards);
+          }
+          if (flip) {
+            setFlipped(true);
           }
 
           console.log('切换到卡片:', data.data.card);
@@ -911,6 +917,51 @@ function Anki() {
     }
   }, [popoverVisible, handlePageClick]);
 
+  // 切换书本目录
+  const handleGenerateIndex = async () => {
+    try {
+      // 如果目录已经可见，则关闭它
+      if (tocDrawerVisible) {
+        setTocDrawerVisible(false);
+        return;
+      }
+
+      // 如果目录不可见，则生成并显示目录
+      const response = await apiClient.get(`/anki/user-cards/front-and-uuid/${params.deckId}`);
+      console.log('Book index data:', response.data);
+
+      if (response.data && response.data.data) {
+        // 处理索引数据
+        const processedTocStructure = processBookIndex(response.data.data);
+        console.log('Processed TOC structure:', processedTocStructure);
+
+        // 设置目录结构数据并显示侧边栏
+        setTocStructure(processedTocStructure);
+        setTocDrawerVisible(true);
+
+        // message.success(t('anki.indexGenerated'));
+      } else {
+        message.warning(t('anki.toc.noData'));
+      }
+    } catch (error) {
+      console.error('Failed to generate index:', error);
+      message.error(error?.response?.data?.message || t('anki.indexGenerateFailed'));
+    }
+  };
+
+  // 处理目录中卡片的选择
+  const handleTocCardSelect = async (uuid, nodeData) => {
+    try {
+      console.log('目录中选择的卡片:', uuid, nodeData);
+
+      // 调用后端API获取指定卡片
+      getCardByUuid(uuid);
+    } catch (error) {
+      console.error('跳转到卡片失败:', error);
+      message.error(t('anki.getCardError'));
+    }
+  };
+
   console.log(card, 'card');
   return (
     <Spin spinning={loading}>
@@ -924,6 +975,9 @@ function Anki() {
           onToggleVisualizer={() => setVisualizerVisible(!visualizerVisible)}
           aiChatEnabled={!!cardIdRef.current}
           aiChatVisible={aiChatVisible}
+          deckId={params.deckId}
+          onGenerateIndex={handleGenerateIndex}
+          tocVisible={tocDrawerVisible}
           onToggleAIChat={() => {
             setChunkId(undefined);
             setAiChatVisible(!aiChatVisible);
@@ -961,9 +1015,81 @@ function Anki() {
             height: visualizerVisible ? 'calc(100vh - 300px)' : 'calc(100vh - 180px)',
           }}
         >
+          {/* 左侧目录侧边栏 */}
+          {tocDrawerVisible && (
+            <div
+              className="side-toc-container"
+              style={{
+                width: '10%',
+                border: '1px solid #f0f0f0',
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                background: '#fff',
+              }}
+            >
+              <div
+                className="toc-header"
+                style={{
+                  padding: '16px',
+                  boxSizing: 'border-box',
+                  height: '64px',
+                  borderBottom: '1px solid #f0f0f0',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: '500',
+                      color: '#2c3e50',
+                    }}
+                  >
+                    {t('anki.toc.title')}
+                  </span>
+                </div>
+                <div>
+                  <Button
+                    type="text"
+                    icon={<CloseOutlined />}
+                    onClick={() => {
+                      setTocDrawerVisible(false);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                className="toc-container"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flex: 1,
+                  overflow: 'hidden',
+                }}
+              >
+                <BookTocTree
+                  tocStructure={tocStructure}
+                  onCardSelect={handleTocCardSelect}
+                  currentCardUuid={card?.['uuid']}
+                />
+              </div>
+            </div>
+          )}
+
           <div
             style={{
-              width: aiChatVisible ? '75%' : '100%',
+              width:
+                tocDrawerVisible && aiChatVisible
+                  ? '65%'
+                  : tocDrawerVisible
+                    ? '90%'
+                    : aiChatVisible
+                      ? '75%'
+                      : '100%',
               transition: 'width 0.3s',
               display: 'flex',
               flexDirection: 'column',

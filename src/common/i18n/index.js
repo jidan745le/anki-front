@@ -42,21 +42,28 @@ export const getNestedValue = (obj, path) => {
   }, obj);
 };
 
+// 参数插值函数
+const interpolateParams = (text, params = {}) => {
+  return text.replace(/\{(\w+)\}/g, (match, key) => {
+    return params[key] !== undefined ? params[key] : match;
+  });
+};
+
 // 翻译函数
-export const translate = (key, language = DEFAULT_LANGUAGE, fallback = key) => {
+export const translate = (key, language = DEFAULT_LANGUAGE, fallback = key, params = {}) => {
   const translation = getNestedValue(translations[language], key);
   if (translation) {
-    return translation;
+    return interpolateParams(translation, params);
   }
 
   // 如果当前语言没有翻译，尝试使用默认语言
   if (language !== DEFAULT_LANGUAGE) {
     const defaultTranslation = getNestedValue(translations[DEFAULT_LANGUAGE], key);
     if (defaultTranslation) {
-      return defaultTranslation;
+      return interpolateParams(defaultTranslation, params);
     }
   }
 
   // 如果都没有，返回fallback
-  return fallback;
+  return interpolateParams(fallback, params);
 };

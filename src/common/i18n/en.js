@@ -227,13 +227,31 @@ export const en = {
     getCardFailed: 'Failed to get reference card',
     getCardError: 'Failed to get card',
     switchingToCurrentCard: 'Clicked on current card, no need to switch',
+    indexGenerated: 'Book index generated successfully',
+    indexGenerateFailed: 'Failed to generate book index',
 
     // AnkiBar tooltips
     autoMarkTitle: 'Auto Mark Title',
     toggleVisualizer: 'Toggle Card Visualizer',
     toggleAiChat: 'Toggle AI Chat',
+    generateIndex: 'Generate Book Index',
+    openToc: 'Open Table of Contents',
+    closeToc: 'Close Table of Contents',
     newCards: 'New Cards',
     dueLearning: 'Due Learning',
     dueReview: 'Due Review',
+
+    // Table of Contents
+    toc: {
+      title: 'Table of Contents',
+      loading: 'Loading table of contents...',
+      noData: 'No card data found',
+      generateFailed: 'Failed to generate table of contents',
+      jumpToCard: 'Jump to card: {title}',
+      completed: 'Completed',
+      progress: 'Progress',
+      chapter: 'Chapter',
+      section: 'Section',
+    },
   },
 };

@@ -12,8 +12,8 @@ export const useI18n = () => {
 
   // 翻译函数
   const t = useCallback(
-    (key, fallback = key) => {
-      return translate(key, currentLanguage, fallback);
+    (key, fallback = key, params = {}) => {
+      return translate(key, currentLanguage, fallback, params);
     },
     [currentLanguage]
   );

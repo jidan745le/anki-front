@@ -672,3 +672,152 @@ const AnkiCard = forwardRef(
 );
 
 export default AnkiCard;
+
+/**
+ * 处理MD斜体格式
+ */
+function processMarkdownItalic(text) {
+  if (!text) return '';
+  // 处理 _text_ 格式为斜体
+  return text
+    .replace(/\*\*_([^_]+)_\*\*/g, '<em>$1</em>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+    .replace(/\*\*/g, '');
+}
+
+/**
+ * 解析单个卡片前面数据
+ */
+function parseCardFrontData(frontText) {
+  const parts = frontText.split('|');
+  const data = {};
+
+  parts.forEach(part => {
+    const colonIndex = part.indexOf(':');
+    if (colonIndex === -1) return;
+
+    const key = part.substring(0, colonIndex);
+    const value = part.substring(colonIndex + 1);
+
+    switch (key) {
+      case 'CHAPTER':
+        data.chapterTitle = value;
+        break;
+      case 'SECTION':
+        data.sectionTitle = value;
+        break;
+      case 'BREADCRUMB':
+        data.breadcrumb = value ? value.split(' > ') : null;
+        break;
+      case 'PROGRESS':
+        data.progress = parseProgress(value);
+        break;
+      case 'LEVEL':
+        data.level = parseInt(value);
+        break;
+    }
+  });
+
+  return data;
+}
+
+/**
+ * 处理书籍索引数据并生成目录结构
+ */
+function processBookIndex(indexData) {
+  const processedItems = indexData.map((item, index) => ({
+    ...parseCardFrontData(item.front),
+    uuid: item.uuid,
+    originalFront: item.front,
+    originalIndex: index, // 保持原始顺序
+  }));
+
+  // 按章节和原始顺序排序
+  processedItems.sort((a, b) => {
+    if (a.chapterTitle !== b.chapterTitle) {
+      return a.chapterTitle.localeCompare(b.chapterTitle);
+    }
+    return a.originalIndex - b.originalIndex;
+  });
+
+  // 构建层级结构
+  const tocStructure = [];
+  const chapterMap = new Map();
+
+  processedItems.forEach(item => {
+    const chapterKey = item.chapterTitle;
+
+    // 创建或获取章节
+    if (!chapterMap.has(chapterKey)) {
+      const chapterItem = {
+        type: 'chapter',
+        title: chapterKey,
+        sections: new Map(), // 用Map来存储sections，方便查找
+        directCards: [],
+        uuid: item.uuid,
+        progress: item.progress,
+      };
+      chapterMap.set(chapterKey, chapterItem);
+      tocStructure.push(chapterItem);
+    }
+
+    const chapter = chapterMap.get(chapterKey);
+
+    // 处理层级结构
+    if (item.breadcrumb && item.breadcrumb.length > 0) {
+      let currentContainer = chapter;
+
+      // 遍历breadcrumb路径，为每一级创建section
+      for (let i = 0; i < item.breadcrumb.length; i++) {
+        const breadcrumbItem = item.breadcrumb[i].trim(); // 去除空格
+        const sectionKey = breadcrumbItem;
+
+        // 创建或获取section
+        if (!currentContainer.sections.has(sectionKey)) {
+          const newSection = {
+            type: 'section',
+            title: breadcrumbItem,
+            level: item.level - (item.breadcrumb.length - 1 - i), // 根据深度调整level
+            breadcrumb: item.breadcrumb.slice(0, i + 1),
+            items: [],
+            sections: new Map(),
+            uuid: item.uuid,
+            progress: item.progress,
+          };
+          currentContainer.sections.set(sectionKey, newSection);
+        }
+
+        currentContainer = currentContainer.sections.get(sectionKey);
+      }
+
+      // 将卡片添加到最深层的section中
+      if (!currentContainer.items) {
+        currentContainer.items = [];
+      }
+      currentContainer.items.push({
+        type: 'card',
+        uuid: item.uuid,
+        progress: item.progress,
+        level: item.level,
+        breadcrumb: item.breadcrumb,
+        originalIndex: item.originalIndex,
+        sectionTitle: item.sectionTitle,
+      });
+    } else {
+      // 没有breadcrumb的卡片直接放在章节下
+      chapter.directCards.push({
+        type: 'card',
+        uuid: item.uuid,
+        progress: item.progress,
+        level: item.level,
+        originalIndex: item.originalIndex,
+        sectionTitle: item.sectionTitle,
+      });
+    }
+  });
+
+  return tocStructure;
+}
+
+// Export the index processing functions
+export { processBookIndex };

@@ -1,4 +1,4 @@
-import { Boot, SlateEditor, SlateElement, SlatePath, SlateTransforms } from '@wangeditor/editor';
+import { Boot, SlateEditor, SlatePath, SlateTransforms } from '@wangeditor/editor';
 import { Editor, Toolbar } from '@wangeditor/editor-for-react';
 import React, {
   forwardRef,
@@ -24,6 +24,12 @@ const initializeHoudiniWorklet = () => {
   if (!CSS.paintWorklet) {
     console.warn('CSS Paint API not supported in this browser');
     return false;
+  }
+
+  // 检查是否已经注册过
+  if (window.houdiniWorkletRegistered) {
+    console.log('Houdini worklet already registered');
+    return true;
   }
 
   const workletCode = `
@@ -95,8 +101,24 @@ const initializeHoudiniWorklet = () => {
   try {
     const blob = new Blob([workletCode], { type: 'application/javascript' });
     const workletUrl = URL.createObjectURL(blob);
-    CSS.paintWorklet.addModule(workletUrl);
-    return true;
+
+    return CSS.paintWorklet
+      .addModule(workletUrl)
+      .then(() => {
+        window.houdiniWorkletRegistered = true;
+        console.log('Houdini worklet registered successfully');
+        return true;
+      })
+      .catch(error => {
+        // 如果已经注册过，也认为是成功的
+        if (error.message && error.message.includes('already registered')) {
+          window.houdiniWorkletRegistered = true;
+          console.log('Houdini worklet was already registered');
+          return true;
+        }
+        console.error('Failed to register Houdini worklet:', error);
+        return false;
+      });
   } catch (error) {
     console.error('Failed to initialize Houdini worklet:', error);
     return false;
@@ -201,7 +223,16 @@ const CardEditor = forwardRef(
 
     // 初始化 Houdini Worklet
     useEffect(() => {
-      houdiniSupportRef.current = initializeHoudiniWorklet();
+      const initWorklet = async () => {
+        try {
+          houdiniSupportRef.current = await initializeHoudiniWorklet();
+        } catch (error) {
+          console.error('Failed to initialize Houdini worklet:', error);
+          houdiniSupportRef.current = false;
+        }
+      };
+
+      initWorklet();
     }, []);
 
     // 清除ai loading chunk
