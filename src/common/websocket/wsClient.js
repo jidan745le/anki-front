@@ -40,6 +40,9 @@ class WebSocketClient {
       auth: {
         token: token,
       },
+      extraHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
       reconnection: false, // 禁用自动重连，我们自己处理
       timeout: 5000,
     });
@@ -104,5 +107,5 @@ class WebSocketClient {
   }
 }
 
-export const wsClient = new WebSocketClient('');
+export const wsClient = new WebSocketClient('https://ws.myanki.cc');
 export default wsClient;
