@@ -1,19 +1,14 @@
 import { message } from 'antd';
 import axios from 'axios';
-// import add from  "../util/math"
-// import { toString,toNumber,bbb,ccc } from '../util/util';
-// const aaa = require("../util/aaa")
-// aaa.a = 2
-// console.log(aaa,toString(add(aaa.a,1)), "aaa")
-// setTimeout(() => {
-//     const aaa = require("../util/aaa")
-//     console.log(aaa)
+import { API_BASE_URL, log } from '../util/env';
 
-// },1000)
 // 创建 Axios 实例
 const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: process.env.NODE_ENV === 'development' ? '/api' : API_BASE_URL,
 });
+
+// 打印API配置信息
+log.debug('API Client initialized with baseURL:', apiClient.defaults.baseURL);
 
 // 添加请求拦截器
 apiClient.interceptors.request.use(

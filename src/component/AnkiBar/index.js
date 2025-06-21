@@ -6,6 +6,7 @@ import {
 } from '@ant-design/icons';
 import { Tooltip } from 'antd';
 import React from 'react';
+import { useI18n } from '../../common/hooks/useI18n';
 import CardVisualizer from '../CardVisualizer';
 import './style.less';
 
@@ -24,6 +25,8 @@ const AnkiBar = ({
   debugModeForVisualizer = false,
   onCardClick,
 }) => {
+  const { t } = useI18n();
+
   return (
     <div
       className="anki-bar-container"
@@ -36,30 +39,36 @@ const AnkiBar = ({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={onToggleAutoMarkTitle}>
-          {autoMarkTitleEnabled ? (
-            <HighlightOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
-          ) : (
-            <HighlightOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
-          )}
-        </span>
-        <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={onToggleVisualizer}>
-          {visualizerVisible ? (
-            <EyeOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
-          ) : (
-            <EyeInvisibleOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
-          )}
-        </span>
+        <Tooltip title={t('anki.autoMarkTitle')}>
+          <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={onToggleAutoMarkTitle}>
+            {autoMarkTitleEnabled ? (
+              <HighlightOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
+            ) : (
+              <HighlightOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
+            )}
+          </span>
+        </Tooltip>
+        <Tooltip title={t('anki.toggleVisualizer')}>
+          <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={onToggleVisualizer}>
+            {visualizerVisible ? (
+              <EyeOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
+            ) : (
+              <EyeInvisibleOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
+            )}
+          </span>
+        </Tooltip>
 
         {aiChatEnabled && (
-          <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={onToggleAIChat}>
-            <MessageOutlined
-              style={{
-                fontSize: '16px',
-                color: aiChatVisible ? '#1890ff' : '#d9d9d9',
-              }}
-            />
-          </span>
+          <Tooltip title={t('anki.toggleAiChat')}>
+            <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={onToggleAIChat}>
+              <MessageOutlined
+                style={{
+                  fontSize: '16px',
+                  color: aiChatVisible ? '#1890ff' : '#d9d9d9',
+                }}
+              />
+            </span>
+          </Tooltip>
         )}
       </div>
       {visualizerVisible && (
@@ -72,7 +81,7 @@ const AnkiBar = ({
       )}
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <div>
-          <Tooltip title="New">
+          <Tooltip title={t('anki.newCards')}>
             <span
               style={{
                 color: 'blue',
@@ -83,7 +92,7 @@ const AnkiBar = ({
               {deckStats?.newCount || 0}
             </span>
           </Tooltip>
-          <Tooltip title="Due Learning">
+          <Tooltip title={t('anki.dueLearning')}>
             <span
               style={{
                 color: 'red',
@@ -94,7 +103,7 @@ const AnkiBar = ({
               {deckStats?.learningCount || 0}
             </span>
           </Tooltip>
-          <Tooltip title="Due Review">
+          <Tooltip title={t('anki.dueReview')}>
             <span
               style={{
                 color: 'green',

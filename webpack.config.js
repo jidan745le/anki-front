@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin'); // Import the plugin
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const { SourceMap } = require('module');
@@ -167,7 +168,7 @@ module.exports = {
             {
                 context: ['/socket.io/'],
                 target: 'http://localhost:3000',
-                // target: 'https://www.myanki.cc',
+                // target: 'https://ws.myanki.cc',
                 secure: false,  // 禁用 SSL 证书验证
                 changeOrigin: true,
                 ws: true
@@ -279,6 +280,21 @@ module.exports = {
             template: './src/index.html', // Your HTML template file
             filename: './index.html', // Output HTML file name
             favicon: './src/favicon.ico'  // 添加这一行
+        }),
+        // 环境变量注入
+        new webpack.DefinePlugin({
+            'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+            'process.env.API_BASE_URL': JSON.stringify(
+                isDevelopment ? 'http://localhost:3000' : 'https://api.myanki.cc'
+            ),
+            'process.env.WS_BASE_URL': JSON.stringify(
+                isDevelopment ? 'http://localhost:3000' : 'https://ws.myanki.cc'
+            ),
+            'process.env.APP_NAME': JSON.stringify('MyWar'),
+            'process.env.VERSION': JSON.stringify('1.0.0'),
+            'process.env.DEBUG': JSON.stringify(isDevelopment),
+            'process.env.ENABLE_AI_CHAT': JSON.stringify(true),
+            'process.env.ENABLE_STREAMING': JSON.stringify(true),
         }),
         process.env.ANALYZE && new BundleAnalyzerPlugin(),
         !isDevelopment && new MiniCssExtractPlugin({

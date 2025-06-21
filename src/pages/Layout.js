@@ -1,8 +1,10 @@
 import { Avatar, Descriptions, message, Popover, Spin } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useI18n } from '../common/hooks/useI18n';
 import apiClient from '../common/http/apiClient';
 import wsClient from '../common/websocket/wsClient';
+import LanguageSwitcher from '../component/LanguageSwitcher';
 import styles from './style.module.css';
 
 const Layout = ({ children }) => {
@@ -10,6 +12,7 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState(null);
   const [userLoading, setUserLoading] = useState(false);
+  const { t } = useI18n();
 
   // 获取用户信息
   const fetchUserInfo = async () => {
@@ -21,13 +24,13 @@ const Layout = ({ children }) => {
         console.log(response.data.data, 'response.data.data');
         return response.data.data;
       } else {
-        message.error('Failed to get user information');
+        message.error(t('errors.userInfoFailed'));
       }
     } catch (error) {
       console.error('Error fetching user info:', error);
       // 如果是401错误，可能是token过期，不显示错误信息
       if (error.response?.status !== 401) {
-        message.error('Failed to get user information');
+        message.error(t('errors.userInfoFailed'));
       }
       return Promise.reject(error);
     } finally {
@@ -86,7 +89,7 @@ const Layout = ({ children }) => {
     if (!userInfo) {
       return (
         <div style={{ textAlign: 'center', padding: '20px', width: '300px' }}>
-          <p>Failed to load user information</p>
+          <p>{t('errors.userInfoFailed')}</p>
         </div>
       );
     }
@@ -104,21 +107,29 @@ const Layout = ({ children }) => {
         </div>
 
         <Descriptions size="small" column={1} bordered>
-          <Descriptions.Item label="Username">{userInfo.username || 'N/A'}</Descriptions.Item>
-          {userInfo.email && <Descriptions.Item label="Email">{userInfo.email}</Descriptions.Item>}
+          <Descriptions.Item label={t('user.username')}>
+            {userInfo.username || 'N/A'}
+          </Descriptions.Item>
+          {userInfo.email && (
+            <Descriptions.Item label={t('user.email')}>{userInfo.email}</Descriptions.Item>
+          )}
           {userInfo.createdAt && (
-            <Descriptions.Item label="Member Since">
+            <Descriptions.Item label={t('user.memberSince')}>
               {new Date(userInfo.createdAt).toLocaleDateString()}
             </Descriptions.Item>
           )}
           {userInfo.totalDecks !== undefined && (
-            <Descriptions.Item label="Total Decks">{userInfo.totalDecks}</Descriptions.Item>
+            <Descriptions.Item label={t('user.totalDecks')}>
+              {userInfo.totalDecks}
+            </Descriptions.Item>
           )}
           {userInfo.totalCards !== undefined && (
-            <Descriptions.Item label="Total Cards">{userInfo.totalCards}</Descriptions.Item>
+            <Descriptions.Item label={t('user.totalCards')}>
+              {userInfo.totalCards}
+            </Descriptions.Item>
           )}
           {userInfo.studiedToday !== undefined && (
-            <Descriptions.Item label="Studied Today">
+            <Descriptions.Item label={t('user.studiedToday')}>
               {userInfo.studiedToday} cards
             </Descriptions.Item>
           )}
@@ -154,39 +165,50 @@ const Layout = ({ children }) => {
               color: '#333',
             }}
           >
-            MyANKI
+            {t('nav.brand')}
           </span>
         </div>
         {['/login', '/signup'].includes(location.pathname) ? null : (
           <ul className={styles.navLeft}>
             <li>
-              <a onClick={() => navigate('/decks')}>My Decks</a>
+              <a onClick={() => navigate('/decks')}>{t('nav.myDecks')}</a>
             </li>
             <li>
-              <a onClick={() => navigate('/shared-decks')}>Shared Decks</a>
+              <a onClick={() => navigate('/shared-decks')}>{t('nav.sharedDecks')}</a>
             </li>
-            <li>
-              <a>search</a>
-            </li>
+            {/* <li>
+              <a onClick={() => navigate('/i18n-demo')}>{t('nav.i18nDemo', 'I18n Demo')}</a>
+            </li> */}
+            {/* <li>
+              <a>{t('nav.search')}</a>
+            </li> */}
           </ul>
         )}
         <ul className={styles.navRight}>
           {['/login', '/signup'].includes(location.pathname) ? (
-            <li>
-              <a
-                onClick={() => {
-                  navigate(location.pathname == '/signup' ? '/login' : '/signup');
-                }}
-              >
-                {location.pathname == '/signup' ? 'Login' : 'Sign Up'}
-              </a>
-            </li>
+            <>
+              <li>
+                <LanguageSwitcher mode="select" size="small" />
+              </li>
+              <li>
+                <a
+                  onClick={() => {
+                    navigate(location.pathname == '/signup' ? '/login' : '/signup');
+                  }}
+                >
+                  {location.pathname == '/signup' ? t('nav.login') : t('nav.signup')}
+                </a>
+              </li>
+            </>
           ) : (
             <>
               <li>
+                <LanguageSwitcher mode="select" size="small" />
+              </li>
+              <li>
                 <Popover
                   content={userPopoverContent}
-                  title="Account Information"
+                  title={t('nav.accountInfo')}
                   trigger="click"
                   placement="bottomRight"
                   onOpenChange={visible => {
@@ -201,12 +223,12 @@ const Layout = ({ children }) => {
                         {userInfo.username?.[0]?.toUpperCase() || 'U'}
                       </Avatar>
                     )}
-                    Account
+                    {t('nav.account')}
                   </a>
                 </Popover>
               </li>
               <li>
-                <a onClick={logout}>Log Out</a>
+                <a onClick={logout}>{t('nav.logout')}</a>
               </li>
             </>
           )}

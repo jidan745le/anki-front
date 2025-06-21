@@ -1,9 +1,11 @@
 import { CloseOutlined, LoadingOutlined, SendOutlined } from '@ant-design/icons';
 import { Button, Input, message, Select, Spin } from 'antd';
+import { EventSource } from 'extended-eventsource';
 import { debounce } from 'lodash';
 import { marked } from 'marked';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useI18n } from '../../common/hooks/useI18n';
 import apiClient from '../../common/http/apiClient';
 import { generateSimplifiedPromptDisplay } from '../../common/util/ai-util';
 import AnkiBar from '../../component/AnkiBar';
@@ -11,6 +13,7 @@ import AnkiCard from '../../component/AnkiCard';
 import './style.less';
 
 function Anki() {
+  const { t } = useI18n();
   const [flipped, setFlipped] = useState(false);
   const navigate = useNavigate();
   const [card, setCard] = useState({});
@@ -141,7 +144,12 @@ function Anki() {
         // Create EventSource for this session's status
         const token = localStorage.getItem('token');
         const statusEventSource = new EventSource(
-          `${apiClient.defaults.baseURL}/aichat/status/${sessionId}?token=${token}`
+          `${apiClient.defaults.baseURL}/aichat/status/${sessionId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
 
         // Store the EventSource reference
@@ -269,7 +277,12 @@ function Anki() {
         // Step 2: Set up SSE connection
         const token = localStorage.getItem('token');
         const eventSource = new EventSource(
-          `${apiClient.defaults.baseURL}/aichat/stream/${sessionId}?token=${token}`
+          `${apiClient.defaults.baseURL}/aichat/stream/${sessionId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
         eventSourceRef.current = eventSource;
 
@@ -523,13 +536,13 @@ function Anki() {
 
           console.log('切换到卡片:', data.data.card);
         } else {
-          message.error(data.message || '获取卡片失败');
+          message.error(data.message || t('anki.getCardError'));
         }
       })
       .catch(err => {
         setLoading(false);
-        console.error('获取卡片失败:', err);
-        message.error('获取卡片失败');
+        console.error(t('anki.getCardError'), err);
+        message.error(t('anki.getCardError'));
       });
   };
 
@@ -539,7 +552,7 @@ function Anki() {
 
     // 如果点击的是当前卡片，不需要重新加载
     if (cardUuid === card?.['uuid']) {
-      console.log('点击的是当前卡片，无需切换');
+      console.log(t('anki.switchingToCurrentCard'));
       return;
     }
 
@@ -590,7 +603,15 @@ function Anki() {
 
     setChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
 
-    const eventSource = new EventSource(`${apiClient.defaults.baseURL}/aichat/stream/${sessionId}`);
+    const token = localStorage.getItem('token');
+    const eventSource = new EventSource(
+      `${apiClient.defaults.baseURL}/aichat/stream/${sessionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
     eventSourceRef.current = eventSource;
 
     let streamedContent = '';
@@ -737,49 +758,52 @@ function Anki() {
   }, []);
 
   // 处理引用链接点击事件
-  const handleReferenceClick = useCallback(e => {
-    e.preventDefault();
-    if (e.target.classList.contains('card-reference-link')) {
-      const cardId = e.target.getAttribute('data-card-id');
-      if (cardId) {
-        // 获取点击位置，防止向下溢出屏幕
-        const rect = e.target.getBoundingClientRect();
-        const popoverHeight = 300; // 预估popover高度
-        const screenHeight = window.innerHeight;
-        const topPosition =
-          rect.top + popoverHeight > screenHeight
-            ? Math.max(10, rect.top - popoverHeight) // 如果会溢出，则显示在上方
-            : rect.top;
+  const handleReferenceClick = useCallback(
+    e => {
+      e.preventDefault();
+      if (e.target.classList.contains('card-reference-link')) {
+        const cardId = e.target.getAttribute('data-card-id');
+        if (cardId) {
+          // 获取点击位置，防止向下溢出屏幕
+          const rect = e.target.getBoundingClientRect();
+          const popoverHeight = 300; // 预估popover高度
+          const screenHeight = window.innerHeight;
+          const topPosition =
+            rect.top + popoverHeight > screenHeight
+              ? Math.max(10, rect.top - popoverHeight) // 如果会溢出，则显示在上方
+              : rect.top;
 
-        setPopoverPosition({ x: rect.left - 120, y: topPosition }); // 往左偏移50px
+          setPopoverPosition({ x: rect.left - 120, y: topPosition }); // 往左偏移50px
 
-        // 显示加载状态的 popover
-        setPopoverCard({ loading: true });
-        setPopoverVisible(true);
+          // 显示加载状态的 popover
+          setPopoverCard({ loading: true });
+          setPopoverVisible(true);
 
-        // 直接通过 API 查询完整的卡片数据
-        console.log('通过 API 查询卡片:', cardId);
-        apiClient
-          .get(`/anki/getCard?uuid=${cardId}`)
-          .then(res => {
-            const data = res.data;
-            if (data.success && data.data?.card) {
-              setPopoverCard(data.data.card);
-              console.log('获取到卡片数据:', data.data.card);
-            } else {
+          // 直接通过 API 查询完整的卡片数据
+          console.log('通过 API 查询卡片:', cardId);
+          apiClient
+            .get(`/anki/getCard?uuid=${cardId}`)
+            .then(res => {
+              const data = res.data;
+              if (data.success && data.data?.card) {
+                setPopoverCard(data.data.card);
+                console.log('获取到卡片数据:', data.data.card);
+              } else {
+                setPopoverVisible(false);
+                message.warning(t('anki.cardNotFound'));
+                console.error('API 返回错误:', data.message);
+              }
+            })
+            .catch(err => {
               setPopoverVisible(false);
-              message.warning('未找到对应的卡片');
-              console.error('API 返回错误:', data.message);
-            }
-          })
-          .catch(err => {
-            setPopoverVisible(false);
-            console.error('获取引用卡片失败:', err);
-            message.error('获取引用卡片失败');
-          });
+              console.error(t('anki.getCardFailed'), err);
+              message.error(t('anki.getCardFailed'));
+            });
+        }
       }
-    }
-  }, []);
+    },
+    [t]
+  );
 
   // 修改内容渲染部分
   const renderContent = content => {
@@ -819,13 +843,15 @@ function Anki() {
             }}
           >
             <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px' }}>
-              引用卡片
+              {t('anki.referenceCard')}
             </div>
 
             {popoverCard.loading ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <Spin size="small" />
-                <div style={{ marginTop: '8px', color: '#666', fontSize: '14px' }}>加载中...</div>
+                <div style={{ marginTop: '8px', color: '#666', fontSize: '14px' }}>
+                  {t('anki.loading')}
+                </div>
               </div>
             ) : (
               <>
@@ -852,7 +878,7 @@ function Anki() {
                       handleCardClick(popoverCard.uuid, popoverCard);
                     }}
                   >
-                    跳转到卡片
+                    {t('anki.jumpToCard')}
                   </Button>
                 </div>
               </>
@@ -964,7 +990,9 @@ function Anki() {
                     ? 'audio'
                     : card['front']?.includes('audio/decks')
                       ? 'audio'
-                      : card['frontType']
+                      : card['front']?.startsWith('CHAPTER:')
+                        ? 'title'
+                        : card['frontType']
                 }
                 cardUUID={card['uuid']}
                 onChange={value => updateCard(value)}
@@ -1014,13 +1042,13 @@ function Anki() {
                       borderRadius: '4px',
                     }}
                   >
-                    AI Chat
+                    {t('anki.aiChat')}
                   </span>
                 </div>
                 <div>
-                  <Button type="link" onClick={() => getAIChat(cardIdRef.current)}>
+                  {/* <Button type="link" onClick={() => getAIChat(cardIdRef.current)}>
                     View history
-                  </Button>
+                  </Button> */}
                   <Button
                     type="text"
                     icon={<CloseOutlined />}
@@ -1098,7 +1126,7 @@ function Anki() {
                           {message.pending
                             ? message.content
                               ? renderContent(message.content)
-                              : 'thinking...'
+                              : t('anki.thinking')
                             : message.role === 'user'
                               ? message.content
                               : renderContent(message.content)}
@@ -1126,7 +1154,7 @@ function Anki() {
                     }}
                   >
                     <Input.TextArea
-                      placeholder="Ask AI anything... (Enter to send, Shift+Enter for new line)"
+                      placeholder={t('anki.askAiPlaceholder')}
                       style={{
                         fontSize: '12px',
                       }}
@@ -1170,9 +1198,9 @@ function Anki() {
                         }
                       }}
                       options={[
-                        { value: 'Deck', label: 'Deck' },
-                        { value: 'Card', label: 'Card' },
-                        { value: 'None', label: 'None' },
+                        { value: 'Deck', label: t('anki.contextDeck') },
+                        { value: 'Card', label: t('anki.contextCard') },
+                        { value: 'None', label: t('anki.contextNone') },
                       ]}
                     />
                     <SendOutlined

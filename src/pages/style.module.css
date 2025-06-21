@@ -27,6 +27,9 @@
 
 .navbar .navRight {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .navbar li {

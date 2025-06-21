@@ -2,10 +2,13 @@ import '@wangeditor/editor/dist/css/style.css'; // 引入 css
 import React, { Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { printEnvInfo } from './common/util/env';
 import wsClient from './common/websocket/wsClient';
 import AnkiCreate from './pages/AnkiCreate';
 import './styles/global.less';
-// @ts-ignore
+
+// 打印环境信息
+printEnvInfo();
 
 const Anki = React.lazy(() => import('./pages/Anki'));
 const Decks = React.lazy(() => import('./pages/Decks'));
@@ -60,6 +63,8 @@ const root = createRoot(container);
 // ReactDOM.render(React.createElement(Index), container);
 root.render(<Index />);
 
-if (module.hot) {
+// @ts-ignore
+if (module && module.hot) {
+  // @ts-ignore
   module.hot.accept();
 }

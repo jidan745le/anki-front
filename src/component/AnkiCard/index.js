@@ -1,9 +1,220 @@
 import { CompressOutlined, ExpandOutlined, SoundOutlined } from '@ant-design/icons';
 import { Button, Card } from 'antd';
+import { marked } from 'marked';
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { useI18n } from '../../common/hooks/useI18n';
 import MyEditor from '../Editor';
 import FooterBar from '../Footbar';
 import './ankicard.less';
+
+/**
+ * HTML转义函数，防止XSS攻击
+ */
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return text.replace(/[&<>"']/g, function (m) {
+    return map[m];
+  });
+}
+
+/**
+ * Markdown转HTML函数
+ */
+function markdownToHtml(text) {
+  if (!text) return '';
+  return marked(text);
+}
+
+/**
+ * 解析进度信息
+ */
+function parseProgress(progressText) {
+  const match = progressText.match(/(\d+)\/(\d+)\s*\((\d+)%\)/);
+  if (match) {
+    return {
+      current: parseInt(match[1]),
+      total: parseInt(match[2]),
+      percentage: parseInt(match[3]),
+    };
+  }
+  return { current: 1, total: 1, percentage: 100 };
+}
+
+/**
+ * 生成卡片正面HTML
+ */
+function generateCardFrontHTML(data) {
+  return `
+    <div class="card-front-container">
+      <div class="chapter-title">
+        ${markdownToHtml(data.chapterTitle || '')}
+      </div>
+      
+      ${
+        data.sectionTitle
+          ? `
+      <div class="section-title">
+        ${markdownToHtml(data.sectionTitle)}
+      </div>
+      `
+          : ''
+      }
+      
+      ${
+        data.breadcrumb && data.breadcrumb.length > 0
+          ? `
+      <div class="breadcrumb-container">
+        <div class="breadcrumb">
+          ${data.breadcrumb
+            .map(
+              (item, index) => `
+            <span class="breadcrumb-item">${markdownToHtml(item)}</span>
+            ${index < data.breadcrumb.length - 1 ? '<span class="breadcrumb-separator">></span>' : ''}
+          `
+            )
+            .join('')}
+        </div>
+      </div>
+      `
+          : ''
+      }
+      
+      <div class="progress-container">
+        <div class="progress-info">
+          <span>第 ${data.progress.current} 部分，共 ${data.progress.total} 部分</span>
+          <span>${data.progress.percentage}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${data.progress.percentage}%"></div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .card-front-container {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        padding: 12px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        color: #333;
+        font-size: 0.85em;
+        line-height: 1.4;
+        text-align: left;
+      }
+      
+      .chapter-title {
+        font-size: 1em;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 8px;
+      }
+      
+      .section-title {
+        font-size: 0.9em;
+        font-weight: 500;
+        color: #5a6c7d;
+        margin-bottom: 8px;
+      }
+      
+      .breadcrumb-container {
+        margin-bottom: 10px;
+      }
+      
+      .breadcrumb {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+        font-size: 0.75em;
+        color: #6c757d;
+      }
+      
+      .breadcrumb-item {
+        background: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: 500;
+      }
+      
+      .breadcrumb-separator {
+        color: #adb5bd;
+        margin: 0 2px;
+      }
+      
+      .progress-container {
+        border-top: 1px solid #e9ecef;
+        padding-top: 8px;
+      }
+      
+      .progress-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+        font-size: 0.75em;
+        color: #6c757d;
+      }
+      
+      .progress-bar {
+        width: 100%;
+        height: 3px;
+        background: #e9ecef;
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      
+      .progress-fill {
+        height: 100%;
+        background: #007bff;
+        border-radius: 2px;
+        transition: width 0.2s ease;
+      }
+    </style>
+  `;
+}
+
+/**
+ * 解析卡片正面的结构化文本并生成HTML
+ */
+function parseAndRenderCardFront(frontText) {
+  const parts = frontText.split('|');
+  const data = {};
+
+  parts.forEach(part => {
+    const colonIndex = part.indexOf(':');
+    if (colonIndex === -1) return;
+
+    const key = part.substring(0, colonIndex);
+    const value = part.substring(colonIndex + 1);
+
+    switch (key) {
+      case 'CHAPTER':
+        data.chapterTitle = value;
+        break;
+      case 'SECTION':
+        data.sectionTitle = value;
+        break;
+      case 'BREADCRUMB':
+        data.breadcrumb = value ? value.split(' > ') : null;
+        break;
+      case 'PROGRESS':
+        data.progress = parseProgress(value);
+        break;
+      case 'LEVEL':
+        data.level = parseInt(value);
+        break;
+    }
+  });
+
+  return generateCardFrontHTML(data);
+}
 
 const AnkiCard = forwardRef(
   (
@@ -24,12 +235,14 @@ const AnkiCard = forwardRef(
     },
     ref
   ) => {
+    const { t } = useI18n();
     const audioRef = React.useRef(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const editorRef = useRef(null);
     const frontRef = useRef(null);
     const [frontExpanded, setFrontExpanded] = useState(false);
+    console.log(frontType, front, 'frontType');
 
     useImperativeHandle(ref, () => ({
       getEditor: () => editorRef.current,
@@ -72,12 +285,12 @@ const AnkiCard = forwardRef(
 
         utterance.onerror = () => {
           setIsSpeaking(false);
-          console.error('TTS朗读出错');
+          console.error('TTS Error');
         };
 
         window.speechSynthesis.speak(utterance);
       } else {
-        console.warn('当前浏览器不支持TTS功能');
+        console.warn(t('anki.audioNotSupported'));
       }
     };
 
@@ -95,7 +308,8 @@ const AnkiCard = forwardRef(
         stopSpeaking();
       } else {
         const textToSpeak =
-          frontType !== 'audio' ? frontRef.current.textContent : '这是一个音频卡片';
+          frontType !== 'audio' ? frontRef.current.textContent : t('anki.audioCard');
+        console.log(textToSpeak.trim() + 'textToSpeak');
         speakText(textToSpeak);
       }
     };
@@ -254,13 +468,15 @@ const AnkiCard = forwardRef(
             >
               {frontType === 'audio' ? (
                 <audio ref={audioRef} controls src={`${front}`}>
-                  Your browser does not support the audio element.
+                  {t('anki.audioNotSupported')}
                 </audio>
               ) : (
                 <>
                   <div
                     ref={frontRef}
-                    dangerouslySetInnerHTML={{ __html: front }}
+                    dangerouslySetInnerHTML={{
+                      __html: frontType === 'title' ? parseAndRenderCardFront(front) : front,
+                    }}
                     style={{
                       minHeight: '63px',
                     }}
@@ -278,7 +494,7 @@ const AnkiCard = forwardRef(
                       color: isSpeaking ? '#1890ff' : '#666',
                       fontSize: '18px',
                     }}
-                    title={isSpeaking ? '停止朗读' : '朗读文本'}
+                    title={isSpeaking ? t('anki.stopReading') : t('anki.readText')}
                   />
                   {/* 展开/收缩按钮 - 只在翻转状态下显示 */}
                   {flipped && (
@@ -294,7 +510,7 @@ const AnkiCard = forwardRef(
                         color: '#666',
                         fontSize: '16px',
                       }}
-                      title={frontExpanded ? '收缩正面内容' : '展开正面内容'}
+                      title={frontExpanded ? t('anki.collapseFront') : t('anki.expandFront')}
                     />
                   )}
                 </>
@@ -340,7 +556,7 @@ const AnkiCard = forwardRef(
                       color: isSpeaking ? '#1890ff' : '#666',
                       fontSize: '16px',
                     }}
-                    title={isSpeaking ? '停止朗读' : '朗读答案'}
+                    title={isSpeaking ? t('anki.stopReading') : t('anki.readAnswer')}
                   />
                 </div>
               ) : (
@@ -363,7 +579,7 @@ const AnkiCard = forwardRef(
                     showAIChatSidebar={showAIChatSidebar}
                     cardUUID={cardUUID}
                     config={config}
-                    title={frontType !== 'audio' ? frontRef.current.textContent : undefined}
+                    title={frontType !== 'audio' ? frontRef.current.textContent.trim() : undefined}
                     onChange={onChange}
                     isNew={isNew}
                     value={`${back}`}
@@ -390,7 +606,7 @@ const AnkiCard = forwardRef(
             </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-              点击下方按钮或按空格键查看答案
+              {t('anki.clickToShowAnswer')}
             </div>
           )}
         </Card>
@@ -405,7 +621,7 @@ const AnkiCard = forwardRef(
                   onNext && onNext(1);
                 }}
               >
-                Again (1)
+                {t('anki.again')}
               </Button>,
               <Button
                 key="2"
@@ -415,7 +631,7 @@ const AnkiCard = forwardRef(
                   onNext && onNext(2);
                 }}
               >
-                Hard (2)
+                {t('anki.hard')}
               </Button>,
               <Button
                 key="3"
@@ -425,7 +641,7 @@ const AnkiCard = forwardRef(
                   onNext && onNext(3);
                 }}
               >
-                Good (3)
+                {t('anki.good')}
               </Button>,
               <Button
                 key="4"
@@ -435,7 +651,7 @@ const AnkiCard = forwardRef(
                   onNext && onNext(4);
                 }}
               >
-                Easy (4)
+                {t('anki.easy')}
               </Button>,
             ]
           ) : (
@@ -446,7 +662,7 @@ const AnkiCard = forwardRef(
                 onFlip && onFlip(true);
               }}
             >
-              展示答案 (Space)
+              {t('anki.showAnswer')}
             </Button>
           )}
         </FooterBar>

@@ -11,6 +11,7 @@ import {
   Typography,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { useI18n } from '../common/hooks/useI18n';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -18,6 +19,7 @@ const { Option } = Select;
 const DeckConfigModal = ({ visible, onCancel, onConfirm, deckData, loading }) => {
   const [form] = Form.useForm();
   const [activeTab, setActiveTab] = useState('appearance');
+  const { t } = useI18n();
 
   useEffect(() => {
     if (visible && deckData) {
@@ -64,26 +66,30 @@ const DeckConfigModal = ({ visible, onCancel, onConfirm, deckData, loading }) =>
   const tabItems = [
     {
       key: 'appearance',
-      label: '外观设置',
+      label: t('deckConfig.appearance', '外观设置'),
       children: (
         <div>
           <Form.Item
             name="fontSize"
-            label="字体大小"
-            rules={[{ required: false, message: '请设置字体大小' }]}
+            label={t('deckConfig.fontSize', '字体大小')}
+            rules={[
+              { required: false, message: t('deckConfig.fontSizeRequired', '请设置字体大小') },
+            ]}
           >
             <InputNumber min={12} max={24} addonAfter="px" />
           </Form.Item>
 
           <Form.Item
             name="textAlign"
-            label="文本对齐"
-            rules={[{ required: false, message: '请选择文本对齐方式' }]}
+            label={t('deckConfig.textAlign', '文本对齐')}
+            rules={[
+              { required: false, message: t('deckConfig.textAlignRequired', '请选择文本对齐方式') },
+            ]}
           >
-            <Select placeholder="选择文本对齐方式">
-              <Option value="left">左对齐</Option>
-              <Option value="center">居中对齐</Option>
-              <Option value="right">右对齐</Option>
+            <Select placeholder={t('deckConfig.selectTextAlign', '选择文本对齐方式')}>
+              <Option value="left">{t('deckConfig.alignLeft', '左对齐')}</Option>
+              <Option value="center">{t('deckConfig.alignCenter', '居中对齐')}</Option>
+              <Option value="right">{t('deckConfig.alignRight', '右对齐')}</Option>
             </Select>
           </Form.Item>
         </div>
@@ -91,14 +97,19 @@ const DeckConfigModal = ({ visible, onCancel, onConfirm, deckData, loading }) =>
     },
     {
       key: 'fsrs',
-      label: 'FSRS 算法',
+      label: t('deckConfig.fsrsAlgorithm', 'FSRS 算法'),
       children: (
         <div>
-          <Title level={5}>基础参数</Title>
+          <Title level={5}>{t('deckConfig.basicParams', '基础参数')}</Title>
           <Form.Item
             name="requestRetention"
-            label="目标记忆保持率"
-            rules={[{ required: true, message: '请设置目标记忆保持率' }]}
+            label={t('deckConfig.targetRetention', '目标记忆保持率')}
+            rules={[
+              {
+                required: true,
+                message: t('deckConfig.targetRetentionRequired', '请设置目标记忆保持率'),
+              },
+            ]}
           >
             <InputNumber
               min={0.1}
@@ -111,47 +122,75 @@ const DeckConfigModal = ({ visible, onCancel, onConfirm, deckData, loading }) =>
 
           <Form.Item
             name="maximumInterval"
-            label="最大间隔天数"
-            rules={[{ required: true, message: '请设置最大间隔天数' }]}
+            label={t('deckConfig.maxInterval', '最大间隔天数')}
+            rules={[
+              {
+                required: true,
+                message: t('deckConfig.maxIntervalRequired', '请设置最大间隔天数'),
+              },
+            ]}
           >
             <InputNumber min={1} max={100000} placeholder="36500" style={{ width: '100%' }} />
           </Form.Item>
 
           <Divider />
 
-          <Title level={5}>高级选项</Title>
-          <Form.Item name="enableFuzz" label="启用模糊化" valuePropName="checked">
+          <Title level={5}>{t('deckConfig.advancedOptions', '高级选项')}</Title>
+          <Form.Item
+            name="enableFuzz"
+            label={t('deckConfig.enableFuzz', '启用模糊化')}
+            valuePropName="checked"
+          >
             <Switch />
           </Form.Item>
 
-          <Form.Item name="enableShortTerm" label="启用短期学习" valuePropName="checked">
+          <Form.Item
+            name="enableShortTerm"
+            label={t('deckConfig.enableShortTerm', '启用短期学习')}
+            valuePropName="checked"
+          >
             <Switch />
           </Form.Item>
 
           <Form.Item
             name="learningSteps"
-            label="学习步骤 (分钟)"
-            rules={[{ required: false, message: '请设置学习步骤' }]}
+            label={t('deckConfig.learningSteps', '学习步骤 (分钟)')}
+            rules={[
+              { required: false, message: t('deckConfig.learningStepsRequired', '请设置学习步骤') },
+            ]}
           >
             <Input />
           </Form.Item>
 
           <Form.Item
             name="relearningSteps"
-            label="重新学习步骤 (分钟)"
-            rules={[{ required: false, message: '请设置重新学习步骤' }]}
+            label={t('deckConfig.relearningSteps', '重新学习步骤 (分钟)')}
+            rules={[
+              {
+                required: false,
+                message: t('deckConfig.relearningStepsRequired', '请设置重新学习步骤'),
+              },
+            ]}
           >
             <Input />
           </Form.Item>
 
           <Divider />
 
-          <Title level={5}>权重参数</Title>
-          <Form.Item name="w" label="W 参数" rules={[{ required: false, message: '请设置W参数' }]}>
+          <Title level={5}>{t('deckConfig.weightParams', '权重参数')}</Title>
+          <Form.Item
+            name="w"
+            label={t('deckConfig.wParams', 'W 参数')}
+            rules={[{ required: false, message: t('deckConfig.wParamsRequired', '请设置W参数') }]}
+          >
             <Input.TextArea rows={3} />
           </Form.Item>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            用逗号分隔的17个浮点数，代表FSRS算法的权重参数
+
+          <Text type="secondary">
+            {t(
+              'deckConfig.fsrsDescription',
+              'FSRS (Free Spaced Repetition Scheduler) 是一个开源的间隔重复算法，可以根据你的学习数据智能调整复习间隔。'
+            )}
           </Text>
         </div>
       ),
@@ -160,22 +199,21 @@ const DeckConfigModal = ({ visible, onCancel, onConfirm, deckData, loading }) =>
 
   return (
     <Modal
-      title={`配置 Deck: ${deckData?.name || ''}`}
-      bodyStyle={{ padding: '0px 12px', height: '500px', overflow: 'auto' }}
       open={visible}
+      title={t('deckConfig.title', '卡组配置')}
       onCancel={onCancel}
-      width={800}
       footer={[
         <Button key="cancel" onClick={onCancel}>
-          取消
+          {t('common.cancel')}
         </Button>,
-        <Button key="confirm" type="primary" loading={loading} onClick={() => form.submit()}>
-          保存配置
+        <Button key="submit" type="primary" loading={loading} onClick={() => form.submit()}>
+          {t('common.save')}
         </Button>,
       ]}
+      width={600}
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+        <Tabs defaultActiveKey="appearance" items={tabItems} onChange={setActiveTab} />
       </Form>
     </Modal>
   );

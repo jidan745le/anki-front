@@ -60,6 +60,7 @@
     "antd": "^5.21.5",
     "axios": "^1.7.7",
     "core-js": "^3.38.1",
+    "extended-eventsource": "^2.1.0",
     "lodash": "^4.17.21",
     "marked": "^15.0.3",
     "react": "18.2.0",

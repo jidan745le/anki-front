@@ -18,6 +18,7 @@ import {
 } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../common/hooks/useI18n';
 import useSocket from '../../common/hooks/useSocket';
 import apiClient from '../../common/http/apiClient';
 import ApkgTemplateSelector from '../../component/ApkgTemplateSelector';
@@ -28,6 +29,7 @@ const { Text } = Typography;
 const { Dragger } = Upload;
 
 const Decks = () => {
+  const { t } = useI18n();
   const [decks, setDecks] = useState([]);
   const [originalDecks, setOriginalDecks] = useState([]); // 自己创建的
   const [duplicatedDecks, setDuplicatedDecks] = useState([]); // 复制的
@@ -438,7 +440,7 @@ const Decks = () => {
 
   const getColumns = () => [
     {
-      title: 'Name',
+      title: t('decks.deckName'),
       dataIndex: 'name',
       key: 'name',
       width: 200,
@@ -448,12 +450,12 @@ const Decks = () => {
             <a onClick={() => navigate(`/anki/${row.id}`)}>{text}</a>
             {row.isShared && row.owned && (
               <Tag color="blue" style={{ fontSize: '12px', padding: '0 6px' }}>
-                Shared
+                {t('decks.shared')}
               </Tag>
             )}
             {row.isEmbedding && (
               <Tag color="green" style={{ fontSize: '12px', padding: '0 6px' }}>
-                Embedding
+                {t('decks.embeddingTag')}
               </Tag>
             )}
           </div>
@@ -463,36 +465,36 @@ const Decks = () => {
               <div>{progresses[row.taskId]?.message || ''}</div>
             </>
           )}
-          {row.status == 'failed' && <div style={{ color: 'red' }}>failed </div>}
+          {row.status == 'failed' && <div style={{ color: 'red' }}>{t('decks.failedStatus')} </div>}
         </div>
       ),
     },
     {
-      title: 'Description',
+      title: t('decks.descriptionLabel'),
       dataIndex: 'description',
       key: 'description',
       width: 200,
       render: text => text || '',
     },
     {
-      title: 'statistics',
+      title: t('decks.status'),
       dataIndex: 'stats',
       key: 'stats',
       width: 150,
       render: (text, row) => {
         return (
           <div>
-            <Tooltip title="New">
+            <Tooltip title={t('decks.newCards')}>
               <span style={{ color: 'blue', textDecoration: 'underline', marginRight: 12 }}>
                 {row?.stats?.newCount || 0}
               </span>
             </Tooltip>
-            <Tooltip title="Due Learning">
+            <Tooltip title={t('decks.dueLearning')}>
               <span style={{ color: 'red', textDecoration: 'underline', marginRight: 12 }}>
                 {row?.stats?.learningCount || 0}
               </span>
             </Tooltip>
-            <Tooltip title="Due Review">
+            <Tooltip title={t('decks.dueReview')}>
               <span style={{ color: 'green', textDecoration: 'underline', marginRight: 12 }}>
                 {row?.stats?.reviewCount || 0}
               </span>
@@ -502,7 +504,7 @@ const Decks = () => {
       },
     },
     {
-      title: 'Action',
+      title: t('decks.actions'),
       key: 'action',
       width: 100,
       render: (text, row) => {
@@ -529,17 +531,17 @@ const Decks = () => {
         const menuItems = [
           {
             key: 'add',
-            label: 'Add',
+            label: t('decks.add'),
             disabled: row.status === 'processing',
           },
           {
             key: 'share',
-            label: row.isShared ? 'Update' : 'Share',
+            label: row.isShared ? t('decks.update') : t('decks.share'),
             disabled: !row.owned,
           },
           {
             key: 'delete',
-            label: 'Delete',
+            label: t('decks.delete'),
             danger: true,
             // disabled: row.status === 'processing',
           },
@@ -549,12 +551,12 @@ const Decks = () => {
           },
           {
             key: 'configure',
-            label: 'Configure',
+            label: t('decks.configure'),
             disabled: row.status === 'processing' || !row.owned,
           },
           {
             key: 'embed',
-            label: 'Embedding',
+            label: t('decks.embedding'),
             disabled: !row.owned || row.status === 'processing' || row.isEmbedding,
           },
         ];
@@ -569,7 +571,7 @@ const Decks = () => {
             placement="bottomRight"
           >
             <Button type="link">
-              Actions
+              {t('decks.actionsButton')}
               <DownOutlined />
             </Button>
           </Dropdown>
@@ -677,7 +679,7 @@ const Decks = () => {
   const tabItems = [
     {
       key: 'all',
-      label: `All (${decks.length})`,
+      label: `${t('decks.allTab')} (${decks.length})`,
       children: (
         <Table
           loading={decksLoading}
@@ -686,7 +688,7 @@ const Decks = () => {
           showHeader={false}
           pagination={{
             pageSize: 10,
-            showTotal: total => `Total ${total} items`,
+            showTotal: total => t('decks.totalItems').replace('{total}', total),
           }}
           columns={getColumns()}
         />
@@ -694,7 +696,7 @@ const Decks = () => {
     },
     {
       key: 'original',
-      label: `Created (${originalDecks.length})`,
+      label: `${t('decks.createdTab')} (${originalDecks.length})`,
       children: (
         <Table
           loading={decksLoading}
@@ -703,7 +705,7 @@ const Decks = () => {
           rowKey={row => row.id}
           pagination={{
             pageSize: 10,
-            showTotal: total => `Total ${total} items`,
+            showTotal: total => t('decks.totalItems').replace('{total}', total),
           }}
           columns={getColumns()}
         />
@@ -711,7 +713,7 @@ const Decks = () => {
     },
     {
       key: 'duplicated',
-      label: `Duplicated (${duplicatedDecks.length})`,
+      label: `${t('decks.duplicatedTab')} (${duplicatedDecks.length})`,
       children: (
         <Table
           loading={decksLoading}
@@ -720,7 +722,7 @@ const Decks = () => {
           showHeader={false}
           pagination={{
             pageSize: 10,
-            showTotal: total => `Total ${total} items`,
+            showTotal: total => t('decks.totalItems').replace('{total}', total),
           }}
           columns={getColumns()}
         />
@@ -759,7 +761,7 @@ const Decks = () => {
                       : '0 0 8px rgba(255, 77, 79, 0.6)',
                     transition: 'all 0.3s ease',
                   }}
-                  title={isConnected ? 'Socket连接正常' : 'Socket连接断开'}
+                  title={isConnected ? t('decks.connected') : t('decks.disconnected')}
                 />
                 <Text
                   style={{
@@ -768,7 +770,7 @@ const Decks = () => {
                     fontWeight: '500',
                   }}
                 >
-                  {isConnected ? 'connected' : 'disconnected'}
+                  {isConnected ? t('decks.connected') : t('decks.disconnected')}
                 </Text>
               </div>
             ),
@@ -778,12 +780,12 @@ const Decks = () => {
 
       <FooterBar>
         <Button danger type="primary" onClick={handleAddDeck}>
-          添加 Deck
+          {t('decks.addDeckButton')}
         </Button>
       </FooterBar>
 
       <Modal
-        title="添加 Deck"
+        title={t('decks.addDeckTitle')}
         open={visible}
         onCancel={handleClose}
         footer={null}
@@ -800,20 +802,20 @@ const Decks = () => {
             }}
           >
             <Spin size="large" />
-            <Text style={{ marginLeft: '12px' }}>正在解析APKG文件...</Text>
+            <Text style={{ marginLeft: '12px' }}>{t('decks.parsingApkg')}</Text>
           </div>
         ) : (
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
             <Form.Item
               name="name"
-              label="Deck 名称"
-              rules={[{ required: true, message: '请输入 Deck 名称!' }]}
+              label={t('decks.deckNameLabel')}
+              rules={[{ required: true, message: t('decks.deckNamePlaceholder') }]}
             >
-              <Input placeholder="请输入Deck名称" />
+              <Input placeholder={t('decks.deckNamePlaceholder')} />
             </Form.Item>
 
-            <Form.Item name="description" label="描述">
-              <Input.TextArea placeholder="请输入Deck描述（可选）" rows={3} />
+            <Form.Item name="description" label={t('decks.descriptionLabel')}>
+              <Input.TextArea placeholder={t('decks.descriptionPlaceholder')} rows={3} />
             </Form.Item>
 
             <Form.Item
