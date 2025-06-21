@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import './style.less';
-import apiClient from '../../common/http/apiClient';
 import { message } from 'antd';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../../common/http/apiClient';
 import wsClient from '../../common/websocket/wsClient';
+import './style.less';
 
 const Login = () => {
   const [userName, setUserName] = useState('');
@@ -22,8 +22,8 @@ const Login = () => {
             localStorage.setItem('token', res.headers.token);
             localStorage.setItem('refreshToken', res.headers.refreshtoken);
             wsClient.connect();
-            message.success('Login successful');
-            navigate('/');
+            // message.success('Login successful');
+            // navigate('/');
           } else {
             console.log('Login failed:', data);
             message.error(data.message);
