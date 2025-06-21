@@ -22,8 +22,8 @@ const Login = () => {
             localStorage.setItem('token', res.headers.token);
             localStorage.setItem('refreshToken', res.headers.refreshtoken);
             wsClient.connect();
-            // message.success('Login successful');
-            // navigate('/');
+            message.success('Login successful');
+            navigate('/');
           } else {
             console.log('Login failed:', data);
             message.error(data.message);
