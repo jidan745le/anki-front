@@ -24,6 +24,7 @@ function App() {
   useEffect(() => {
     return () => {
       wsClient.disconnect();
+      console.log('wsClient.disconnect');
     };
   });
   return (

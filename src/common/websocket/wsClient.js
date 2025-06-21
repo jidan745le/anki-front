@@ -35,6 +35,11 @@ class WebSocketClient {
     //   }
     //   return;
     // }
+
+    if (this.socket) {
+      console.log('connect 1', token, this.socket, 'token');
+      return;
+    }
     console.log('start connect', token, this.socket, 'token');
 
     this.socket = io(this.url, {
