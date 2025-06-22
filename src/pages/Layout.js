@@ -53,9 +53,7 @@ const Layout = ({ children }) => {
   }, [location.pathname]);
 
   const logout = async () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    await apiClient
+    apiClient
       .post(`/user/logout`)
       .then(res => {
         const data = res.data;
@@ -63,7 +61,9 @@ const Layout = ({ children }) => {
           if (data.success) {
             console.log('logout success');
             message.success(data.data.toString());
-            navigate('/');
+            wsClient.disconnect();
+            setUserInfo(null);
+            navigate('/login');
           } else {
             message.error(data.message);
           }
@@ -72,10 +72,10 @@ const Layout = ({ children }) => {
       .catch(err => {
         message.error(err.message);
       });
-
-    wsClient.disconnect();
-    setUserInfo(null);
-    navigate('/login');
+    setTimeout(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+    });
   };
 
   // 用户信息悬浮框内容
