@@ -61,6 +61,13 @@
   display: none;
 }
 
+/* 主内容区域样式 */
+.mainContent {
+  min-height: calc(100vh - 70px); /* 减去导航栏高度 */
+  background-color: #f5f5f5;
+  padding: 24px;
+}
+
 @media screen and (max-width: 600px) {
   .navbar a:not(:first-child) {
     display: none;
@@ -69,6 +76,10 @@
   .navbar a.icon {
     float: right;
     display: block;
+  }
+
+  .mainContent {
+    padding: 16px;
   }
 }
 

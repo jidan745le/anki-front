@@ -1,5 +1,6 @@
 import { Tooltip } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useI18n } from '../../common/hooks/useI18n';
 import './style.less';
 
 // 全局日志函数
@@ -45,6 +46,7 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false,
   const rafRef = useRef(null);
   const [clickedCardId, setClickedCardId] = useState(null); // 新增：跟踪被点击的卡片
   const [animationType, setAnimationType] = useState('ripple'); // 新增：动画类型
+  const { t } = useI18n();
 
   // 组件初始化日志
   useEffect(() => {
@@ -114,6 +116,9 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false,
       case 3: // Relearning
         baseColorHex = '#FDDDA0'; // Soft Orange/Peach
         break;
+      case 4: // Suspended
+        baseColorHex = '#FF6B6B'; // Red for suspended cards
+        break;
       default:
         baseColorHex = '#D3D3D3'; // Light Gray
     }
@@ -157,7 +162,11 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false,
             ? '学习中'
             : card.state === 2
               ? '复习'
-              : '重新学习',
+              : card.state === 3
+                ? '重新学习'
+                : card.state === 4
+                  ? '已暂停'
+                  : '未知状态',
       dueDate: card.dueDate,
       formattedDueDate: formatDate(card.dueDate),
       currentTime: now.toISOString(),
@@ -199,6 +208,12 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false,
     if (state === 0) {
       if (debugMode)
         logInfo('计算透明度：新卡片，不应用记忆强度，设为100%', { cardState: state, opacity: 1.0 });
+      return 1.0;
+    }
+
+    // 新增：暂停卡片（state 4）始终完全不透明
+    if (state === 4) {
+      if (debugMode) logInfo('计算透明度：暂停卡片，设为100%', { cardState: state, opacity: 1.0 });
       return 1.0;
     }
 
@@ -361,11 +376,14 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false,
   // 显示卡片数量信息
   const cardCountInfo = useMemo(() => {
     if (cards.length <= MAX_VISIBLE_CARDS) {
-      return `显示全部${cards.length}张卡片`;
+      return t('cardVisualizer.showAllCards', undefined, { count: cards.length });
     } else {
-      return `显示${visibleCards.length}张卡片（共${cards.length}张）`;
+      return t('cardVisualizer.showPartialCards', undefined, {
+        visible: visibleCards.length,
+        total: cards.length,
+      });
     }
-  }, [cards.length, visibleCards.length]);
+  }, [cards.length, visibleCards.length, t]);
 
   // 修改点击处理函数
   const handleCardClick = card => {
@@ -474,13 +492,25 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false,
             <Tooltip
               key={card.uuid}
               title={`
-状态: ${card.state === 0 ? '新卡片' : card.state === 1 ? '学习中' : card.state === 2 ? '复习' : '重新学习'}
-到期时间: ${formatDate(card.dueDate)}
+${t('cardVisualizer.tooltip.status')}: ${
+                card.state === 0
+                  ? t('cardVisualizer.legend.newCard')
+                  : card.state === 1
+                    ? t('cardVisualizer.legend.learning')
+                    : card.state === 2
+                      ? t('cardVisualizer.legend.review')
+                      : card.state === 3
+                        ? t('cardVisualizer.legend.relearning')
+                        : card.state === 4
+                          ? t('cardVisualizer.legend.suspended')
+                          : t('cardVisualizer.tooltip.unknownStatus')
+              }
+${t('cardVisualizer.tooltip.dueTime')}: ${formatDate(card.dueDate)}
 ${timeRemaining}
-位置: ${originalIndex + 1}/${cards.length}
-记忆强度: ${Math.round(calculatedAppOpacity * 100)}%
-${originalIndex === currentCardIndex ? '(当前卡片)' : ''}
-点击查看此卡片
+${t('cardVisualizer.tooltip.position')}: ${originalIndex + 1}/${cards.length}
+${t('cardVisualizer.tooltip.memoryStrength')}: ${Math.round(calculatedAppOpacity * 100)}%
+${originalIndex === currentCardIndex ? `(${t('cardVisualizer.tooltip.currentCard')})` : ''}
+${t('cardVisualizer.tooltip.clickToView')}
               `}
             >
               <div
@@ -488,36 +518,30 @@ ${originalIndex === currentCardIndex ? '(当前卡片)' : ''}
                 style={{
                   backgroundColor: getCardColor(card.state, calculatedAppOpacity),
                   cursor: onCardClick ? 'pointer' : 'default',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   ...extraStyles,
                 }}
                 onClick={() => handleCardClick(card)}
-              />
+              >
+                {card.state === 4 && (
+                  <span
+                    style={{
+                      fontSize: '8px',
+                      color: '#fff',
+                      fontWeight: 'bold',
+                      textShadow: '0 0 2px rgba(0,0,0,0.8)',
+                    }}
+                  >
+                    ❌
+                  </span>
+                )}
+              </div>
             </Tooltip>
           );
         })}
-      </div>
-      {cards.length > MAX_VISIBLE_CARDS && <div className="card-count-info">{cardCountInfo}</div>}
-      <div className="legend">
-        <div className="legend-item">
-          <div className="legend-color" style={{ backgroundColor: getCardColor(0) }}></div>
-          <span>新卡片</span>
-        </div>
-        <div className="legend-item">
-          <div className="legend-color" style={{ backgroundColor: getCardColor(1) }}></div>
-          <span>学习中</span>
-        </div>
-        <div className="legend-item">
-          <div className="legend-color" style={{ backgroundColor: getCardColor(2) }}></div>
-          <span>复习</span>
-        </div>
-        <div className="memory-legend">
-          <div className="memory-bar">
-            <div className="memory-indicator full"></div>
-            <div className="memory-indicator mid"></div>
-            <div className="memory-indicator low"></div>
-          </div>
-          <span>记忆强度</span>
-        </div>
       </div>
     </div>
   );

@@ -1,11 +1,13 @@
 import { Button, message, Modal, Table } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useI18n } from '../../common/hooks/useI18n';
 import apiClient from '../../common/http/apiClient';
 
 const DeckOriginalCards = () => {
   const { deckId } = useParams();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({
@@ -38,7 +40,7 @@ const DeckOriginalCards = () => {
         message.error(response.data.message);
       }
     } catch (error) {
-      message.error('Failed to fetch cards');
+      message.error(t('deckOriginalCards.messages.fetchError'));
     } finally {
       setLoading(false);
     }
@@ -46,22 +48,22 @@ const DeckOriginalCards = () => {
 
   const handlePublish = () => {
     Modal.confirm({
-      title: 'Share Deck',
-      content: `Are you sure you want to share the deck "${deckInfo?.name}"? Once shared, other users will be able to view and duplicate it.`,
-      okText: 'Share',
-      cancelText: 'Cancel',
+      title: t('deckOriginalCards.share.title'),
+      content: t('deckOriginalCards.share.content', undefined, { deckName: deckInfo?.name }),
+      okText: t('deckOriginalCards.share.okText'),
+      cancelText: t('deckOriginalCards.share.cancelText'),
       onOk: async () => {
         setPublishing(true);
         try {
           const response = await apiClient.post(`/anki/share/${deckId}`);
           if (response.data.success) {
-            message.success('Deck shared successfully!');
+            message.success(t('deckOriginalCards.share.success'));
             navigate('/decks');
           } else {
             message.error(response.data.message);
           }
         } catch (error) {
-          message.error('Failed to share deck');
+          message.error(t('deckOriginalCards.share.error'));
         } finally {
           setPublishing(false);
         }
@@ -79,7 +81,7 @@ const DeckOriginalCards = () => {
 
   const columns = [
     {
-      title: 'Front',
+      title: t('deckOriginalCards.table.front'),
       dataIndex: 'front',
       key: 'front',
       width: '40%',
@@ -100,7 +102,7 @@ const DeckOriginalCards = () => {
       ),
     },
     {
-      title: 'Back',
+      title: t('deckOriginalCards.table.back'),
       dataIndex: 'back',
       key: 'back',
       width: '40%',
@@ -121,7 +123,7 @@ const DeckOriginalCards = () => {
       ),
     },
     {
-      title: 'Created At',
+      title: t('deckOriginalCards.table.createdAt'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: '20%',
@@ -143,9 +145,11 @@ const DeckOriginalCards = () => {
       >
         <div>
           <Button onClick={() => navigate('/decks')} style={{ marginRight: '12px' }}>
-            ← Back to Decks
+            ← {t('deckOriginalCards.backToDecks')}
           </Button>
-          <h2 style={{ display: 'inline-block', margin: 0 }}>{deckInfo?.name || 'Loading...'}</h2>
+          <h2 style={{ display: 'inline-block', margin: 0 }}>
+            {deckInfo?.name || t('deckOriginalCards.loading')}
+          </h2>
         </div>
         <Button
           type="primary"
@@ -153,7 +157,9 @@ const DeckOriginalCards = () => {
           loading={publishing}
           disabled={!deckInfo || deckInfo.isShared}
         >
-          {deckInfo?.isShared ? 'Already Shared' : 'Publish to Share'}
+          {deckInfo?.isShared
+            ? t('deckOriginalCards.alreadyShared')
+            : t('deckOriginalCards.publishToShare')}
         </Button>
       </div>
 
@@ -168,7 +174,7 @@ const DeckOriginalCards = () => {
           total: pagination.total,
           showSizeChanger: true,
           showQuickJumper: true,
-          showTotal: total => `Total ${total} cards`,
+          showTotal: total => t('deckOriginalCards.table.totalCards', undefined, { total }),
         }}
         onChange={handleTableChange}
       />

@@ -1,8 +1,9 @@
 import { CompressOutlined, ExpandOutlined, SoundOutlined } from '@ant-design/icons';
-import { Button, Card } from 'antd';
+import { Button, Card, message, Popconfirm } from 'antd';
 import { marked } from 'marked';
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useI18n } from '../../common/hooks/useI18n';
+import apiClient from '../../common/http/apiClient';
 import MyEditor from '../Editor';
 import FooterBar from '../Footbar';
 import './ankicard.less';
@@ -229,6 +230,8 @@ const AnkiCard = forwardRef(
       isNew,
       onChange,
       cardUUID,
+      cardState,
+      onRefreshCard,
       showAIChatSidebar,
       getChatMessageAndShowSidebar,
       onInitChunkChatSession,
@@ -242,7 +245,42 @@ const AnkiCard = forwardRef(
     const editorRef = useRef(null);
     const frontRef = useRef(null);
     const [frontExpanded, setFrontExpanded] = useState(false);
+    const [isSuspending, setIsSuspending] = useState(false);
     console.log(frontType, front, 'frontType');
+
+    // Suspend/Resume card function
+    const handleSuspendCard = async () => {
+      if (!cardUUID || isSuspending) return;
+
+      const isSuspended = cardState === 4; // Check if card is currently suspended
+      const actionIsSuspend = !isSuspended; // If currently suspended, we want to resume; otherwise suspend
+
+      setIsSuspending(true);
+      try {
+        const response = await apiClient.post(`/anki/cards/suspend/${cardUUID}`, {
+          isSuspended: actionIsSuspend,
+        });
+
+        if (response.data.success) {
+          if (actionIsSuspend) {
+            message.success(t('anki.suspendSuccess'));
+            // For suspend: move to next card
+            onNext && onNext(0);
+          } else {
+            message.success(t('anki.resumeSuccess'));
+            // For resume: refresh current card to get updated state
+            onRefreshCard && onRefreshCard(cardUUID);
+          }
+        } else {
+          message.error(response.data.message || t('anki.suspendFailed'));
+        }
+      } catch (error) {
+        console.error('Failed to suspend/resume card:', error);
+        message.error(t('anki.suspendFailed'));
+      } finally {
+        setIsSuspending(false);
+      }
+    };
 
     useImperativeHandle(ref, () => ({
       getEditor: () => editorRef.current,
@@ -611,60 +649,85 @@ const AnkiCard = forwardRef(
           )}
         </Card>
         <FooterBar>
-          {flipped ? (
-            [
+          <div className="button-group-left">
+            {flipped && (
+              <Popconfirm
+                title={cardState === 4 ? t('anki.confirmResumeCard') : t('anki.confirmSuspendCard')}
+                onConfirm={handleSuspendCard}
+                okText={t('common.confirm')}
+                cancelText={t('common.cancel')}
+              >
+                <Button
+                  color={cardState === 4 ? 'primary' : 'danger'}
+                  variant="solid"
+                  loading={isSuspending}
+                >
+                  {cardState === 4 ? t('anki.resumeCard') : t('anki.suspendCard')}
+                </Button>
+              </Popconfirm>
+            )}
+          </div>
+          <div className="button-group-center">
+            {cardState === 4 ? (
+              // Suspended cards: show message instead of buttons
+              <span style={{ color: '#666', fontStyle: 'italic' }}>{t('anki.cardSuspended')}</span>
+            ) : flipped ? (
+              // Non-suspended flipped cards: show difficulty buttons
+              [
+                <Button
+                  key="1"
+                  color="danger"
+                  variant="solid"
+                  onClick={() => {
+                    onNext && onNext(1);
+                  }}
+                >
+                  {t('anki.again')}
+                </Button>,
+                <Button
+                  key="2"
+                  color="primary"
+                  variant="solid"
+                  onClick={() => {
+                    onNext && onNext(2);
+                  }}
+                >
+                  {t('anki.hard')}
+                </Button>,
+                <Button
+                  key="3"
+                  color="danger"
+                  variant="solid"
+                  onClick={() => {
+                    onNext && onNext(3);
+                  }}
+                >
+                  {t('anki.good')}
+                </Button>,
+                <Button
+                  key="4"
+                  color="default"
+                  variant="solid"
+                  onClick={() => {
+                    onNext && onNext(4);
+                  }}
+                >
+                  {t('anki.easy')}
+                </Button>,
+              ]
+            ) : (
+              // Non-suspended non-flipped cards: show answer button
               <Button
-                key="1"
-                color="danger"
-                variant="solid"
+                danger
+                type="primary"
                 onClick={() => {
-                  onNext && onNext(1);
+                  onFlip && onFlip(true);
                 }}
               >
-                {t('anki.again')}
-              </Button>,
-              <Button
-                key="2"
-                color="primary"
-                variant="solid"
-                onClick={() => {
-                  onNext && onNext(2);
-                }}
-              >
-                {t('anki.hard')}
-              </Button>,
-              <Button
-                key="3"
-                color="danger"
-                variant="solid"
-                onClick={() => {
-                  onNext && onNext(3);
-                }}
-              >
-                {t('anki.good')}
-              </Button>,
-              <Button
-                key="4"
-                color="default"
-                variant="solid"
-                onClick={() => {
-                  onNext && onNext(4);
-                }}
-              >
-                {t('anki.easy')}
-              </Button>,
-            ]
-          ) : (
-            <Button
-              danger
-              type="primary"
-              onClick={() => {
-                onFlip && onFlip(true);
-              }}
-            >
-              {t('anki.showAnswer')}
-            </Button>
-          )}
+                {t('anki.showAnswer')}
+              </Button>
+            )}
+          </div>
         </FooterBar>
       </>
     );

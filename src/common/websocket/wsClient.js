@@ -35,7 +35,7 @@ class WebSocketClient {
     //   }
     //   return;
     // }
-
+    console.log(new Error().stack, 'stack');
     if (this.socket) {
       console.log('connect 1', token, this.socket, 'token');
       return;
@@ -60,9 +60,13 @@ class WebSocketClient {
       this.reconnectAttempts = 0; // 重置重连次数
     });
 
-    this.socket.on('disconnect', () => {
+    this.socket.on('disconnect', e => {
       this.client.emit('disconnect');
-      setTimeout(() => this.connect(), 1000);
+      const token = localStorage.getItem('token');
+      console.log('disconnect', token, 'token', e);
+      if (token) {
+        setTimeout(() => this.connect(), 1000);
+      }
 
       console.log('Disconnected from socket server');
     });

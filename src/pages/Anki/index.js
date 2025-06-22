@@ -1,10 +1,15 @@
-import { CloseOutlined, LoadingOutlined, SendOutlined } from '@ant-design/icons';
-import { Button, Input, message, Select, Spin } from 'antd';
+import {
+  CloseOutlined,
+  InfoCircleOutlined,
+  LoadingOutlined,
+  SendOutlined,
+} from '@ant-design/icons';
+import { Button, Input, message, Select, Spin, Tooltip } from 'antd';
 import { EventSource } from 'extended-eventsource';
 import { debounce } from 'lodash';
 import { marked } from 'marked';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../common/hooks/useI18n';
 import apiClient from '../../common/http/apiClient';
 import { generateSimplifiedPromptDisplay } from '../../common/util/ai-util';
@@ -17,11 +22,12 @@ function Anki() {
   const { t } = useI18n();
   const [flipped, setFlipped] = useState(false);
   const navigate = useNavigate();
+  const params = useParams();
+  const [searchParams] = useSearchParams();
   const [card, setCard] = useState({});
   const [allCards, setAllCards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [deckStats, setDeckStats] = useState({});
-  const params = useParams();
   const [config, setConfig] = useState({});
   const [aiChatVisible, setAiChatVisible] = useState(false);
   const [selectedText, setSelectedText] = useState('');
@@ -44,7 +50,22 @@ function Anki() {
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
   const [tocDrawerVisible, setTocDrawerVisible] = useState(false);
   const [tocStructure, setTocStructure] = useState([]);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
+  const [showTranslateSelect, setShowTranslateSelect] = useState(false);
   console.log(params, 'params');
+
+  // Use i18n translations instead of hardcoded values
+
+  // Translation language options
+  const translationLanguages = [
+    { key: 'chinese', label: t('anki.translateToChinese'), code: 'Chinese' },
+    { key: 'english', label: t('anki.translateToEnglish'), code: 'English' },
+    { key: 'japanese', label: t('anki.translateToJapanese'), code: 'Japanese' },
+    { key: 'korean', label: t('anki.translateToKorean'), code: 'Korean' },
+    { key: 'french', label: t('anki.translateToFrench'), code: 'French' },
+    { key: 'german', label: t('anki.translateToGerman'), code: 'German' },
+    { key: 'spanish', label: t('anki.translateToSpanish'), code: 'Spanish' },
+  ];
 
   const updateCardRef = useRef(
     debounce((value, cardUuid) => {
@@ -72,8 +93,16 @@ function Anki() {
   };
 
   useEffect(() => {
-    getNextCard(params.deckId, true);
-  }, []);
+    const cardUuid = searchParams.get('uuid');
+    if (cardUuid) {
+      // 如果 URL 中有 uuid 参数，则获取指定的卡片
+      console.log('初始化时获取指定卡片:', cardUuid);
+      getCardByUuid(cardUuid, false, true); // false 表示不翻转卡片
+    } else {
+      // 如果没有 uuid 参数，则获取下一张卡片
+      getNextCard(params.deckId, true);
+    }
+  }, [params.deckId, searchParams]);
 
   useEffect(() => {
     // if (aiChatVisible) {
@@ -238,29 +267,29 @@ function Anki() {
     });
   };
 
-  const sendAiChatMessage = async (message, useStreaming = useStreamingApi) => {
+  const sendAiChatMessage = async (msg, contextMode, useStreaming = useStreamingApi) => {
     // Close any existing EventSource connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
 
-    const pendingMessages = [...chatMessages, { role: 'user', content: message }];
+    const pendingMessages = [...chatMessages, { role: 'user', content: msg }];
     setChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
 
     // Determine context content based on context type
     let contextContent = '';
-    if (['Deck', 'Card'].includes(chatContext) && card) {
+    if (['Deck', 'Card'].includes(contextMode || chatContext) && card) {
       contextContent = `${card['customBack'] || card['back'] || ''}`;
     }
 
     // Common request parameters
     const requestParams = {
       cardId: cardIdRef.current,
-      chatcontext: chatContext,
+      chatcontext: contextMode || chatContext,
       chattype: 'Generic',
       chunkId,
-      question: message,
+      question: msg,
       contextContent: contextContent,
       model: 'deepseek-chat',
     };
@@ -377,7 +406,7 @@ function Anki() {
         };
       } catch (error) {
         console.error('Error initiating chat session:', error);
-        message.error(error.message || 'Failed to send message');
+        message.error(error?.response?.data?.message || 'Failed to send message');
 
         // Update the assistant message to show error
         setChatMessages(prevMessages => {
@@ -387,7 +416,7 @@ function Anki() {
           if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
             updatedMessages[lastMessageIndex] = {
               ...updatedMessages[lastMessageIndex],
-              content: 'Error: Failed to connect to AI service',
+              content: error?.response?.data?.message || 'Error: Failed to connect to AI service',
               pending: false,
               error: true,
             };
@@ -447,9 +476,11 @@ function Anki() {
       setAiChatVisible(false);
       setChunkId(undefined);
       setAiChatLoading(false);
-      editorRef.current.getEditor().clearAiLoadingChunk();
-      await updateQualityForThisCard(deckId, quality);
-      getNextCard(deckId);
+      editorRef?.current?.getEditor()?.clearAiLoadingChunk();
+      if (quality !== 0) {
+        await updateQualityForThisCard(deckId, quality);
+      }
+      getNextCard(deckId, false);
       setChatContext('Card');
     } catch (e) {
       console.log(e);
@@ -478,6 +509,15 @@ function Anki() {
   const getNextCard = (deckId, isInit = false) => {
     setFlipped(false);
     setLoading(true);
+
+    // 如果不是初始化，清除 URL 中的 uuid 参数
+    if (!isInit) {
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('uuid');
+      const newUrl = `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+
     apiClient
       .get(`/anki/getNextCard?deckId=${deckId}&mount=${isInit}`)
       .then(res => {
@@ -514,12 +554,21 @@ function Anki() {
   };
 
   // 新增：通过UUID获取特定卡片
-  const getCardByUuid = (cardUuid, flip = true) => {
+  const getCardByUuid = (cardUuid, flip = true, isInit = false) => {
     setFlipped(false);
     setLoading(true);
     setAiChatVisible(false);
     setAiChatLoading(false);
-    // editorRef.current.getEditor().clearAiLoadingChunk();
+    editorRef?.current?.getEditor()?.clearAiLoadingChunk();
+
+    // 如果不是初始化，清除 URL 中的 uuid 参数
+    if (!isInit) {
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('uuid');
+      const newUrl = `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+
     apiClient
       .get(`/anki/getCard?uuid=${cardUuid}`)
       .then(res => {
@@ -563,7 +612,7 @@ function Anki() {
     }
 
     // 通过UUID获取卡片详情
-    getCardByUuid(cardUuid);
+    getCardByUuid(cardUuid, true, false); // true 表示翻转，false 表示不是初始化
   };
 
   const getChatMessageAndShowSidebar = chunkId => {
@@ -956,7 +1005,7 @@ function Anki() {
       console.log('目录中选择的卡片:', uuid, nodeData);
 
       // 调用后端API获取指定卡片
-      getCardByUuid(uuid);
+      getCardByUuid(uuid, true, false); // true 表示翻转，false 表示不是初始化
     } catch (error) {
       console.error('跳转到卡片失败:', error);
       message.error(t('anki.getCardError'));
@@ -964,6 +1013,186 @@ function Anki() {
   };
 
   console.log(card, 'card');
+
+  // Quick actions for AI chat
+  const quickActions = [
+    {
+      key: 'translate',
+      reference: 'card',
+      label: t('anki.translateCard'),
+      prompt: 'Please translate this card content',
+      icon: '🌐',
+      hasSubmenu: true,
+    },
+    {
+      key: 'explain',
+      reference: 'card',
+      label: t('anki.explainCard'),
+      prompt: 'Please provide a detailed explanation and analysis of this card content',
+      icon: '📝',
+    },
+    {
+      key: 'polish',
+      reference: 'card',
+      label: t('anki.polishText'),
+      prompt: 'Please provide suggestions to improve and polish this card content',
+      icon: '✨',
+    },
+    {
+      key: 'summarize',
+      reference: 'card',
+      label: t('anki.summarizeCard'),
+      prompt: 'Please summarize the key points of this card content',
+      icon: '📋',
+    },
+    {
+      key: 'questions',
+      reference: 'card',
+      label: t('anki.generateQuestions'),
+      prompt: 'Please generate some study questions based on this card content',
+      icon: '❓',
+    },
+    {
+      key: 'similar',
+      reference: 'deck',
+      label: t('anki.findSimilar'),
+      prompt: 'Please find and explain similar concepts related to this card content',
+      icon: '🔍',
+    },
+  ];
+
+  const handleQuickAction = action => {
+    // Handle translate action with inline select
+    if (action.key === 'translate' && action.hasSubmenu) {
+      // Toggle the translate select
+      setShowTranslateSelect(!showTranslateSelect);
+      return;
+    }
+
+    const prompt = action.prompt;
+
+    // Set context mode based on action reference
+    let contextMode = 'Card'; // default
+    if (action.reference === 'card') {
+      contextMode = 'Card';
+    } else if (action.reference === 'deck') {
+      contextMode = 'Deck';
+    } else if (action.reference === 'none') {
+      contextMode = 'None';
+    }
+
+    setChatContext(contextMode);
+    setQuickActionsVisible(false);
+    setShowTranslateSelect(false);
+
+    console.log('contextMode', chatContext);
+    // Set the context mode
+
+    // Hide quick actions immediately
+
+    // Send the message directly
+
+    if (prompt.trim()) {
+      sendAiChatMessage(prompt, contextMode);
+    }
+
+    // Clear the input and blur to avoid refocusing issues
+    setAiChatPrompt('');
+    if (aiChatInputRef.current) {
+      aiChatInputRef.current.blur();
+    }
+  };
+
+  const handleTranslateAction = language => {
+    const prompt = `Please translate this card content to ${language.code}`;
+
+    // Set context mode to Card for translation
+    setChatContext('Card');
+
+    // Hide quick actions and select
+    setQuickActionsVisible(false);
+    setShowTranslateSelect(false);
+
+    // Send the message directly
+    if (prompt.trim()) {
+      sendAiChatMessage(prompt, 'Card');
+    }
+
+    // Clear the input and blur to avoid refocusing issues
+    setAiChatPrompt('');
+    if (aiChatInputRef.current) {
+      aiChatInputRef.current.blur();
+    }
+  };
+
+  const handleInputFocus = () => {
+    // Only show quick actions if textarea is empty
+    if (!aiChatPrompt.trim()) {
+      setQuickActionsVisible(true);
+    }
+  };
+
+  const handleInputBlur = e => {
+    // Always hide quick actions on blur
+    setTimeout(() => {
+      // Check if the related target is within the quick actions container
+      if (!e.relatedTarget || !e.relatedTarget.closest('.quick-actions-container')) {
+        setQuickActionsVisible(false);
+        setShowTranslateSelect(false);
+      }
+    }, 150);
+  };
+
+  // Handle clicks outside to close translate select
+  React.useEffect(() => {
+    const handleClickOutside = event => {
+      if (showTranslateSelect) {
+        const quickActionsContainer = document.querySelector('.quick-actions-container');
+        const clickedInsideQuickActions = event.target.closest('.quick-actions-container');
+
+        if (!clickedInsideQuickActions) {
+          // Click outside quick actions panel - close both translate select and quick actions
+          setShowTranslateSelect(false);
+          setQuickActionsVisible(false);
+        } else {
+          // Click inside quick actions panel but outside translate select - only close translate select
+          const clickedInsideTranslateSelect =
+            event.target.closest('.translate-option') ||
+            event.target.closest('.quick-action-button[data-translate="true"]');
+          if (!clickedInsideTranslateSelect) {
+            setShowTranslateSelect(false);
+          }
+        }
+      }
+    };
+
+    if (showTranslateSelect) {
+      // Use timeout to ensure this runs after the current click event
+      setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+      }, 0);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showTranslateSelect]);
+
+  // Hide quick actions when user starts typing
+  const handleInputChange = e => {
+    const value = e.target.value;
+    setAiChatPrompt(value);
+
+    // Hide quick actions if there's content, show if empty and focused
+    if (value.trim()) {
+      setQuickActionsVisible(false);
+      setShowTranslateSelect(false);
+    } else if (document.activeElement === aiChatInputRef.current?.resizableTextArea?.textArea) {
+      setQuickActionsVisible(true);
+      setShowTranslateSelect(false);
+    }
+  };
+
   return (
     <Spin spinning={loading}>
       <div style={{ marginBottom: '0px' }}>
@@ -1008,15 +1237,20 @@ function Anki() {
           currentCardState={card?.['state']}
           deckStats={deckStats}
           onCardClick={handleCardClick}
+          currentCard={card}
+          onCardUpdate={updatedCard => {
+            // 更新当前卡片状态
+            setCard(updatedCard);
+            console.log('Card updated with new tags:', updatedCard);
+          }}
         />
 
         <div
           style={{
             display: 'flex',
-            height: visualizerVisible ? 'calc(100vh - 300px)' : 'calc(100vh - 180px)',
+            height: 'calc(100vh - 180px)',
           }}
         >
-          {/* 左侧目录侧边栏 */}
           {tocDrawerVisible && (
             <div
               className="side-toc-container"
@@ -1125,7 +1359,11 @@ function Anki() {
                 onNext={quality => {
                   setQualityForThisCardAndGetNext(params.deckId, quality);
                 }}
+                cardState={card['state']}
                 onInitChunkChatSession={onInitChunkChatSession}
+                onRefreshCard={cardUuid => {
+                  getCardByUuid(cardUuid, false, false); // false, false 表示不翻转且不是初始化
+                }}
                 getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
                 showAIChatSidebar={aiChatVisible}
                 onFlip={action => setFlipped(action)}
@@ -1267,8 +1505,122 @@ function Anki() {
                     borderTop: '1px solid #f0f0f0',
                     borderBottom: '1px solid #f0f0f0',
                     background: 'white',
+                    position: 'relative',
                   }}
                 >
+                  {/* Quick Actions */}
+                  {quickActionsVisible && !aiChatPrompt.trim() && (
+                    <div
+                      className="quick-actions-container"
+                      style={{
+                        position: 'absolute',
+                        top: '-10px',
+                        left: '16px',
+                        right: '16px',
+                        backgroundColor: 'white',
+                        border: '1px solid #d9d9d9',
+                        borderRadius: '6px',
+                        padding: '8px',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                        zIndex: 1000,
+                        transform: 'translateY(-100%)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#666',
+                          marginBottom: '6px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {t('anki.quickActions')}
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '4px',
+                        }}
+                      >
+                        {quickActions.map(action => (
+                          <div key={action.key} style={{ position: 'relative' }}>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleQuickAction(action);
+                              }}
+                              className="quick-action-button"
+                              data-translate={action.key === 'translate' ? 'true' : undefined}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '4px 8px',
+                                fontSize: '12px',
+                                border: '1px solid #d9d9d9',
+                                borderRadius: '4px',
+                                background: 'white',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              <span>{action.icon}</span>
+                              <span>{action.label}</span>
+                              {action.hasSubmenu && <span style={{ marginLeft: '2px' }}>▼</span>}
+                            </button>
+
+                            {/* Translation Language Select - directly below translate button */}
+                            {action.key === 'translate' && showTranslateSelect && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: '100%',
+                                  left: '0',
+                                  right: '0',
+                                  marginTop: '4px',
+                                  zIndex: 1002,
+                                  minWidth: '120px',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    backgroundColor: 'white',
+                                    border: '1px solid #d9d9d9',
+                                    borderRadius: '6px',
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                                    padding: '4px 0',
+                                    maxHeight: '120px',
+                                    overflowY: 'auto',
+                                  }}
+                                >
+                                  {translationLanguages.map(language => (
+                                    <div
+                                      key={language.key}
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        handleTranslateAction(language);
+                                      }}
+                                      className="translate-option"
+                                      style={{
+                                        padding: '6px 12px',
+                                        fontSize: '12px',
+                                        cursor: 'pointer',
+                                        transition: 'background-color 0.2s',
+                                      }}
+                                    >
+                                      {language.label}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div
                     style={{
                       display: 'flex',
@@ -1283,9 +1635,11 @@ function Anki() {
                         fontSize: '12px',
                       }}
                       value={aiChatPrompt}
-                      onChange={e => setAiChatPrompt(e.target.value)}
+                      onChange={handleInputChange}
                       ref={aiChatInputRef}
                       autoSize={{ minRows: 1, maxRows: 4 }}
+                      onFocus={handleInputFocus}
+                      onBlur={handleInputBlur}
                       onPressEnter={e => {
                         // Shift + Enter: 换行，不发送消息
                         if (e.shiftKey) {
@@ -1309,24 +1663,61 @@ function Anki() {
                         }
                       }}
                     />
-                    <Select
-                      bordered={false}
-                      value={chatContext}
-                      size="middle"
-                      dropdownMatchSelectWidth={false}
-                      onChange={value => {
-                        try {
-                          setChatContext(value);
-                        } catch (err) {
-                          console.error('Context selection error:', err);
-                        }
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        borderLeft: '1px solid #f0f0f0',
+                        paddingLeft: '8px',
+                        gap: '4px',
                       }}
-                      options={[
-                        { value: 'Deck', label: t('anki.contextDeck') },
-                        { value: 'Card', label: t('anki.contextCard') },
-                        { value: 'None', label: t('anki.contextNone') },
-                      ]}
-                    />
+                    >
+                      <Tooltip title={t('anki.contextTooltip')}>
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            color: '#666',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                          }}
+                        >
+                          <InfoCircleOutlined style={{ fontSize: '12px' }} />
+                          {/* {t('anki.contextLabel')} */}
+                        </span>
+                      </Tooltip>
+                      <Select
+                        bordered={false}
+                        value={chatContext}
+                        size="small"
+                        dropdownMatchSelectWidth={false}
+                        style={{ minWidth: '80px' }}
+                        onChange={value => {
+                          try {
+                            setChatContext(value);
+                          } catch (err) {
+                            console.error('Context selection error:', err);
+                          }
+                        }}
+                        options={[
+                          {
+                            value: 'Deck',
+                            label: t('anki.contextDeck'),
+                            title: t('anki.contextDeckTooltip'),
+                          },
+                          {
+                            value: 'Card',
+                            label: t('anki.contextCard'),
+                            title: t('anki.contextCardTooltip'),
+                          },
+                          {
+                            value: 'None',
+                            label: t('anki.contextNone'),
+                            title: t('anki.contextNoneTooltip'),
+                          },
+                        ]}
+                      />
+                    </div>
                     <SendOutlined
                       style={{
                         padding: '0px 12px 0px 2px',

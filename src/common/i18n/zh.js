@@ -51,7 +51,8 @@ export const zh = {
     createManually: '手动创建',
     allDecks: '全部卡组',
     myCreated: '我创建的',
-    shared: '分享给我的',
+    share: '分享',
+    delete: '删除',
 
     // 文件上传
     uploadTips: '点击或拖拽文件到此区域上传',
@@ -87,9 +88,9 @@ export const zh = {
     study: '开始学习',
     viewCards: '查看卡片',
     configure: '配置',
-    share: '分享',
-    duplicate: '复制',
-    delete: '删除',
+    shareAction: '分享',
+    duplicateAction: '复制',
+    deleteAction: '删除',
     add: '添加',
     update: '更新',
     embedding: '向量化',
@@ -211,20 +212,57 @@ export const zh = {
     good: '良好 (3)',
     easy: '简单 (4)',
 
+    // 暂停功能
+    suspend: '暂停',
+    suspendCard: '暂停卡片',
+    resumeCard: '恢复卡片',
+    suspendSuccess: '卡片暂停成功',
+    resumeSuccess: '卡片恢复成功',
+    suspendFailed: '暂停卡片失败',
+    cardSuspended: '此卡片已暂停',
+    confirmSuspendCard: '确定要暂停这张卡片吗？',
+    confirmResumeCard: '确定要恢复这张卡片吗？',
+
     // AI 聊天
     aiChat: 'AI Chat',
     thinking: '思考中...',
     loading: '加载中...',
-    askAiPlaceholder: 'Ask AI anything... (Enter to send, Shift+Enter for new line)',
+    askAiPlaceholder: '问AI任何问题...',
 
     // 引用卡片
     referenceCard: '引用卡片',
     jumpToCard: '跳转到卡片',
 
     // 上下文选项
-    contextDeck: 'Deck',
-    contextCard: 'Card',
-    contextNone: 'None',
+    contextDeck: '牌组',
+    contextCard: '本卡片',
+    contextNone: '聊天模式',
+
+    // 上下文选择器
+    contextLabel: '参考上下文',
+    contextTooltip: '选择AI聊天的参考上下文',
+    contextDeckTooltip: 'AI将参考当前牌组中的所有卡片',
+    contextCardTooltip: 'AI只参考当前这张卡片',
+    contextNoneTooltip: 'AI不参考任何卡片，进行纯聊天',
+
+    // AI聊天快捷操作
+    quickActions: '快捷操作',
+    translateCard: '翻译',
+    explainCard: '精读解释',
+    polishText: '润色建议',
+    summarizeCard: '总结要点',
+    generateQuestions: '生成问题',
+    findSimilar: '查找相似内容',
+
+    // 翻译语言选项
+    translateTo: '翻译为',
+    translateToChinese: '中文',
+    translateToEnglish: '英文',
+    translateToJapanese: '日文',
+    translateToKorean: '韩文',
+    translateToFrench: '法文',
+    translateToGerman: '德文',
+    translateToSpanish: '西班牙文',
 
     // 错误信息
     cardNotFound: '未找到对应的卡片',
@@ -245,6 +283,31 @@ export const zh = {
     dueLearning: '学习中',
     dueReview: '复习中',
 
+    // 标签功能
+    manageTags: '管理标签',
+    currentTags: '当前标签',
+    presetTags: '预设标签',
+    addTag: '+ 添加标签',
+    tagUpdatedSuccess: '标签更新成功',
+    tagUpdateFailed: '标签更新失败',
+    noCardSelected: '未选择卡片或卡片ID缺失',
+
+    // 预设标签翻译
+    'tags.favorite': '收藏',
+    'tags.important': '重要',
+    'tags.difficult': '难点',
+    'tags.error_prone': '易错',
+    'tags.review': '复习',
+
+    // 预设标签
+    presetTagLabels: {
+      favorite: '收藏',
+      important: '重要',
+      difficult: '难点',
+      error_prone: '易错',
+      review: '复习',
+    },
+
     // 书籍目录
     toc: {
       title: '书籍目录',
@@ -257,5 +320,177 @@ export const zh = {
       chapter: '章节',
       section: '段落',
     },
+  },
+
+  // 搜索页面
+  searchPage: {
+    title: '搜索卡片',
+    description: '搜索并浏览您所有卡组中的卡片',
+
+    // 表格列名
+    columnDeck: '卡组',
+    columnFront: '正面',
+    columnBack: '背面',
+    columnTags: '标签',
+    columnState: '状态',
+    columnCreated: '创建时间',
+    columnActions: '操作',
+
+    // 过滤器占位符和标签
+    selectDeck: '选择卡组',
+    searchFrontContent: '搜索正面内容',
+    searchBackContent: '搜索背面内容',
+    searchTags: '搜索标签',
+    selectState: '选择状态',
+
+    // 过滤器按钮
+    filterButton: '过滤',
+    searchButton: '搜索',
+    resetButton: '重置',
+
+    // 学习状态
+    stateNew: '新卡片',
+    stateLearning: '学习中',
+    stateReview: '复习中',
+    stateRelearning: '重新学习',
+    stateSuspended: '已暂停',
+    stateUnknown: '未知',
+
+    // 操作
+    view: '查看',
+
+    // 分页
+    showTotal: '第 {start}-{end} 项，共 {total} 项',
+
+    // 空状态
+    noData: '未找到卡片',
+
+    // 加载中
+    loading: '正在加载卡片...',
+
+    // 错误信息
+    queryFailed: '查询失败',
+    queryError: '查询错误',
+  },
+
+  // 共享卡组页面
+  sharedDecks: {
+    title: '共享卡组',
+    navigation: {
+      backToMyDecks: '返回我的卡组',
+    },
+    cardInfo: {
+      noDescription: '暂无描述',
+      createdBy: '作者',
+      unknown: '未知',
+      cards: '张卡片',
+      normalType: '普通',
+      sharedTag: '已共享',
+    },
+    actions: {
+      viewDetails: '查看详情',
+      duplicate: '复制',
+      duplicated: '已复制',
+    },
+    messages: {
+      fetchError: '获取共享卡组失败',
+      duplicateSuccess: '卡组 {deckName} 复制成功！',
+      duplicateError: '复制卡组失败',
+    },
+    loading: {
+      fetchingDecks: '正在加载共享卡组...',
+    },
+    empty: {
+      noDecksAvailable: '暂无共享卡组',
+    },
+  },
+
+  // 卡组原始卡片页面
+  deckOriginalCards: {
+    title: '卡组卡片',
+    backToDecks: '返回卡组',
+    loading: '加载中...',
+    publishToShare: '发布共享',
+    alreadyShared: '已共享',
+    table: {
+      front: '正面',
+      back: '背面',
+      createdAt: '创建时间',
+      totalCards: '共 {total} 张卡片',
+    },
+    share: {
+      title: '共享卡组',
+      content: '确定要共享卡组 "{deckName}" 吗？共享后，其他用户将能够查看和复制该卡组。',
+      okText: '共享',
+      cancelText: '取消',
+      success: '卡组共享成功！',
+      error: '共享卡组失败',
+    },
+    messages: {
+      fetchError: '获取卡片失败',
+    },
+  },
+
+  // 共享卡组查看页面
+  sharedDeckView: {
+    title: '共享卡组查看',
+    backToDecks: '返回卡组',
+    sharedDeckTag: '共享卡组',
+    duplicateToCollection: '复制到我的牌组',
+    duplicated: '已复制',
+    deckInformation: '卡组信息',
+    creator: '创建者',
+    description: '描述',
+    totalCards: '总卡片数',
+    deckType: '卡组类型',
+    unknown: '未知',
+    noDescription: '无描述',
+    normal: '普通',
+    table: {
+      front: '正面',
+      back: '背面',
+      createdAt: '创建时间',
+      totalCards: '共 {total} 张卡片',
+    },
+    duplicate: {
+      title: '复制卡组',
+      content: '确定要复制卡组 "{deckName}" 吗？这将把所有卡片添加到您的个人收藏中。',
+      okText: '复制',
+      cancelText: '取消',
+      success: '卡组复制成功！',
+      error: '复制卡组失败',
+    },
+    messages: {
+      fetchError: '获取卡片失败',
+    },
+  },
+
+  // 卡片可视化组件
+  cardVisualizer: {
+    legend: {
+      title: '卡片状态图例',
+      cardStates: '卡片状态',
+      newCard: '新卡片',
+      learning: '学习中',
+      review: '复习',
+      relearning: '重新学习',
+      suspended: '已暂停',
+      memoryStrength: '记忆强度',
+      strongMemory: '强记忆 (80-100%)',
+      mediumMemory: '中记忆 (40-80%)',
+      weakMemory: '弱记忆 (0-40%)',
+      memoryNote: '卡片透明度反映记忆强度',
+    },
+    tooltip: {
+      status: '状态',
+      dueTime: '到期时间',
+      position: '位置',
+      memoryStrength: '记忆强度',
+      currentCard: '当前卡片',
+      clickToView: '点击查看此卡片',
+      unknownStatus: '未知状态',
+    },
+    showAllCards: '显示全部{count}张卡片',
+    showPartialCards: '显示{visible}张卡片（共{total}张）',
   },
 };

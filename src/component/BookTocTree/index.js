@@ -175,7 +175,7 @@ const BookTocTree = ({ tocStructure, onCardSelect, currentCardUuid }) => {
 
     return tocStructure.map((chapter, chapterIndex) => {
       const chapterKey = `chapter-${chapterIndex}`;
-      const chapterTitle = chapter.title.replace(/^\d+-/, '').replace('.md', '');
+      const chapterTitle = chapter?.title?.replace(/^\d+-/, '')?.replace('.md', '');
 
       const chapterNode = {
         title: chapterTitle,

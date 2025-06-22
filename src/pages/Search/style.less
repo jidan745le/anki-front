@@ -1,0 +1,122 @@
+.search-page {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  .search-header {
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f0f0f0;
+
+    h2 {
+      font-size: 28px;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0 0 8px 0;
+      line-height: 1.3;
+    }
+
+    p {
+      color: #6b7280;
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+  }
+
+  .ant-table-wrapper {
+    margin-top: 24px;
+
+    .ant-table {
+      .ant-table-thead > tr > th {
+        background: #fafafa;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+        padding: 16px 12px;
+      }
+
+      .ant-table-tbody > tr > td {
+        padding: 16px 12px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+
+      .ant-table-tbody > tr:hover > td {
+        background: #f9fafb;
+      }
+
+      .action-column {
+        .ant-btn {
+          margin-right: 8px;
+
+          &:last-child {
+            margin-right: 0;
+          }
+        }
+      }
+    }
+
+    .ant-pagination {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #f0f0f0;
+      text-align: center;
+    }
+  }
+
+  .filter-dropdown {
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.12);
+    background: #fff;
+
+    .ant-input,
+    .ant-select {
+      margin-bottom: 12px;
+      border-radius: 6px;
+    }
+
+    .ant-btn {
+      border-radius: 6px;
+      font-weight: 500;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .search-page {
+    padding: 16px;
+    border-radius: 6px;
+
+    .search-header {
+      margin-bottom: 24px;
+
+      h2 {
+        font-size: 24px;
+      }
+
+      p {
+        font-size: 14px;
+      }
+    }
+
+    .ant-table-wrapper {
+      .ant-table {
+        font-size: 12px;
+
+        .ant-table-thead > tr > th,
+        .ant-table-tbody > tr > td {
+          padding: 12px 8px;
+        }
+
+        .action-column {
+          .ant-btn {
+            padding: 0 8px;
+            font-size: 12px;
+          }
+        }
+      }
+    }
+  }
+}

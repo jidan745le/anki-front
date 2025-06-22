@@ -14,6 +14,12 @@
   @media screen and (max-width: 768px) {
     padding: 8px 6px;
   }
+  .footer-content {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 }
 
 .footer-time {
@@ -22,6 +28,28 @@
 
 .footer-buttons {
   display: flex; /* 水平排列按钮 */
+  width: 100%;
+  justify-content: center; /* 左右两端对齐 */
+  align-items: center;
+  position: relative;
+
+  .button-group-left {
+    position: absolute;
+    left: 0;
+  }
+
+  .button-group-center {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    justify-content: center;
+
+    @media screen and (max-width: 768px) {
+      gap: 4px;
+    }
+  }
+
   button {
     margin-left: 12px;
     @media screen and (max-width: 768px) {

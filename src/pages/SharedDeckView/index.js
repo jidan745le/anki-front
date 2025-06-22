@@ -1,11 +1,13 @@
 import { Button, message, Modal, Table, Tag } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useI18n } from '../../common/hooks/useI18n';
 import apiClient from '../../common/http/apiClient';
 
 const SharedDeckView = () => {
   const { deckId } = useParams();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({
@@ -38,7 +40,7 @@ const SharedDeckView = () => {
         message.error(response.data.message);
       }
     } catch (error) {
-      message.error('Failed to fetch cards');
+      message.error(t('sharedDeckView.messages.fetchError'));
     } finally {
       setLoading(false);
     }
@@ -46,22 +48,22 @@ const SharedDeckView = () => {
 
   const handleDuplicate = () => {
     Modal.confirm({
-      title: 'Duplicate Deck',
-      content: `Are you sure you want to duplicate the deck "${deckInfo?.name}"? This will add all cards to your personal collection.`,
-      okText: 'Duplicate',
-      cancelText: 'Cancel',
+      title: t('sharedDeckView.duplicate.title'),
+      content: t('sharedDeckView.duplicate.content', undefined, { deckName: deckInfo?.name }),
+      okText: t('sharedDeckView.duplicate.okText'),
+      cancelText: t('sharedDeckView.duplicate.cancelText'),
       onOk: async () => {
         setDuplicating(true);
         try {
           const response = await apiClient.post(`/anki/duplicate/${deckId}`);
           if (response.data.success) {
-            message.success('Deck duplicated successfully!');
+            message.success(t('sharedDeckView.duplicate.success'));
             navigate('/decks');
           } else {
             message.error(response.data.message);
           }
         } catch (error) {
-          message.error('Failed to duplicate deck');
+          message.error(t('sharedDeckView.duplicate.error'));
         } finally {
           setDuplicating(false);
         }
@@ -79,7 +81,7 @@ const SharedDeckView = () => {
 
   const columns = [
     {
-      title: 'Front',
+      title: t('sharedDeckView.table.front'),
       dataIndex: 'front',
       key: 'front',
       width: '40%',
@@ -100,7 +102,7 @@ const SharedDeckView = () => {
       ),
     },
     {
-      title: 'Back',
+      title: t('sharedDeckView.table.back'),
       dataIndex: 'back',
       key: 'back',
       width: '40%',
@@ -121,7 +123,7 @@ const SharedDeckView = () => {
       ),
     },
     {
-      title: 'Created At',
+      title: t('sharedDeckView.table.createdAt'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: '20%',
@@ -143,15 +145,24 @@ const SharedDeckView = () => {
       >
         <div>
           <Button onClick={() => navigate('/decks')} style={{ marginRight: '12px' }}>
-            ← Back to Decks
+            ← {t('sharedDeckView.backToDecks')}
           </Button>
-          <h2 style={{ display: 'inline-block', margin: 0 }}>{deckInfo?.name || 'Loading...'}</h2>
+          <h2 style={{ display: 'inline-block', margin: 0 }}>
+            {deckInfo?.name || t('deckOriginalCards.loading')}
+          </h2>
           <Tag color="blue" style={{ marginLeft: '12px' }}>
-            Shared Deck
+            {t('sharedDeckView.sharedDeckTag')}
           </Tag>
         </div>
-        <Button type="primary" onClick={handleDuplicate} loading={duplicating}>
-          Duplicate to My Collection
+        <Button
+          type="primary"
+          disabled={deckInfo?.duplicated}
+          onClick={handleDuplicate}
+          loading={duplicating}
+        >
+          {deckInfo?.duplicated
+            ? t('sharedDeckView.duplicated')
+            : t('sharedDeckView.duplicateToCollection')}
         </Button>
       </div>
 
@@ -164,18 +175,21 @@ const SharedDeckView = () => {
             marginBottom: '24px',
           }}
         >
-          <h3>Deck Information</h3>
+          <h3>{t('sharedDeckView.deckInformation')}</h3>
           <p>
-            <strong>Creator:</strong> {deckInfo.creator?.username || 'Unknown'}
+            <strong>{t('sharedDeckView.creator')}:</strong>{' '}
+            {deckInfo.creator?.username || t('sharedDeckView.unknown')}
           </p>
           <p>
-            <strong>Description:</strong> {deckInfo.description || 'No description'}
+            <strong>{t('sharedDeckView.description')}:</strong>{' '}
+            {deckInfo.description || t('sharedDeckView.noDescription')}
           </p>
           <p>
-            <strong>Total Cards:</strong> {deckInfo.totalCards || 0}
+            <strong>{t('sharedDeckView.totalCards')}:</strong> {deckInfo.totalCards || 0}
           </p>
           <p>
-            <strong>Deck Type:</strong> {deckInfo.deckType || 'Normal'}
+            <strong>{t('sharedDeckView.deckType')}:</strong>{' '}
+            {deckInfo.deckType || t('sharedDeckView.normal')}
           </p>
         </div>
       )}
@@ -191,7 +205,7 @@ const SharedDeckView = () => {
           total: pagination.total,
           showSizeChanger: true,
           showQuickJumper: true,
-          showTotal: total => `Total ${total} cards`,
+          showTotal: total => t('sharedDeckView.table.totalCards', undefined, { total }),
         }}
         onChange={handleTableChange}
       />

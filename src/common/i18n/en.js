@@ -95,9 +95,9 @@ export const en = {
     shared: 'Shared',
     embeddingTag: 'Embedding',
     failedStatus: 'Failed',
-    newCards: 'New',
-    dueLearning: 'Due Learning',
-    dueReview: 'Due Review',
+    newCardsStatus: 'New',
+    dueLearningStatus: 'Due Learning',
+    dueReviewStatus: 'Due Review',
 
     // Notifications
     deleteConfirm: 'Are you sure you want to delete this deck?',
@@ -207,11 +207,21 @@ export const en = {
     good: 'Good (3)',
     easy: 'Easy (4)',
 
+    // Suspend functionality
+    suspend: 'Suspend',
+    suspendCard: 'Suspend Card',
+    resumeCard: 'Resume Card',
+    suspendSuccess: 'Card suspended successfully',
+    resumeSuccess: 'Card resumed successfully',
+    suspendFailed: 'Failed to suspend card',
+    cardSuspended: 'This card is suspended',
+    confirmSuspendCard: 'Are you sure you want to suspend this card?',
+    confirmResumeCard: 'Are you sure you want to resume this card?',
+
     // AI Chat
     aiChat: 'AI Chat',
     thinking: 'Thinking...',
-    loading: 'Loading...',
-    askAiPlaceholder: 'Ask AI anything... (Enter to send, Shift+Enter for new line)',
+    askAiPlaceholder: 'Ask AI anything...',
 
     // Reference cards
     referenceCard: 'Reference Card',
@@ -220,7 +230,33 @@ export const en = {
     // Context options
     contextDeck: 'Deck',
     contextCard: 'Card',
-    contextNone: 'None',
+    contextNone: 'Chat Mode',
+
+    // Context selector
+    contextLabel: 'Context',
+    contextTooltip: 'Select reference context for AI chat',
+    contextDeckTooltip: 'AI will reference all cards in the current deck',
+    contextCardTooltip: 'AI will only reference the current card',
+    contextNoneTooltip: 'AI will chat without any card context',
+
+    // Quick actions for AI chat
+    quickActions: 'Quick Actions',
+    translateCard: 'Translate',
+    explainCard: 'Explain in Detail',
+    polishText: 'Polish & Improve',
+    summarizeCard: 'Summarize',
+    generateQuestions: 'Generate Questions',
+    findSimilar: 'Find Similar Content',
+
+    // Translation languages
+    translateTo: 'Translate to',
+    translateToChinese: 'Chinese',
+    translateToEnglish: 'English',
+    translateToJapanese: 'Japanese',
+    translateToKorean: 'Korean',
+    translateToFrench: 'French',
+    translateToGerman: 'German',
+    translateToSpanish: 'Spanish',
 
     // Error messages
     cardNotFound: 'Card not found',
@@ -241,6 +277,31 @@ export const en = {
     dueLearning: 'Due Learning',
     dueReview: 'Due Review',
 
+    // Tag functionality
+    manageTags: 'Manage Tags',
+    currentTags: 'Current Tags',
+    presetTags: 'Preset Tags',
+    addTag: '+ Add Tag',
+    tagUpdatedSuccess: 'Tags updated successfully',
+    tagUpdateFailed: 'Failed to update tags',
+    noCardSelected: 'No card selected or card ID missing',
+
+    // Preset tag translations
+    'tags.favorite': 'Favorite',
+    'tags.important': 'Important',
+    'tags.difficult': 'Difficult',
+    'tags.error_prone': 'Error Prone',
+    'tags.review': 'Review',
+
+    // Preset tag labels
+    presetTagLabels: {
+      favorite: 'Favorite',
+      important: 'Important',
+      difficult: 'Difficult',
+      error_prone: 'Error Prone',
+      review: 'Review',
+    },
+
     // Table of Contents
     toc: {
       title: 'Table of Contents',
@@ -253,5 +314,179 @@ export const en = {
       chapter: 'Chapter',
       section: 'Section',
     },
+  },
+
+  // Search page
+  searchPage: {
+    title: 'Search Cards',
+    description: 'Search and browse your cards across all decks',
+
+    // Table columns
+    columnDeck: 'Deck',
+    columnFront: 'Front',
+    columnBack: 'Back',
+    columnTags: 'Tags',
+    columnState: 'State',
+    columnCreated: 'Created',
+    columnActions: 'Actions',
+
+    // Filter placeholders and labels
+    selectDeck: 'Select deck',
+    searchFrontContent: 'Search front content',
+    searchBackContent: 'Search back content',
+    searchTags: 'Search tags',
+    selectState: 'Select state',
+
+    // Filter buttons
+    filterButton: 'Filter',
+    searchButton: 'Search',
+    resetButton: 'Reset',
+
+    // Learning states
+    stateNew: 'New',
+    stateLearning: 'Learning',
+    stateReview: 'Review',
+    stateRelearning: 'Relearning',
+    stateSuspended: 'Suspended',
+    stateUnknown: 'Unknown',
+
+    // Actions
+    view: 'View',
+
+    // Pagination
+    showTotal: '{start}-{end} of {total} items',
+
+    // Empty state
+    noData: 'No cards found',
+
+    // Loading
+    loading: 'Loading cards...',
+
+    // Error messages
+    queryFailed: 'Query failed',
+    queryError: 'Query error',
+  },
+
+  // Shared Decks page
+  sharedDecks: {
+    title: 'Shared Decks',
+    navigation: {
+      backToMyDecks: 'Back to My Decks',
+    },
+    cardInfo: {
+      noDescription: 'No description available',
+      createdBy: 'By',
+      unknown: 'Unknown',
+      cards: 'cards',
+      normalType: 'Normal',
+      sharedTag: 'Shared',
+    },
+    actions: {
+      viewDetails: 'View Details',
+      duplicate: 'Duplicate',
+      duplicated: 'Duplicated',
+    },
+    messages: {
+      fetchError: 'Failed to fetch shared decks',
+      duplicateSuccess: 'Deck {deckName} duplicated successfully!',
+      duplicateError: 'Failed to duplicate deck',
+    },
+    loading: {
+      fetchingDecks: 'Loading shared decks...',
+    },
+    empty: {
+      noDecksAvailable: 'No shared decks available',
+    },
+  },
+
+  // Deck Original Cards page
+  deckOriginalCards: {
+    title: 'Deck Cards',
+    backToDecks: 'Back to Decks',
+    loading: 'Loading...',
+    publishToShare: 'Publish to Share',
+    alreadyShared: 'Already Shared',
+    table: {
+      front: 'Front',
+      back: 'Back',
+      createdAt: 'Created At',
+      totalCards: 'Total {total} cards',
+    },
+    share: {
+      title: 'Share Deck',
+      content:
+        'Are you sure you want to share the deck "{deckName}"? Once shared, other users will be able to view and duplicate it.',
+      okText: 'Share',
+      cancelText: 'Cancel',
+      success: 'Deck shared successfully!',
+      error: 'Failed to share deck',
+    },
+    messages: {
+      fetchError: 'Failed to fetch cards',
+    },
+  },
+
+  // Shared Deck View page
+  sharedDeckView: {
+    title: 'Shared Deck View',
+    backToDecks: 'Back to Decks',
+    sharedDeckTag: 'Shared Deck',
+    duplicateToCollection: 'Duplicate to My Deck',
+    duplicated: 'Duplicated',
+    deckInformation: 'Deck Information',
+    creator: 'Creator',
+    description: 'Description',
+    totalCards: 'Total Cards',
+    deckType: 'Deck Type',
+    unknown: 'Unknown',
+    noDescription: 'No description',
+    normal: 'Normal',
+    table: {
+      front: 'Front',
+      back: 'Back',
+      createdAt: 'Created At',
+      totalCards: 'Total {total} cards',
+    },
+    duplicate: {
+      title: 'Duplicate Deck',
+      content:
+        'Are you sure you want to duplicate the deck "{deckName}"? This will add all cards to your personal collection.',
+      okText: 'Duplicate',
+      cancelText: 'Cancel',
+      success: 'Deck duplicated successfully!',
+      error: 'Failed to duplicate deck',
+    },
+    messages: {
+      fetchError: 'Failed to fetch cards',
+    },
+  },
+
+  // Card Visualizer component
+  cardVisualizer: {
+    legend: {
+      title: 'Card Status Legend',
+      cardStates: 'Card States',
+      newCard: 'New Card',
+      learning: 'Learning',
+      review: 'Review',
+      relearning: 'Relearning',
+      suspended: 'Suspended',
+      memoryStrength: 'Memory Strength',
+      strongMemory: 'Strong Memory (80-100%)',
+      mediumMemory: 'Medium Memory (40-80%)',
+      weakMemory: 'Weak Memory (0-40%)',
+      memoryNote: 'Card opacity reflects memory strength',
+    },
+    tooltip: {
+      status: 'Status',
+      dueTime: 'Due Time',
+      position: 'Position',
+      memoryStrength: 'Memory Strength',
+      currentCard: 'Current Card',
+      clickToView: 'Click to view this card',
+      unknownStatus: 'Unknown Status',
+    },
+    showAllCards: 'Showing all {count} cards',
+    showPartialCards: 'Showing {visible} cards (total {total})',
   },
 };

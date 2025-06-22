@@ -19,6 +19,7 @@ const OAuthRegister = React.lazy(() => import('./pages/OAuthRegister'));
 const DeckOriginalCards = React.lazy(() => import('./pages/DeckOriginalCards'));
 const SharedDeckView = React.lazy(() => import('./pages/SharedDeckView'));
 const SharedDecks = React.lazy(() => import('./pages/SharedDecks'));
+const Search = React.lazy(() => import('./pages/Search'));
 
 function App() {
   useEffect(() => {
@@ -40,6 +41,7 @@ function App() {
             <Route path="/deck-original-cards/:deckId" element={<DeckOriginalCards />} />
             <Route path="/shared-deck-view/:deckId" element={<SharedDeckView />} />
             <Route path="/shared-decks" element={<SharedDecks />} />
+            <Route path="/search" element={<Search />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/oauth/register" element={<OAuthRegister />} />

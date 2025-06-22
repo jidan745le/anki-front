@@ -53,13 +53,15 @@ const Layout = ({ children }) => {
   }, [location.pathname]);
 
   const logout = async () => {
-    wsClient.disconnect();
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     await apiClient
       .post(`/user/logout`)
       .then(res => {
         const data = res.data;
         if (data.code === 200) {
           if (data.success) {
+            console.log('logout success');
             message.success(data.data.toString());
             navigate('/');
           } else {
@@ -70,8 +72,8 @@ const Layout = ({ children }) => {
       .catch(err => {
         message.error(err.message);
       });
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+
+    wsClient.disconnect();
     setUserInfo(null);
     navigate('/login');
   };
@@ -176,11 +178,11 @@ const Layout = ({ children }) => {
             <li>
               <a onClick={() => navigate('/shared-decks')}>{t('nav.sharedDecks')}</a>
             </li>
+            <li>
+              <a onClick={() => navigate('/search')}>{t('nav.search')}</a>
+            </li>
             {/* <li>
               <a onClick={() => navigate('/i18n-demo')}>{t('nav.i18nDemo', 'I18n Demo')}</a>
-            </li> */}
-            {/* <li>
-              <a>{t('nav.search')}</a>
             </li> */}
           </ul>
         )}

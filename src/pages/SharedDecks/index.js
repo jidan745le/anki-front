@@ -2,6 +2,7 @@ import { CalendarOutlined, FileTextOutlined, UserOutlined } from '@ant-design/ic
 import { Button, Card, Col, Empty, message, Row, Spin, Tag } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../common/hooks/useI18n';
 import apiClient from '../../common/http/apiClient';
 
 const { Meta } = Card;
@@ -9,7 +10,9 @@ const { Meta } = Card;
 const SharedDecks = () => {
   const [sharedDecks, setSharedDecks] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [duplicatingDeckId, setDuplicatingDeckId] = useState(null);
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   useEffect(() => {
     fetchSharedDecks();
@@ -25,22 +28,27 @@ const SharedDecks = () => {
         message.error(response.data.message);
       }
     } catch (error) {
-      message.error('Failed to fetch shared decks');
+      message.error(t('sharedDecks.messages.fetchError'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDuplicate = async (deckId, deckName) => {
+    setDuplicatingDeckId(deckId);
     try {
       const response = await apiClient.post(`/anki/duplicate/${deckId}`);
       if (response.data.success) {
-        message.success(`Deck "${deckName}" duplicated successfully!`);
+        message.success(t('sharedDecks.messages.duplicateSuccess', undefined, { deckName }));
+        // Refresh the shared decks to update the duplicated status
+        fetchSharedDecks();
       } else {
         message.error(response.data.message);
       }
     } catch (error) {
-      message.error('Failed to duplicate deck');
+      message.error(t('sharedDecks.messages.duplicateError'));
+    } finally {
+      setDuplicatingDeckId(null);
     }
   };
 
@@ -54,18 +62,19 @@ const SharedDecks = () => {
           navigate(`/shared-deck-view/${deck.id}`);
         }}
       >
-        View Details
+        {t('sharedDecks.actions.viewDetails')}
       </Button>,
       <Button
         key="duplicate"
         type="primary"
         disabled={!!deck.duplicated}
+        loading={duplicatingDeckId === deck.id}
         onClick={e => {
           e.stopPropagation();
           handleDuplicate(deck.id, deck.name);
         }}
       >
-        Duplicate
+        {deck.duplicated ? t('sharedDecks.actions.duplicated') : t('sharedDecks.actions.duplicate')}
       </Button>,
     ];
 
@@ -113,7 +122,7 @@ const SharedDecks = () => {
                     color: '#666',
                   }}
                 >
-                  {deck.description || 'No description available'}
+                  {deck.description || t('sharedDecks.cardInfo.noDescription')}
                 </div>
               }
             />
@@ -130,7 +139,10 @@ const SharedDecks = () => {
               }}
             >
               <UserOutlined style={{ marginRight: '4px' }} />
-              <span>By {deck.creator?.username || 'Unknown'}</span>
+              <span>
+                {t('sharedDecks.cardInfo.createdBy')}{' '}
+                {deck.creator?.username || t('sharedDecks.cardInfo.unknown')}
+              </span>
             </div>
 
             <div
@@ -143,7 +155,9 @@ const SharedDecks = () => {
               }}
             >
               <FileTextOutlined style={{ marginRight: '4px' }} />
-              <span>{deck.totalCards || 0} cards</span>
+              <span>
+                {deck.totalCards || 0} {t('sharedDecks.cardInfo.cards')}
+              </span>
             </div>
 
             <div
@@ -160,8 +174,8 @@ const SharedDecks = () => {
             </div>
 
             <div style={{ marginTop: '8px' }}>
-              <Tag color="blue">{deck.deckType || 'Normal'}</Tag>
-              <Tag color="green">Shared</Tag>
+              <Tag color="blue">{deck.deckType || t('sharedDecks.cardInfo.normalType')}</Tag>
+              <Tag color="green">{t('sharedDecks.cardInfo.sharedTag')}</Tag>
             </div>
           </div>
         </Card>
@@ -179,7 +193,7 @@ const SharedDecks = () => {
           minHeight: '400px',
         }}
       >
-        <Spin size="large" />
+        <Spin size="large" tip={t('sharedDecks.loading.fetchingDecks')} />
       </div>
     );
   }
@@ -194,8 +208,12 @@ const SharedDecks = () => {
           alignItems: 'center',
         }}
       >
-        <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>Shared Decks</h1>
-        <Button onClick={() => navigate('/decks')}>← Back to My Decks</Button>
+        <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>
+          {t('sharedDecks.title')}
+        </h1>
+        <Button onClick={() => navigate('/decks')}>
+          ← {t('sharedDecks.navigation.backToMyDecks')}
+        </Button>
       </div>
 
       <div
@@ -207,7 +225,10 @@ const SharedDecks = () => {
         }}
       >
         {sharedDecks.length === 0 ? (
-          <Empty description="No shared decks available" style={{ margin: '50px 0' }} />
+          <Empty
+            description={t('sharedDecks.empty.noDecksAvailable')}
+            style={{ margin: '50px 0' }}
+          />
         ) : (
           <Row gutter={[16, 16]}>{sharedDecks.map(renderDeckCard)}</Row>
         )}
