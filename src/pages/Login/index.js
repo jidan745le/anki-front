@@ -21,6 +21,10 @@ const Login = () => {
           if (data.success) {
             localStorage.setItem('token', res.headers.token);
             localStorage.setItem('refreshToken', res.headers.refreshtoken);
+            // 存储用户ID用于nginx会话一致性
+            if (data.data && data.data.userId) {
+              localStorage.setItem('userId', data.data.userId);
+            }
             wsClient.connect();
             message.success('Login successful');
             navigate('/');
@@ -57,6 +61,11 @@ const Login = () => {
         // 存储 token
         localStorage.setItem('token', event.data.token);
         localStorage.setItem('refreshToken', event.data.refreshToken);
+
+        // 存储用户ID用于nginx会话一致性
+        if (event.data.userId) {
+          localStorage.setItem('userId', event.data.userId);
+        }
 
         // 连接 WebSocket
         wsClient.connect();

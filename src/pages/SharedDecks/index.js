@@ -10,7 +10,7 @@ const { Meta } = Card;
 const SharedDecks = () => {
   const [sharedDecks, setSharedDecks] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [duplicatingDeckId, setDuplicatingDeckId] = useState(null);
+  const [duplicatingDeckIds, setDuplicatingDeckIds] = useState([]);
   const navigate = useNavigate();
   const { t } = useI18n();
 
@@ -35,7 +35,7 @@ const SharedDecks = () => {
   };
 
   const handleDuplicate = async (deckId, deckName) => {
-    setDuplicatingDeckId(deckId);
+    setDuplicatingDeckIds(prev => [...prev, deckId]);
     try {
       const response = await apiClient.post(`/anki/duplicate/${deckId}`);
       if (response.data.success) {
@@ -48,7 +48,7 @@ const SharedDecks = () => {
     } catch (error) {
       message.error(t('sharedDecks.messages.duplicateError'));
     } finally {
-      setDuplicatingDeckId(null);
+      setDuplicatingDeckIds(prev => prev.filter(id => id !== deckId));
     }
   };
 
@@ -68,7 +68,7 @@ const SharedDecks = () => {
         key="duplicate"
         type="primary"
         disabled={!!deck.duplicated}
-        loading={duplicatingDeckId === deck.id}
+        loading={duplicatingDeckIds.includes(deck.id)}
         onClick={e => {
           e.stopPropagation();
           handleDuplicate(deck.id, deck.name);

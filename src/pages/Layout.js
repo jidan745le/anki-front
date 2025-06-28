@@ -41,7 +41,8 @@ const Layout = ({ children }) => {
   // 在组件挂载时获取用户信息（如果用户已登录）
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token && !['/login', '/signup'].includes(location.pathname)) {
+    console.log('token', token, 'token');
+    if (token && !['/login', '/signup', '/'].includes(location.pathname)) {
       fetchUserInfo()
         .then(() => {
           wsClient.connect();
@@ -75,6 +76,7 @@ const Layout = ({ children }) => {
     setTimeout(() => {
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('userId');
     });
   };
 

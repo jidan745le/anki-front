@@ -399,7 +399,7 @@ const AnkiBar = ({
       <div style={{ marginBottom: 12 }}>
         {tags.map(tag => (
           <Tag key={tag} closable onClose={() => handleClose(tag)} style={{ marginBottom: 4 }}>
-            {tag}
+            {getPresetTagLabel(tag)}
           </Tag>
         ))}
         {inputVisible && (

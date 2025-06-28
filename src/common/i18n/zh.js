@@ -320,6 +320,7 @@ export const zh = {
       chapter: '章节',
       section: '段落',
     },
+    pleaseWait: '请等待前一个消息处理完成',
   },
 
   // 搜索页面

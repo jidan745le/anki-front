@@ -1092,7 +1092,12 @@ function Anki() {
 
     // Send the message directly
 
+    if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].pending) {
+      return;
+    }
+
     if (prompt.trim()) {
+      message.warning(t('anki.pleaseWait'));
       sendAiChatMessage(prompt, contextMode);
     }
 
@@ -1112,6 +1117,11 @@ function Anki() {
     // Hide quick actions and select
     setQuickActionsVisible(false);
     setShowTranslateSelect(false);
+
+    if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].pending) {
+      message.warning(t('anki.pleaseWait'));
+      return;
+    }
 
     // Send the message directly
     if (prompt.trim()) {
@@ -1375,6 +1385,7 @@ function Anki() {
             <div
               className="side-chat-container"
               style={{
+                backgroundColor: 'white',
                 width: '25%',
                 borderLeft: '1px solid #f0f0f0',
                 display: 'flex',
@@ -1653,6 +1664,7 @@ function Anki() {
                           chatMessages.length > 0 &&
                           chatMessages[chatMessages.length - 1].pending
                         ) {
+                          message.warning(t('anki.pleaseWait'));
                           return;
                         }
 
@@ -1727,6 +1739,7 @@ function Anki() {
                           chatMessages.length > 0 &&
                           chatMessages[chatMessages.length - 1].pending
                         ) {
+                          message.warning(t('anki.pleaseWait'));
                           return;
                         }
                         if (aiChatPrompt.trim()) {

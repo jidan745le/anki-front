@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import './style.less';
 import { Button, message } from 'antd';
+import axios from 'axios';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import './style.less';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -62,6 +62,7 @@ const Register = () => {
               //处理登录逻辑
               localStorage.setItem('token', res.headers.token);
               localStorage.setItem('refreshToken', res.headers.refreshtoken);
+              localStorage.setItem('userId', data.data?.userId);
               navigate('/decks');
               return;
             }

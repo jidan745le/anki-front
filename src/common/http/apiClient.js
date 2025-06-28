@@ -15,10 +15,17 @@ apiClient.interceptors.request.use(
   config => {
     // 从 localStorage 获取 token
     const token = localStorage.getItem('token');
+    // 从 localStorage 获取 userId
+    const userId = localStorage.getItem('userId');
 
     // 如果 token 存在，则设置 Authorization 头
     if (token) {
       config.headers['authorization'] = `Bearer ${token}`;
+    }
+
+    // 如果 userId 存在，则设置 X-User-ID 头用于nginx会话一致性
+    if (userId) {
+      config.headers['X-User-ID'] = userId;
     }
 
     return config; // 返回配置以继续请求
@@ -66,6 +73,10 @@ apiClient.interceptors.response.use(
         return apiClient(config);
       } else {
         console.log('401');
+        // 清理所有登录相关的本地存储
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userId');
         message.error('登录过期，请重新登录');
         window.location.href = '/login';
         return Promise.reject(res.data);
@@ -84,6 +95,12 @@ async function refreshToken() {
   });
   localStorage.setItem('token', res.data.data.access_token);
   localStorage.setItem('refreshToken', res.data.data.refresh_token);
+
+  // 如果响应中包含用户ID，也要更新
+  if (res.data.data.userId) {
+    localStorage.setItem('userId', res.data.data.userId);
+  }
+
   return res;
 }
 

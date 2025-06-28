@@ -20,6 +20,12 @@ class WebSocketClient {
     });
     localStorage.setItem('token', res.data.data.access_token);
     localStorage.setItem('refreshToken', res.data.data.refresh_token);
+
+    // 如果响应中包含用户ID，也要更新
+    if (res.data.data.userId) {
+      localStorage.setItem('userId', res.data.data.userId);
+    }
+
     return res;
   }
 
@@ -95,6 +101,7 @@ class WebSocketClient {
         } else {
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
+          localStorage.removeItem('userId');
           window.location.href = '/login';
         }
       } else {

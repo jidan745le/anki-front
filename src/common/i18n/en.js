@@ -314,6 +314,7 @@ export const en = {
       chapter: 'Chapter',
       section: 'Section',
     },
+    pleaseWait: 'Please wait for the previous message to be processed',
   },
 
   // Search page
