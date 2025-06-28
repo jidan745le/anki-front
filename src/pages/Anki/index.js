@@ -277,7 +277,12 @@ function Anki() {
 
     const pendingMessages = [...chatMessages, { role: 'user', content: msg }];
     setChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
-
+    if (aiChatMessagesRef.current) {
+      aiChatMessagesRef.current.scrollTo({
+        top: aiChatMessagesRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
     // Determine context content based on context type
     let contextContent = '';
     if (['Deck', 'Card'].includes(contextMode || chatContext) && card) {
