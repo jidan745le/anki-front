@@ -30,7 +30,6 @@ function Anki() {
   const [deckStats, setDeckStats] = useState({});
   const [config, setConfig] = useState({});
   const [aiChatVisible, setAiChatVisible] = useState(false);
-  const [aiChatVisibleSeed, setAiChatVisibleSeed] = useState(Date.now());
   const [selectedText, setSelectedText] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const cardIdRef = useRef(null);
@@ -54,7 +53,6 @@ function Anki() {
   const [tocStructure, setTocStructure] = useState([]);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [showTranslateSelect, setShowTranslateSelect] = useState(false);
-  const lastAiChatVisibleSeedRef = useRef(null);
   console.log(params, 'params');
 
   // Use i18n translations instead of hardcoded values
@@ -641,7 +639,6 @@ function Anki() {
 
     if (!aiChatVisible) {
       setAiChatVisible(true);
-      setAiChatVisibleSeed(Date.now());
     }
     // Close any existing stream when changing chat context
     if (eventSourceRef.current) {
@@ -665,7 +662,6 @@ function Anki() {
     ];
     if (!aiChatVisible) {
       setAiChatVisible(true);
-      setAiChatVisibleSeed(Date.now());
     }
     setChunkId(promptConfig.chunkId);
 
@@ -1215,7 +1211,7 @@ function Anki() {
   }, [showTranslateSelect]);
 
   React.useEffect(() => {
-    if (aiChatVisible && aiChatVisibleSeed !== lastAiChatVisibleSeedRef.current && !aiChatLoading) {
+    if (aiChatVisible && !aiChatLoading) {
       setTimeout(() => {
         if (aiChatMessagesRef.current) {
           aiChatMessagesRef.current.scrollTo({
@@ -1224,8 +1220,7 @@ function Anki() {
         }
       }, 100);
     }
-    lastAiChatVisibleSeedRef.current = aiChatVisibleSeed;
-  }, [aiChatVisible, aiChatVisibleSeed, aiChatLoading]);
+  }, [aiChatVisible, aiChatLoading]);
 
   // Hide quick actions when user starts typing
   const handleInputChange = e => {
@@ -1261,9 +1256,7 @@ function Anki() {
             setChunkId(undefined);
             processingChunkIdRef.current = null;
             setAiChatVisible(!aiChatVisible);
-            if (!aiChatVisible) {
-              setAiChatVisibleSeed(Date.now());
-            }
+
             // Close any existing stream when toggling chat visibility
             if (eventSourceRef.current) {
               eventSourceRef.current.close();
