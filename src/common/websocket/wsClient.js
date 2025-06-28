@@ -54,6 +54,7 @@ class WebSocketClient {
       },
       extraHeaders: {
         Authorization: `Bearer ${token}`,
+        'X-User-Id': localStorage.getItem('userId'),
       },
       reconnection: false, // 禁用自动重连，我们自己处理
       timeout: 5000,
