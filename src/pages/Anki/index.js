@@ -1215,7 +1215,7 @@ function Anki() {
   }, [showTranslateSelect]);
 
   React.useEffect(() => {
-    if (aiChatVisible && aiChatVisibleSeed !== lastAiChatVisibleSeedRef.current) {
+    if (aiChatVisible && aiChatVisibleSeed !== lastAiChatVisibleSeedRef.current && !aiChatLoading) {
       setTimeout(() => {
         if (aiChatMessagesRef.current) {
           aiChatMessagesRef.current.scrollTo({
@@ -1225,7 +1225,7 @@ function Anki() {
       }, 100);
     }
     lastAiChatVisibleSeedRef.current = aiChatVisibleSeed;
-  }, [aiChatVisible, aiChatVisibleSeed]);
+  }, [aiChatVisible, aiChatVisibleSeed, aiChatLoading]);
 
   // Hide quick actions when user starts typing
   const handleInputChange = e => {
