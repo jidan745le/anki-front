@@ -180,6 +180,7 @@ function Anki() {
           {
             headers: {
               Authorization: `Bearer ${token}`,
+              'X-User-Id': localStorage.getItem('userId'),
             },
           }
         );
@@ -313,6 +314,7 @@ function Anki() {
           {
             headers: {
               Authorization: `Bearer ${token}`,
+              'X-User-Id': localStorage.getItem('userId'),
             },
           }
         );
@@ -662,6 +664,7 @@ function Anki() {
     const eventSource = new EventSource(`${process.env.API_BASE_URL}/aichat/stream/${sessionId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
+        'X-User-Id': localStorage.getItem('userId'),
       },
     });
     eventSourceRef.current = eventSource;
