@@ -30,6 +30,7 @@ function Anki() {
   const [deckStats, setDeckStats] = useState({});
   const [config, setConfig] = useState({});
   const [aiChatVisible, setAiChatVisible] = useState(false);
+  const [aiChatVisibleSeed, setAiChatVisibleSeed] = useState(Date.now());
   const [selectedText, setSelectedText] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const cardIdRef = useRef(null);
@@ -38,6 +39,7 @@ function Anki() {
   const aiChatMessagesRef = useRef(null);
   const aiChatInputRef = useRef(null);
   const [chunkId, setChunkId] = useState(null);
+  const processingChunkIdRef = useRef(null);
   const [visualizerVisible, setVisualizerVisible] = useState(false);
   const eventSourceRef = useRef(null);
   const pendingEventSourcesRef = useRef(new Map());
@@ -52,6 +54,7 @@ function Anki() {
   const [tocStructure, setTocStructure] = useState([]);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [showTranslateSelect, setShowTranslateSelect] = useState(false);
+  const lastAiChatVisibleSeedRef = useRef(null);
   console.log(params, 'params');
 
   // Use i18n translations instead of hardcoded values
@@ -150,10 +153,12 @@ function Anki() {
             .reverse()
         );
         setAiChatLoading(false);
+
         // console.log(res)
       })
       .catch(err => {
         setAiChatLoading(false);
+
         console.error('Error loading AI chat:', err);
       });
   };
@@ -277,12 +282,14 @@ function Anki() {
 
     const pendingMessages = [...chatMessages, { role: 'user', content: msg }];
     setChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
-    if (aiChatMessagesRef.current) {
-      aiChatMessagesRef.current.scrollTo({
-        top: aiChatMessagesRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
+    setTimeout(() => {
+      if (aiChatMessagesRef.current) {
+        aiChatMessagesRef.current.scrollTo({
+          top: aiChatMessagesRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
+    });
     // Determine context content based on context type
     let contextContent = '';
     if (['Deck', 'Card'].includes(contextMode || chatContext) && card) {
@@ -623,8 +630,18 @@ function Anki() {
   };
 
   const getChatMessageAndShowSidebar = chunkId => {
+    console.log(chunkId, 'chunkId111');
+    // 优化：避免重复处理相同的chunkId
+    if (processingChunkIdRef.current === chunkId) {
+      console.log('Already processing the same chunkId, skipping getChatMessageAndShowSidebar...');
+      return;
+    }
+
+    processingChunkIdRef.current = chunkId;
+
     if (!aiChatVisible) {
       setAiChatVisible(true);
+      setAiChatVisibleSeed(Date.now());
     }
     // Close any existing stream when changing chat context
     if (eventSourceRef.current) {
@@ -648,6 +665,7 @@ function Anki() {
     ];
     if (!aiChatVisible) {
       setAiChatVisible(true);
+      setAiChatVisibleSeed(Date.now());
     }
     setChunkId(promptConfig.chunkId);
 
@@ -1196,6 +1214,19 @@ function Anki() {
     };
   }, [showTranslateSelect]);
 
+  React.useEffect(() => {
+    if (aiChatVisible && aiChatVisibleSeed !== lastAiChatVisibleSeedRef.current) {
+      setTimeout(() => {
+        if (aiChatMessagesRef.current) {
+          aiChatMessagesRef.current.scrollTo({
+            top: aiChatMessagesRef.current.scrollHeight,
+          });
+        }
+      }, 100);
+    }
+    lastAiChatVisibleSeedRef.current = aiChatVisibleSeed;
+  }, [aiChatVisible, aiChatVisibleSeed]);
+
   // Hide quick actions when user starts typing
   const handleInputChange = e => {
     const value = e.target.value;
@@ -1228,7 +1259,11 @@ function Anki() {
           tocVisible={tocDrawerVisible}
           onToggleAIChat={() => {
             setChunkId(undefined);
+            processingChunkIdRef.current = null;
             setAiChatVisible(!aiChatVisible);
+            if (!aiChatVisible) {
+              setAiChatVisibleSeed(Date.now());
+            }
             // Close any existing stream when toggling chat visibility
             if (eventSourceRef.current) {
               eventSourceRef.current.close();
@@ -1489,6 +1524,7 @@ function Anki() {
                         className={`chat-message ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}
                         style={{
                           maxWidth: '80%',
+                          width: message.pending && message.role !== 'user' ? '80%' : 'auto',
                           alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
                         }}
                       >
@@ -1502,6 +1538,9 @@ function Anki() {
                             wordBreak: 'break-word',
                             backgroundColor: message.role === 'user' ? '#1890ff' : '#f5f5f5',
                             color: message.role === 'user' ? 'white' : 'rgba(0, 0, 0, 0.85)',
+                            // 为pending状态的AI消息设置最小高度，完成后自适应
+                            minHeight:
+                              message.pending && message.role !== 'user' ? '480px' : 'auto',
                           }}
                         >
                           {message.pending
