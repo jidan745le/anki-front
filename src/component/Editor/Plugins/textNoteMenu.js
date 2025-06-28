@@ -1,5 +1,6 @@
 import { DomEditor, SlateEditor, SlateTransforms } from '@wangeditor/editor';
 import { h } from 'snabbdom';
+import { getStoredLanguage, translate } from 'src/common/i18n';
 
 // 定义笔记节点的数据结构
 class TextNoteElement {
@@ -147,7 +148,15 @@ function parseTextNoteHtml(domElem, children, editor) {
 // 简单的笔记菜单类
 class TextNoteMenu {
   constructor() {
-    this.title = '📝';
+    const currentLanguage = getStoredLanguage();
+    this.title = translate('editor.addNote', currentLanguage, '添加笔记');
+    this.iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+  <!-- 编辑笔 -->
+  <path fill="#3b82f6" style="fill: #3b82f6 !important;" d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
+  <!-- 文档 -->
+  <path fill="#3b82f6" style="fill: #3b82f6 !important;" d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
+</svg>
+`;
     this.tag = 'button';
   }
 

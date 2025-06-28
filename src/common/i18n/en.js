@@ -184,6 +184,15 @@ export const en = {
     footer: 'Thank you for using MyANKI Memory Card System!',
   },
 
+  // Editor plugins
+  editor: {
+    // AI explain plugins
+    explainInCard: 'Explain selected text in card',
+    explainInDeck: 'Explain selected text in deck',
+    // Note plugin
+    addNote: 'Add Note',
+  },
+
   // Anki Cards
   anki: {
     // Audio related

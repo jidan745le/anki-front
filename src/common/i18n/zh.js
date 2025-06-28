@@ -189,6 +189,15 @@ export const zh = {
     footer: '感谢使用 MyANKI 记忆卡片系统！',
   },
 
+  // 编辑器插件
+  editor: {
+    // AI 解释插件
+    explainInCard: '在卡片中解释选择文本',
+    explainInDeck: '在牌组中解释选择文本',
+    // 笔记插件
+    addNote: '添加笔记',
+  },
+
   // Anki 卡片
   anki: {
     // 音频相关
