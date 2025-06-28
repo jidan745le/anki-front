@@ -345,12 +345,12 @@ function Anki() {
             });
 
             // Scroll to bottom as content is streamed
-            if (aiChatMessagesRef.current) {
-              aiChatMessagesRef.current.scrollTo({
-                top: aiChatMessagesRef.current.scrollHeight,
-                behavior: 'smooth',
-              });
-            }
+            // if (aiChatMessagesRef.current) {
+            //   aiChatMessagesRef.current.scrollTo({
+            //     top: aiChatMessagesRef.current.scrollHeight,
+            //     behavior: 'smooth',
+            //   });
+            // }
           }
         };
 
@@ -694,12 +694,12 @@ function Anki() {
         });
 
         // Scroll to bottom as content is streamed
-        if (aiChatMessagesRef.current) {
-          aiChatMessagesRef.current.scrollTo({
-            top: aiChatMessagesRef.current.scrollHeight,
-            behavior: 'smooth',
-          });
-        }
+        // if (aiChatMessagesRef.current) {
+        //   aiChatMessagesRef.current.scrollTo({
+        //     top: aiChatMessagesRef.current.scrollHeight,
+        //     behavior: 'smooth',
+        //   });
+        // }
       }
     };
 
