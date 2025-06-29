@@ -78,7 +78,7 @@ apiClient.interceptors.response.use(
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userId');
         message.error('登录过期，请重新登录');
-        window.location.href = '/login';
+        // window.location.href = '/login';
         return Promise.reject(res.data);
       }
     }
@@ -88,7 +88,7 @@ apiClient.interceptors.response.use(
 );
 
 async function refreshToken() {
-  const res = await axios.get('/api/user/refresh', {
+  const res = await axios.get(API_BASE_URL + '/user/refresh', {
     params: {
       refresh_token: localStorage.getItem('refreshToken'),
     },
