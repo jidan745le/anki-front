@@ -196,6 +196,19 @@ export const zh = {
     explainInDeck: '在牌组中解释选择文本',
     // 笔记插件
     addNote: '添加笔记',
+    // 朗读插件
+    textToSpeech: '朗读',
+    stopSpeech: '停止朗读',
+    readSelectedText: '朗读选中文本',
+    readAllContent: '朗读全部内容',
+    // 词典查询插件
+    wordDictionary: '词典查询',
+    noTextSelected: '请先选择文本',
+    onlyWordsAllowed: '词典查询仅支持单个单词',
+    wordDefinition: '单词释义',
+    phraseExplanation: '短语解析',
+    textAnalysis: '文本分析',
+    dictionaryResult: '查询结果',
   },
 
   // Anki 卡片
@@ -225,6 +238,7 @@ export const zh = {
     suspend: '暂停',
     suspendCard: '暂停卡片',
     resumeCard: '恢复卡片',
+    nextCard: '下一条',
     suspendSuccess: '卡片暂停成功',
     resumeSuccess: '卡片恢复成功',
     suspendFailed: '暂停卡片失败',

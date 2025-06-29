@@ -191,6 +191,19 @@ export const en = {
     explainInDeck: 'Explain selected text in deck',
     // Note plugin
     addNote: 'Add Note',
+    // Text to speech plugin
+    textToSpeech: 'Text to Speech',
+    stopSpeech: 'Stop Speech',
+    readSelectedText: 'Read Selected Text',
+    readAllContent: 'Read All Content',
+    // Word dictionary plugin
+    wordDictionary: 'Dictionary Lookup',
+    noTextSelected: 'Please select text first',
+    onlyWordsAllowed: 'Dictionary lookup is only available for single words',
+    wordDefinition: 'Word Definition',
+    phraseExplanation: 'Phrase Analysis',
+    textAnalysis: 'Text Analysis',
+    dictionaryResult: 'Dictionary Result',
   },
 
   // Anki Cards
@@ -220,6 +233,7 @@ export const en = {
     suspend: 'Suspend',
     suspendCard: 'Suspend Card',
     resumeCard: 'Resume Card',
+    nextCard: 'Next Card',
     suspendSuccess: 'Card suspended successfully',
     resumeSuccess: 'Card resumed successfully',
     suspendFailed: 'Failed to suspend card',

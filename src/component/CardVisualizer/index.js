@@ -38,9 +38,15 @@ const hexToRgb = hex => {
 };
 
 // 常量定义
-const MAX_VISIBLE_CARDS = 100; // 最大显示的卡片数量
+// MAX_VISIBLE_CARDS 常量已不再需要，后端现在计算可见卡片
 
-const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false, onCardClick }) => {
+const CardVisualizerComponent = ({
+  cards = [],
+  currentCardId,
+  debugMode = false,
+  onCardClick,
+  pagination = null,
+}) => {
   const [now, setNow] = useState(new Date());
   const lastUpdateTimeRef = useRef(0);
   const rafRef = useRef(null);
@@ -332,58 +338,31 @@ const CardVisualizerComponent = ({ cards = [], currentCardId, debugMode = false,
   // Get index of current card
   const currentCardIndex = cards.findIndex(card => card.uuid === currentCardId);
 
-  // 计算要显示的卡片范围
+  // 直接使用传入的cards，后端已经计算好了visibleCards
   const visibleCards = useMemo(() => {
-    if (cards.length <= MAX_VISIBLE_CARDS) {
-      // 如果卡片总数小于最大显示数，全部显示
-      return cards;
-    }
-
-    let startIndex = 0;
-    let endIndex = MAX_VISIBLE_CARDS;
-
-    if (currentCardIndex !== -1) {
-      // 如果存在当前卡片，计算居中显示所需的起始和结束索引
-      // 居中显示当前卡片，计算前后各需要多少卡片
-      const cardsOnEachSide = Math.floor(MAX_VISIBLE_CARDS / 2);
-
-      // 计算开始索引，确保不会越界
-      startIndex = Math.max(0, currentCardIndex - cardsOnEachSide);
-
-      // 计算结束索引（不含），确保不会越界
-      endIndex = Math.min(cards.length, startIndex + MAX_VISIBLE_CARDS);
-
-      // 如果结束索引达到了卡片总数，可能需要调整起始索引以显示更多的前面卡片
-      if (endIndex === cards.length && startIndex > 0) {
-        // 调整起始索引以充分利用MAX_VISIBLE_CARDS
-        startIndex = Math.max(0, cards.length - MAX_VISIBLE_CARDS);
-      }
-    }
-
     if (debugMode) {
-      logInfo('计算可见卡片范围', {
+      logInfo('使用后端计算的可见卡片', {
         totalCards: cards.length,
         currentCardIndex,
-        startIndex,
-        endIndex,
-        visibleCount: endIndex - startIndex,
+        visibleCount: cards.length,
       });
     }
-
-    return cards.slice(startIndex, endIndex);
+    return cards;
   }, [cards, currentCardIndex, debugMode]);
 
   // 显示卡片数量信息
   const cardCountInfo = useMemo(() => {
-    if (cards.length <= MAX_VISIBLE_CARDS) {
-      return t('cardVisualizer.showAllCards', undefined, { count: cards.length });
-    } else {
+    if (pagination && pagination.totalCards > cards.length) {
+      // 如果有pagination信息且总数大于可见数，显示部分卡片信息
       return t('cardVisualizer.showPartialCards', undefined, {
-        visible: visibleCards.length,
-        total: cards.length,
+        visible: cards.length,
+        total: pagination.totalCards,
       });
+    } else {
+      // 否则显示所有卡片
+      return t('cardVisualizer.showAllCards', undefined, { count: cards.length });
     }
-  }, [cards.length, visibleCards.length, t]);
+  }, [cards.length, pagination, t]);
 
   // 修改点击处理函数
   const handleCardClick = card => {
@@ -507,7 +486,7 @@ ${t('cardVisualizer.tooltip.status')}: ${
               }
 ${t('cardVisualizer.tooltip.dueTime')}: ${formatDate(card.dueDate)}
 ${timeRemaining}
-${t('cardVisualizer.tooltip.position')}: ${originalIndex + 1}/${cards.length}
+        ${t('cardVisualizer.tooltip.position')}: ${pagination ? `${pagination.currentIndex + 1}/${pagination.totalCards}` : `${originalIndex + 1}/${cards.length}`}
 ${t('cardVisualizer.tooltip.memoryStrength')}: ${Math.round(calculatedAppOpacity * 100)}%
 ${originalIndex === currentCardIndex ? `(${t('cardVisualizer.tooltip.currentCard')})` : ''}
 ${t('cardVisualizer.tooltip.clickToView')}

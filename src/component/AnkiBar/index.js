@@ -33,6 +33,7 @@ const AnkiBar = ({
   tocVisible,
   currentCard,
   onCardUpdate,
+  pagination = null,
 }) => {
   const { t, currentLanguage } = useI18n();
   const [tagsVisible, setTagsVisible] = useState(false);
@@ -46,8 +47,7 @@ const AnkiBar = ({
   // 预设标签（英文key）
   const presetTags = ['favorite', 'important', 'difficult', 'error_prone', 'review'];
 
-  // CardVisualizer相关常量和函数
-  const MAX_VISIBLE_CARDS = 100;
+  // CardVisualizer相关函数，MAX_VISIBLE_CARDS已不再需要，后端计算可见卡片
 
   // Helper function to convert hex to RGB (从CardVisualizer复制)
   const hexToRgb = hex => {
@@ -102,15 +102,16 @@ const AnkiBar = ({
 
   // 生成图例内容 (从CardVisualizer复制并修改)
   const getLegendContent = () => {
-    const visibleCards = allCards?.slice(0, MAX_VISIBLE_CARDS) || [];
-
+    // 现在allCards已经是后端计算好的visibleCards，使用pagination显示正确信息
     // 获取卡片数量信息
     const cardCountText =
-      allCards?.length <= MAX_VISIBLE_CARDS
-        ? t('cardVisualizer.showAllCards', undefined, { count: allCards?.length || 0 })
-        : t('cardVisualizer.showPartialCards', undefined, {
-            visible: visibleCards.length,
-            total: allCards?.length || 0,
+      pagination && pagination.totalCards > (allCards?.length || 0)
+        ? t('cardVisualizer.showPartialCards', undefined, {
+            visible: allCards?.length || 0,
+            total: pagination.totalCards,
+          })
+        : t('cardVisualizer.showAllCards', undefined, {
+            count: allCards?.length || 0,
           });
 
     return (
@@ -566,6 +567,7 @@ const AnkiBar = ({
           currentCardId={currentCardId}
           debugMode={debugModeForVisualizer}
           onCardClick={onCardClick}
+          pagination={pagination}
         />
       )}
       <div style={{ display: 'flex', alignItems: 'center' }}>

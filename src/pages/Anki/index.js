@@ -1,3 +1,7 @@
+// Anki学习页面
+// 2024-12-19: 适配新的后端getNextCard接口，现在返回visibleCards和pagination字段
+// 后端已经计算好可见卡片范围，前端不再重复计算
+
 import {
   CloseOutlined,
   InfoCircleOutlined,
@@ -26,6 +30,8 @@ function Anki() {
   const [searchParams] = useSearchParams();
   const [card, setCard] = useState({});
   const [allCards, setAllCards] = useState([]);
+  const [visibleCards, setVisibleCards] = useState([]);
+  const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deckStats, setDeckStats] = useState({});
   const [config, setConfig] = useState({});
@@ -542,7 +548,16 @@ function Anki() {
               setCard(data.data?.card);
 
               setDeckStats(data.data?.stats);
-              setAllCards(data.data?.allCards);
+
+              // 处理新的响应结构
+              if (data.data?.visibleCards) {
+                setVisibleCards(data.data.visibleCards);
+                setAllCards(data.data.visibleCards); // 为了向后兼容，继续设置allCards
+              }
+
+              if (data.data?.pagination) {
+                setPagination(data.data.pagination);
+              }
             } else {
               if (data.data?.card === null) {
                 //deck为空 需要插入新卡
@@ -590,11 +605,19 @@ function Anki() {
           cardIdRef.current = data.data.card.uuid;
           setCard(data.data.card);
 
-          // 如果返回了统计信息和所有卡片数据，也更新它们
+          // 如果返回了统计信息和可见卡片数据，也更新它们
           if (data.data.stats) {
             setDeckStats(data.data.stats);
           }
-          if (data.data.allCards) {
+          if (data.data.visibleCards) {
+            setVisibleCards(data.data.visibleCards);
+            setAllCards(data.data.visibleCards); // 为了向后兼容，继续设置allCards
+          }
+          if (data.data.pagination) {
+            setPagination(data.data.pagination);
+          }
+          // 向后兼容：如果还有旧的allCards字段，也处理它
+          if (data.data.allCards && !data.data.visibleCards) {
             setAllCards(data.data.allCards);
           }
           if (flip) {
@@ -664,6 +687,7 @@ function Anki() {
       setAiChatVisible(true);
     }
     setChunkId(promptConfig.chunkId);
+    processingChunkIdRef.current = promptConfig.chunkId;
 
     // Close any existing stream when changing chat context
     if (eventSourceRef.current) {
@@ -1115,11 +1139,11 @@ function Anki() {
     // Send the message directly
 
     if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].pending) {
+      message.warning(t('anki.pleaseWait'));
       return;
     }
 
     if (prompt.trim()) {
-      message.warning(t('anki.pleaseWait'));
       sendAiChatMessage(prompt, contextMode);
     }
 
@@ -1289,6 +1313,7 @@ function Anki() {
             setCard(updatedCard);
             console.log('Card updated with new tags:', updatedCard);
           }}
+          pagination={pagination}
         />
 
         <div

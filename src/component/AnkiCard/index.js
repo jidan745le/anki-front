@@ -264,8 +264,8 @@ const AnkiCard = forwardRef(
         if (response.data.success) {
           if (actionIsSuspend) {
             message.success(t('anki.suspendSuccess'));
-            // For suspend: move to next card
-            onNext && onNext(0);
+            // For suspend: refresh current card to get updated state
+            onRefreshCard && onRefreshCard(cardUUID);
           } else {
             message.success(t('anki.resumeSuccess'));
             // For resume: refresh current card to get updated state
@@ -650,27 +650,55 @@ const AnkiCard = forwardRef(
         </Card>
         <FooterBar>
           <div className="button-group-left">
-            {flipped && (
+            {flipped && cardState !== 4 && (
               <Popconfirm
-                title={cardState === 4 ? t('anki.confirmResumeCard') : t('anki.confirmSuspendCard')}
+                title={t('anki.confirmSuspendCard')}
                 onConfirm={handleSuspendCard}
                 okText={t('common.confirm')}
                 cancelText={t('common.cancel')}
               >
-                <Button
-                  color={cardState === 4 ? 'primary' : 'danger'}
-                  variant="solid"
-                  loading={isSuspending}
-                >
-                  {cardState === 4 ? t('anki.resumeCard') : t('anki.suspendCard')}
+                <Button color="danger" variant="solid" loading={isSuspending}>
+                  {t('anki.suspendCard')}
                 </Button>
               </Popconfirm>
             )}
           </div>
           <div className="button-group-center">
             {cardState === 4 ? (
-              // Suspended cards: show message instead of buttons
-              <span style={{ color: '#666', fontStyle: 'italic' }}>{t('anki.cardSuspended')}</span>
+              // Suspended cards: show message and buttons
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
+              >
+                <span style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>
+                  {t('anki.cardSuspended')}
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Popconfirm
+                    title={t('anki.confirmResumeCard')}
+                    onConfirm={handleSuspendCard}
+                    okText={t('common.confirm')}
+                    cancelText={t('common.cancel')}
+                  >
+                    <Button color="primary" variant="solid" loading={isSuspending}>
+                      {t('anki.resumeCard')}
+                    </Button>
+                  </Popconfirm>
+                  <Button
+                    color="default"
+                    variant="solid"
+                    onClick={() => {
+                      onNext && onNext(0);
+                    }}
+                  >
+                    {t('anki.nextCard')}
+                  </Button>
+                </div>
+              </div>
             ) : flipped ? (
               // Non-suspended flipped cards: show difficulty buttons
               [

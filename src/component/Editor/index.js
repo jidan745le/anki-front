@@ -11,13 +11,17 @@ import React, {
 import { aiExplain, aiGlobalExplain } from './Plugins/aiExplainMenu';
 import { chatChunkModule } from './Plugins/chatChunk';
 import { textNoteModule } from './Plugins/textNoteMenu';
+import { textToSpeechModule } from './Plugins/textToSpeechMenu';
+import { wordDictionaryModule } from './Plugins/wordDictionaryMenu';
 import NotePanel from './components/NoteBook';
 
 Boot.registerMenu(aiExplain);
 Boot.registerMenu(aiGlobalExplain);
+Boot.registerMenu(wordDictionaryModule);
 // Boot.registerMenu(aiAsk);
 Boot.registerModule(chatChunkModule);
 Boot.registerModule(textNoteModule);
+Boot.registerModule(textToSpeechModule);
 
 // Houdini Paint Worklet 代码
 const initializeHoudiniWorklet = () => {
@@ -42,40 +46,40 @@ const initializeHoudiniWorklet = () => {
           '--title-rect-y', 
           '--title-rect-width',
           '--title-rect-height',
-          '--border-radius'
+          '--border-radius',
+          '--text-highlight-color',
+          '--text-highlight-opacity',
+          '--text-highlight-rect-x',
+          '--text-highlight-rect-y',
+          '--text-highlight-rect-width',
+          '--text-highlight-rect-height'
         ];
       }
       
       paint(ctx, size, props) {
-        // 获取CSS变量
-        const color = props.get('--highlight-color').toString();
-        const opacity = parseFloat(props.get('--highlight-opacity').toString() || '0.25');
-        const x = parseFloat(props.get('--title-rect-x').toString() || '0');
-        const y = parseFloat(props.get('--title-rect-y').toString() || '0');
-        const width = parseFloat(props.get('--title-rect-width').toString() || '0');
-        const height = parseFloat(props.get('--title-rect-height').toString() || '0');
-        const borderRadius = parseFloat(props.get('--border-radius').toString() || '4');
-        
-        // 解析RGB颜色
-        let r = 120, g = 208, b = 248; // 默认蓝色
-        if (color.startsWith('rgb')) {
-          const rgbMatch = color.match(/rgb\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)/);
-          if (rgbMatch) {
-            r = parseInt(rgbMatch[1]);
-            g = parseInt(rgbMatch[2]);
-            b = parseInt(rgbMatch[3]);
+        // 绘制矩形高亮的通用函数
+        const drawHighlight = (color, opacity, x, y, width, height, borderRadius = 4) => {
+          if (width <= 0 || height <= 0) return;
+          
+          // 解析RGB颜色
+          let r = 120, g = 208, b = 248; // 默认蓝色
+          if (color.startsWith('rgb')) {
+            const rgbMatch = color.match(/rgb\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)/);
+            if (rgbMatch) {
+              r = parseInt(rgbMatch[1]);
+              g = parseInt(rgbMatch[2]);
+              b = parseInt(rgbMatch[3]);
+            }
+          } else if (color.startsWith('#')) {
+            r = parseInt(color.substring(1, 3), 16);
+            g = parseInt(color.substring(3, 5), 16);
+            b = parseInt(color.substring(5, 7), 16);
           }
-        } else if (color.startsWith('#')) {
-          r = parseInt(color.substring(1, 3), 16);
-          g = parseInt(color.substring(3, 5), 16);
-          b = parseInt(color.substring(5, 7), 16);
-        }
-        
-        // 设置填充颜色
-        ctx.fillStyle = \`rgba(\${r}, \${g}, \${b}, \${opacity})\`;
-        
-        // 绘制圆角矩形
-        if (width > 0 && height > 0) {
+          
+          // 设置填充颜色
+          ctx.fillStyle = \`rgba(\${r}, \${g}, \${b}, \${opacity})\`;
+          
+          // 绘制圆角矩形
           if (borderRadius > 0) {
             const rad = Math.min(borderRadius, width/2, height/2);
             ctx.beginPath();
@@ -93,6 +97,33 @@ const initializeHoudiniWorklet = () => {
           } else {
             ctx.fillRect(x, y, width, height);
           }
+        };
+        
+        // 获取标题高亮的CSS变量
+        const titleColor = props.get('--highlight-color').toString();
+        const titleOpacity = parseFloat(props.get('--highlight-opacity').toString() || '0');
+        const titleX = parseFloat(props.get('--title-rect-x').toString() || '0');
+        const titleY = parseFloat(props.get('--title-rect-y').toString() || '0');
+        const titleWidth = parseFloat(props.get('--title-rect-width').toString() || '0');
+        const titleHeight = parseFloat(props.get('--title-rect-height').toString() || '0');
+        const borderRadius = parseFloat(props.get('--border-radius').toString() || '4');
+        
+        // 获取文本高亮的CSS变量
+        const textColor = props.get('--text-highlight-color').toString();
+        const textOpacity = parseFloat(props.get('--text-highlight-opacity').toString() || '0');
+        const textX = parseFloat(props.get('--text-highlight-rect-x').toString() || '0');
+        const textY = parseFloat(props.get('--text-highlight-rect-y').toString() || '0');
+        const textWidth = parseFloat(props.get('--text-highlight-rect-width').toString() || '0');
+        const textHeight = parseFloat(props.get('--text-highlight-rect-height').toString() || '0');
+        
+        // 绘制标题高亮
+        if (titleOpacity > 0) {
+          drawHighlight(titleColor, titleOpacity, titleX, titleY, titleWidth, titleHeight, borderRadius);
+        }
+        
+        // 绘制文本高亮
+        if (textOpacity > 0) {
+          drawHighlight(textColor, textOpacity, textX, textY, textWidth, textHeight, borderRadius);
         }
       }
     });
@@ -327,8 +358,8 @@ const CardEditor = forwardRef(
 
           if (titlePosition) {
             // 设置CSS变量
-            containerElement.style.setProperty('--highlight-color', 'rgb(120, 208, 248)');
-            containerElement.style.setProperty('--highlight-opacity', '0.3');
+            containerElement.style.setProperty('--highlight-color', 'rgb(255, 248, 136)');
+            containerElement.style.setProperty('--highlight-opacity', '0.6');
             containerElement.style.setProperty('--title-rect-x', `${titlePosition.x}px`);
             containerElement.style.setProperty('--title-rect-y', `${titlePosition.y}px`);
             containerElement.style.setProperty('--title-rect-width', `${titlePosition.width}px`);
@@ -348,6 +379,65 @@ const CardEditor = forwardRef(
             console.warn('Title not found in DOM:', titleText);
           }
         });
+      },
+      [findTitlePosition]
+    );
+
+    // 通用文本高亮功能（供插件使用）
+    const applyTextHighlight = useCallback(
+      (text, enable = true, color = 'rgb(255, 248, 136)', opacity = '0.6') => {
+        if (!houdiniSupportRef.current || !editorContainerRef.current) {
+          console.warn('Houdini not supported or editor container not ready');
+          return;
+        }
+
+        const containerElement = editorContainerRef.current;
+
+        if (!enable) {
+          // 清除高亮
+          containerElement.style.removeProperty('--text-highlight-color');
+          containerElement.style.removeProperty('--text-highlight-opacity');
+          containerElement.style.removeProperty('--text-highlight-rect-x');
+          containerElement.style.removeProperty('--text-highlight-rect-y');
+          containerElement.style.removeProperty('--text-highlight-rect-width');
+          containerElement.style.removeProperty('--text-highlight-rect-height');
+
+          // 移除文本高亮的背景图片
+          const currentBg = containerElement.style.backgroundImage;
+          if (currentBg && currentBg.includes('paint(titleHighlighter)')) {
+            // 如果只有文本高亮，完全移除
+            if (!containerElement.style.getPropertyValue('--title-rect-x')) {
+              containerElement.style.removeProperty('background-image');
+            }
+          }
+          return;
+        }
+
+        // 查找文本位置
+        const textPosition = findTitlePosition(text, containerElement);
+
+        if (textPosition) {
+          // 设置文本高亮的CSS变量
+          containerElement.style.setProperty('--text-highlight-color', color);
+          containerElement.style.setProperty('--text-highlight-opacity', opacity);
+          containerElement.style.setProperty('--text-highlight-rect-x', `${textPosition.x}px`);
+          containerElement.style.setProperty('--text-highlight-rect-y', `${textPosition.y}px`);
+          containerElement.style.setProperty(
+            '--text-highlight-rect-width',
+            `${textPosition.width}px`
+          );
+          containerElement.style.setProperty(
+            '--text-highlight-rect-height',
+            `${textPosition.height}px`
+          );
+
+          // 应用 Paint Worklet
+          containerElement.style.backgroundImage = 'paint(titleHighlighter)';
+
+          console.log('Applied text highlight for:', text, textPosition);
+        } else {
+          console.warn('Text not found in DOM:', text);
+        }
       },
       [findTitlePosition]
     );
@@ -417,6 +507,9 @@ const CardEditor = forwardRef(
         editor.showNotePanel = showNotePanel;
         editor.hideNotePanel = hideNotePanel;
         editor.updateNoteContent = updateNoteContent;
+
+        // 注入文本高亮功能
+        editor.applyTextHighlight = applyTextHighlight;
 
         // 设置 ResizeObserver 监听编辑器容器
         if (editorContainerRef.current && window.ResizeObserver) {
@@ -564,10 +657,10 @@ const CardEditor = forwardRef(
     }, [title, autoMarkTitle, applyHoudiniHighlight]);
 
     const toolbarConfig = {
-      insertKeys: {
-        index: 0,
-        keys: ['aiExplain', 'aiGlobalExplain', 'textNote'], // 添加图片上传菜单
-      },
+      // insertKeys: {
+      //   index: 0,
+      //   keys: ['aiExplain', 'aiGlobalExplain', 'textNote', 'textToSpeech', 'wordDictionary'], // 添加字典查询菜单
+      // },
       excludeKeys: ['todo', 'redo', 'undo', 'fullScreen'],
     };
     const editorConfig = {
@@ -723,9 +816,11 @@ const CardEditor = forwardRef(
             'aiExplain',
             'aiGlobalExplain',
             'textNote',
-            'headerSelect',
-            'insertLink',
-            'bulletedList',
+            'textToSpeech',
+            'wordDictionary',
+            // 'headerSelect',
+            // 'insertLink',
+            // 'bulletedList',
             '|',
             'bold',
             'underline',
