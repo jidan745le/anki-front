@@ -2,6 +2,7 @@ import {
   BookOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
+  FileTextOutlined,
   HighlightOutlined,
   InfoCircleOutlined,
   MessageOutlined,
@@ -12,6 +13,7 @@ import React, { useState } from 'react';
 import { useI18n } from '../../common/hooks/useI18n';
 import apiClient from '../../common/http/apiClient';
 import CardVisualizer from '../CardVisualizer';
+import NotesModal from '../NotesModal';
 import './style.less';
 
 const AnkiBar = ({
@@ -34,6 +36,7 @@ const AnkiBar = ({
   currentCard,
   onCardUpdate,
   pagination = null,
+  onNotesReady, // 可选回调，用于将笔记功能暴露给父组件
 }) => {
   const { t, currentLanguage } = useI18n();
   const [tagsVisible, setTagsVisible] = useState(false);
@@ -43,6 +46,8 @@ const AnkiBar = ({
     currentCard?.tags ? currentCard.tags.split(',').filter(Boolean) : []
   );
   const [updating, setUpdating] = useState(false);
+  const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [notesModalTitle, setNotesModalTitle] = useState(null);
 
   // 预设标签（英文key）
   const presetTags = ['favorite', 'important', 'difficult', 'error_prone', 'review'];
@@ -392,6 +397,28 @@ const AnkiBar = ({
     setTags(currentCard?.tags ? currentCard.tags.split(',').filter(Boolean) : []);
   }, [currentCard?.id, currentCard?.tags]);
 
+  // 将笔记功能暴露给父组件
+  React.useEffect(() => {
+    if (onNotesReady) {
+      onNotesReady({ openNotes: handleOpenNotes });
+    }
+  }, [onNotesReady]);
+
+  // 笔记功能处理函数
+  const handleOpenNotes = (initialTitle = null) => {
+    if (!currentCard) {
+      message.warning('请先选择一个卡片');
+      return;
+    }
+    setNotesModalTitle(initialTitle);
+    setNotesModalVisible(true);
+  };
+
+  const handleCloseNotes = () => {
+    setNotesModalVisible(false);
+    setNotesModalTitle(null);
+  };
+
   const tagsContent = (
     <div style={{ minWidth: 300, maxWidth: 400 }}>
       <div style={{ marginBottom: 8 }}>
@@ -560,6 +587,16 @@ const AnkiBar = ({
             </span>
           </Tooltip>
         </Popover>
+        <Tooltip title="查看笔记">
+          <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={() => handleOpenNotes()}>
+            <FileTextOutlined
+              style={{
+                fontSize: '16px',
+                color: notesModalVisible ? '#1890ff' : '#d9d9d9',
+              }}
+            />
+          </span>
+        </Tooltip>
       </div>
       {visualizerVisible && (
         <CardVisualizer
@@ -607,6 +644,18 @@ const AnkiBar = ({
           </Tooltip>
         </div>
       </div>
+      <NotesModal
+        visible={notesModalVisible}
+        onClose={handleCloseNotes}
+        userCard={currentCard}
+        title={notesModalTitle}
+        onNoteDeleted={deletedNote => {
+          // 当笔记删除成功后的回调
+          // 在AnkiBar中，删除笔记时不需要删除note element
+          // 因为这是从AnkiBar直接访问的笔记，不是从编辑器中的note element访问的
+          console.log('笔记删除成功:', deletedNote);
+        }}
+      />
     </div>
   );
 };

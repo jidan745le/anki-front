@@ -13,7 +13,7 @@ import { chatChunkModule } from './Plugins/chatChunk';
 import { textNoteModule } from './Plugins/textNoteMenu';
 import { textToSpeechModule } from './Plugins/textToSpeechMenu';
 import { wordDictionaryModule } from './Plugins/wordDictionaryMenu';
-import NotePanel from './components/NoteBook';
+import NotesModalIntegration from './components/NotesModalIntegration';
 
 Boot.registerMenu(aiExplain);
 Boot.registerMenu(aiGlobalExplain);
@@ -184,72 +184,11 @@ const CardEditor = forwardRef(
     const titleHighlightTimeoutRef = useRef(null);
     const resizeObserverRef = useRef(null);
 
-    // 笔记面板状态管理
-    const [notePanelVisible, setNotePanelVisible] = useState(false);
-    const [currentNoteData, setCurrentNoteData] = useState(null);
-
-    // 显示笔记面板
-    const showNotePanel = noteData => {
-      console.log(noteData, 'noteData showNotePanel');
-      setCurrentNoteData(noteData);
-      setNotePanelVisible(true);
-    };
-
-    // 隐藏笔记面板
-    const hideNotePanel = noteData => {
-      const nodes = Array.from(
-        SlateEditor.nodes(editor, {
-          at: [],
-          match: n => {
-            return n && n['type'] === 'textnote' && n['noteId'] === noteData.noteId;
-          },
-        })
-      );
-      const node = nodes[0][0];
-      console.log(node, 'node');
-      if (!node.noteContent) {
-        setNotePanelVisible(false);
-        SlateTransforms.unwrapNodes(editor, {
-          at: [],
-          match: n => {
-            return n && n['type'] === 'textnote' && n['noteId'] === noteData.noteId;
-          },
-        });
-      } else {
-        setNotePanelVisible(false);
-      }
-      setCurrentNoteData(null);
-    };
-
-    // 更新笔记内容
-    const updateNoteContent = (noteId, newContent) => {
-      if (!editor) return;
-      console.log(editor, currentNoteData, 'editor');
-
-      // 查找并更新对应的笔记节点
-      const nodes = Array.from(
-        SlateEditor.nodes(editor, {
-          at: [],
-          match: n => {
-            return n && n['type'] === 'textnote' && n['noteId'] === noteId;
-          },
-        })
-      );
-      console.log(nodes, 'nodes');
-
-      if (nodes.length > 0) {
-        const [node, path] = nodes[0];
-        const updateData = {};
-        updateData['noteContent'] = newContent;
-        SlateTransforms.setNodes(editor, updateData, { at: path });
-
-        // 更新当前显示的数据
-        setCurrentNoteData(prev => ({
-          ...prev,
-          noteContent: newContent,
-        }));
-        // setNotePanelVisible(false);
-      }
+    // 模拟userCard数据，实际使用时应该从props传入
+    const userCard = {
+      uuid: cardUUID,
+      id: cardUUID,
+      front: title || '卡片',
     };
 
     // 初始化 Houdini Worklet
@@ -500,13 +439,14 @@ const CardEditor = forwardRef(
     // 当编辑器创建时设置 ResizeObserver
     const handleEditorCreated = useCallback(
       editor => {
+        // alert('editorCreated');
         setEditor(editor);
         editorContainerRef.current = editor.getEditableContainer();
 
         // 注入笔记面板相关方法
-        editor.showNotePanel = showNotePanel;
-        editor.hideNotePanel = hideNotePanel;
-        editor.updateNoteContent = updateNoteContent;
+        // editor.showNotePanel = showNotePanel;
+        // editor.hideNotePanel = hideNotePanel;
+        // editor.updateNoteContent = updateNoteContent;
 
         // 注入文本高亮功能
         editor.applyTextHighlight = applyTextHighlight;
@@ -542,16 +482,21 @@ const CardEditor = forwardRef(
         autoMarkTitle,
         applyHoudiniHighlight,
         value,
-        showNotePanel,
-        hideNotePanel,
-        updateNoteContent,
+        // showNotePanel,
+        // hideNotePanel,
+        // updateNoteContent,
       ]
     );
 
     // 监听编辑器内容变化，重新计算标题位置
     const handleEditorChange = useCallback(
       editor => {
-        console.log(editor, editor.selection, 'editor.selection');
+        console.log(
+          editor,
+          JSON.stringify(editor.selection),
+          'editor.selection',
+          new Error().stack
+        );
 
         if (initialFlag.current) {
           preHtmlStr.current = editor.getHtml();
@@ -975,8 +920,7 @@ const CardEditor = forwardRef(
         >
           <div
             style={{
-              width: notePanelVisible ? '80%' : '100%',
-              transition: 'width 0.3s',
+              width: '100%',
               display: 'flex',
               border: '1px solid #ccc',
               flex: 1,
@@ -999,14 +943,8 @@ const CardEditor = forwardRef(
             />
           </div>
 
-          {notePanelVisible && (
-            <NotePanel
-              noteData={currentNoteData}
-              onUpdateNote={updateNoteContent}
-              onClose={hideNotePanel}
-              isVisible={notePanelVisible}
-            />
-          )}
+          {/* 笔记弹窗集成组件 */}
+          <NotesModalIntegration editor={editor} userCard={userCard} />
         </div>
         {/* <div style={{ marginTop: '15px' }}>
                 {html}

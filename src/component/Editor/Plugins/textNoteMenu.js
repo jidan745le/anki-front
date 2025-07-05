@@ -1,13 +1,19 @@
 import { DomEditor, SlateEditor, SlateTransforms } from '@wangeditor/editor';
 import { h } from 'snabbdom';
 import { getStoredLanguage, translate } from 'src/common/i18n';
+import apiClient from '../../../common/http/apiClient';
+
+// 全局 Map 存储每个元素的防抖定时器
+const clickTimeoutMap = new Map();
 
 // 定义笔记节点的数据结构
 class TextNoteElement {
   type = 'textnote';
   noteId = '';
+  noteUuid = '';
   noteContent = '';
   noteColor = '#667eea';
+  chunkId = '';
   children = [];
 }
 
@@ -22,125 +28,218 @@ function withTextNote(editor) {
     return isInline(elem);
   };
 
+  // 为编辑器添加更新笔记的方法
+  newEditor.updateNoteByChunkId = (chunkId, noteUuid, noteData) => {
+    const nodes = Array.from(
+      SlateEditor.nodes(newEditor, {
+        at: [],
+        match: n => {
+          return n && n.type === 'textnote' && n.chunkId === chunkId;
+        },
+      })
+    );
+
+    if (nodes.length > 0) {
+      const [node, path] = nodes[0];
+      const newProps = {
+        ...node,
+        noteUuid,
+        noteContent: noteData.noteContent || '',
+        noteId: noteData.id || node.noteId,
+      };
+
+      SlateTransforms.setNodes(newEditor, newProps, { at: path });
+
+      // setTimeout(() => {
+      //   SlateTransforms.select(newEditor, {
+      //     anchor: { path: [0], offset: 0 },
+      //     focus: { path: [0], offset: 10 },
+      //   });
+      // }, 1000);
+      // newEditor.selectAll();
+      // alert('updateNoteByChunkId');
+    }
+  };
+
+  // 为编辑器添加删除笔记的方法
+  newEditor.deleteNoteByChunkId = chunkId => {
+    const nodes = Array.from(
+      SlateEditor.nodes(newEditor, {
+        at: [],
+        match: n => {
+          return n && n.type === 'textnote' && n.chunkId === chunkId;
+        },
+      })
+    );
+
+    if (nodes.length > 0) {
+      const [node, path] = nodes[0];
+      // 移除笔记标记，保留文本内容
+      SlateTransforms.unwrapNodes(newEditor, {
+        at: path,
+        match: n => {
+          return n && n.type === 'textnote' && n.chunkId === chunkId;
+        },
+      });
+    }
+  };
+
+  // 为编辑器添加通过 UUID 删除笔记的方法
+  newEditor.deleteNoteByUuid = noteUuid => {
+    const nodes = Array.from(
+      SlateEditor.nodes(newEditor, {
+        at: [],
+        match: n => {
+          return n && n.type === 'textnote' && n.noteUuid === noteUuid;
+        },
+      })
+    );
+
+    if (nodes.length > 0) {
+      const [node, path] = nodes[0];
+      // 移除笔记标记，保留文本内容
+      SlateTransforms.unwrapNodes(newEditor, {
+        at: path,
+        match: n => {
+          return n && n.type === 'textnote' && n.noteUuid === noteUuid;
+        },
+      });
+    }
+  };
+
+  newEditor.selectNoteByChunkId = chunkId => {
+    const nodes = Array.from(
+      SlateEditor.nodes(newEditor, {
+        at: [],
+        match: n => {
+          return n && n.type === 'textnote' && n.chunkId === chunkId;
+        },
+      })
+    );
+
+    if (nodes.length > 0) {
+      const [node, path] = nodes[0];
+      console.log('selectNoteByChunkId', path);
+      // setTimeout(() => {
+      //   SlateTransforms.select(newEditor, path);
+      // }, 0);
+    }
+  };
+
   return newEditor;
 }
 
 // 渲染笔记元素
 function renderTextNote(elem, children, editor) {
-  const { noteId = '', noteContent = '', noteColor = '#667eea' } = elem;
+  const {
+    noteId = '',
+    noteUuid = '',
+    noteContent = '',
+    noteColor = '#667eea',
+    chunkId = '',
+  } = elem;
 
-  // 点击处理函数
+  // 点击处理函数 - 实现防抖：1000ms内如果有第二次点击则取消执行
   const handleClick = e => {
-    e.preventDefault();
+    // e.preventDefault();
     // e.stopPropagation();
-    console.log('handleClick', children);
-    const unhangRange = SlateEditor.unhangRange(editor, editor.selection);
-    console.log('handleClick unhangRange', editor.selection, unhangRange);
-    const nodes = Array.from(
-      SlateEditor.nodes(editor, {
-        at: unhangRange,
-        match: n => !SlateEditor.isEditor(n),
-        // mode: 'lowest',
-      })
-    );
-    //all会顺着选区的分支往上找到父节点
-    console.log('handleClick nodes', nodes);
 
-    // 获取选中的文本
-    const selectedText = children.map(child => child.elm.innerText).join('');
-    // 调用编辑器的显示笔记面板方法
-    if (editor && editor.showNotePanel) {
-      editor.showNotePanel({
-        noteId,
-        noteContent,
-        noteColor,
-        selectedText,
-      });
+    // 使用 chunkId 作为键来获取该元素的定时器
+    const existingTimeout = clickTimeoutMap.get(chunkId);
+
+    // 如果已经有定时器在运行，清除它
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      clickTimeoutMap.delete(chunkId);
+      return; // 直接返回，不执行后续逻辑
     }
+
+    // 设置1000ms的延迟执行
+    const newTimeout = setTimeout(() => {
+      // 获取选中的文本
+      const selectedText = editor.getSelectionText();
+
+      // 调用编辑器的显示笔记弹窗方法
+      if (editor && editor.showNotesModal) {
+        editor.showNotesModal({
+          noteUuid: noteUuid,
+          selectedText,
+          chunkId,
+          noteId,
+          initial: false,
+        });
+      }
+
+      // 清除定时器引用
+      clickTimeoutMap.delete(chunkId);
+    }, 250);
+
+    // 存储定时器到 Map 中
+    clickTimeoutMap.set(chunkId, newTimeout);
   };
 
-  // 创建下划线元素
-  const underline = h('span', {
-    style: {
-      position: 'absolute',
-      left: '0',
-      right: '0',
-      bottom: '6px',
-      height: '2px',
-      backgroundColor: noteColor,
-      transition: 'height 0.2s ease',
-      pointerEvents: 'none', // 确保下划线不会阻止点击事件
-      zIndex: '10', // 确保在最上层
-    },
-    attrs: {
-      'data-underline': 'true',
-    },
-  });
-
-  // 主容器
+  // 主容器，使用 border-bottom 实现下划线
   return h(
     'span',
     {
       attrs: {
         'data-note-id': noteId,
+        'data-note-uuid': noteUuid,
+        'data-chunk-id': chunkId,
         'data-w-e-type': 'textnote',
         'data-w-e-is-inline': '',
       },
       style: {
-        position: 'relative',
         textDecoration: 'none',
         cursor: 'pointer',
-        display: 'inline-block', // 改为 inline-block 以支持绝对定位
-        paddingBottom: '4px', // 为下划线留出空间
+        display: 'inline',
+        borderBottom: `2px solid ${noteColor}`,
+        transition: 'border-bottom 0.2s ease',
+        paddingBottom: '5px', // 稍微调整文本与下划线的间距
       },
       on: {
         click: handleClick,
         mouseenter: e => {
           const target = e.currentTarget;
-          if (target) {
-            const underlineEl = target.querySelector('[data-underline="true"]');
-            if (underlineEl) {
-              underlineEl.style.height = '3px';
-              underlineEl.style.bottom = '6px';
-            }
+          if (target && target.style) {
+            target.style.borderBottom = `3px solid ${noteColor}`;
           }
         },
         mouseleave: e => {
           const target = e.currentTarget;
-          if (target) {
-            const underlineEl = target.querySelector('[data-underline="true"]');
-            if (underlineEl) {
-              underlineEl.style.height = '2px';
-              underlineEl.style.bottom = '6px';
-            }
+          if (target && target.style) {
+            target.style.borderBottom = `2px solid ${noteColor}`;
           }
         },
       },
     },
-    [...children, underline] // 将下划线作为最后一个子元素
+    children
   );
 }
 
 // 转换为 HTML
 function textNoteToHtml(elem, childrenHtml) {
-  const { noteId, noteContent = '', noteColor = '#667eea' } = elem;
-  return `<span data-w-e-type="textnote" data-w-e-is-inline data-note-id="${noteId}" data-note-content="${encodeURIComponent(noteContent)}" data-note-color="${noteColor}" style="position: relative; display: inline-block; padding-bottom: 4px; text-decoration: none;">
+  const { noteId, noteUuid = '', noteContent = '', noteColor = '#667eea', chunkId = '' } = elem;
+  return `<span data-w-e-type="textnote" data-w-e-is-inline data-note-id="${noteId}" data-note-uuid="${noteUuid}" data-note-content="${encodeURIComponent(noteContent)}" data-note-color="${noteColor}" data-chunk-id="${chunkId}" style="display: inline; border-bottom: 2px solid ${noteColor}; padding-bottom: 5px; text-decoration: none; cursor: pointer; transition: border-bottom 0.2s ease;">
     ${childrenHtml}
-    <span style="position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; background-color: ${noteColor}; pointer-events: none; z-index: 10;"></span>
   </span>`;
 }
 
 // 解析 HTML
 function parseTextNoteHtml(domElem, children, editor) {
   const noteId = domElem.getAttribute('data-note-id') || '';
+  const noteUuid = domElem.getAttribute('data-note-uuid') || '';
   const noteContent = decodeURIComponent(domElem.getAttribute('data-note-content') || '');
   const noteColor = domElem.getAttribute('data-note-color') || '#667eea';
+  const chunkId = domElem.getAttribute('data-chunk-id') || '';
 
   return {
     type: 'textnote',
     noteId,
+    noteUuid,
     noteContent,
     noteColor,
+    chunkId,
     children,
   };
 }
@@ -191,7 +290,7 @@ class TextNoteMenu {
     return false;
   }
 
-  exec(editor, value) {
+  async exec(editor, value) {
     const selectedText = editor.getSelectionText().trim();
     if (!selectedText) return;
 
@@ -207,7 +306,24 @@ class TextNoteMenu {
       );
 
       if (nodes.length > 0) {
-        // 如果已经是笔记，取消笔记标记
+        // 如果已经是笔记，先调用删除接口，然后取消笔记标记
+        const [noteNode] = nodes[0];
+        const { noteId } = noteNode;
+
+        // 如果有noteUuid或noteId，调用删除接口
+        if (noteId) {
+          try {
+            // 根据noteUuid或noteId调用删除接口
+            const deleteId = noteId;
+            await apiClient.delete(`/notes/${deleteId}`);
+            console.log('笔记删除成功:', deleteId);
+          } catch (error) {
+            console.error('删除笔记失败:', error);
+            // 即使删除接口失败，也继续执行取消标记操作
+          }
+        }
+
+        // 取消笔记标记
         SlateTransforms.unwrapNodes(editor, {
           match: n => {
             const node = n;
@@ -225,28 +341,34 @@ class TextNoteMenu {
     if (!selection) return;
 
     const noteId = 'note_' + Date.now();
-    const colors = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a'];
-    const noteColor = colors[Math.floor(Math.random() * colors.length)];
+    const chunkId = 'chunk_' + Date.now();
+    // const colors = ['#4facfe'];
+    const noteColor = '#4facfe';
 
-    // 创建笔记节点
+    // 创建临时笔记节点
     const noteNode = {
       type: 'textnote',
       noteId,
+      noteUuid: '',
       noteContent: '',
       noteColor,
+      chunkId,
       children: [],
     };
 
     // 包装选中的文本
     SlateTransforms.wrapNodes(editor, noteNode, { split: true });
 
-    // 显示右侧面板以编辑笔记
-    if (editor.showNotePanel) {
-      editor.showNotePanel({
-        noteId,
-        noteContent: '',
-        noteColor,
+    // 显示笔记弹窗
+    if (editor.showNotesModal) {
+      editor.showNotesModal({
+        title: selectedText,
+        chunkId,
+        noteId: '',
+        noteUuid: '',
         selectedText,
+        referenceText: selectedText, // 添加引用文本
+        initial: true,
       });
     }
   }
