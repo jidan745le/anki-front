@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { API_BASE_URL } from '../../common/util/env';
 import { aiExplain, aiGlobalExplain } from './Plugins/aiExplainMenu';
 import { chatChunkModule } from './Plugins/chatChunk';
 import { textNoteModule } from './Plugins/textNoteMenu';
@@ -616,7 +617,7 @@ const CardEditor = forwardRef(
       MENU_CONF: {
         uploadImage: {
           // 服务端地址 - 使用现有的upload-temp接口
-          server: '/api/file/upload-temp',
+          server: `${API_BASE_URL}/file/upload-permanent`,
 
           // form-data fieldName，默认值 'wangeditor-uploaded-image'
           fieldName: 'file',
@@ -710,7 +711,7 @@ const CardEditor = forwardRef(
                 console.error('❌ 无法从响应中提取图片URL:', res);
                 // 如果是tempFileId，尝试构造URL
                 if (res.data && res.data.tempFileId) {
-                  const tempUrl = `/api/file/temp/${res.data.tempFileId}`;
+                  const tempUrl = `${API_BASE_URL}/file/permanent/${res.data.tempFileId}`;
                   console.log('🔄 尝试使用临时文件URL:', tempUrl);
                   insertFn(tempUrl, alt, href);
                 }
