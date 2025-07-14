@@ -10,7 +10,7 @@ import './styles/global.less';
 // 打印环境信息
 printEnvInfo();
 
-const Anki = React.lazy(() => import('./pages/Anki'));
+const Anki = React.lazy(() => import('./pages/Anki/index'));
 const Decks = React.lazy(() => import('./pages/Decks'));
 const Layout = React.lazy(() => import('./pages/Layout'));
 const Login = React.lazy(() => import('./pages/Login'));

@@ -246,6 +246,16 @@ export const en = {
     thinking: 'Thinking...',
     askAiPlaceholder: 'Ask AI anything...',
 
+    // Voice Assistant
+    enableVoice: 'Enable Voice Assistant',
+    disableVoice: 'Disable Voice Assistant',
+    selectCharacter: 'Select AI Character',
+    selectCharacterDescription: 'Choose your AI companion for voice-assisted learning:',
+    interruptAndSend: 'Interrupt and Send New Message',
+    interruptStream: 'Interrupt Output',
+    interruptVoice: 'Interrupt Voice',
+    interrupt: 'Interrupt',
+
     // Reference cards
     referenceCard: 'Reference Card',
     jumpToCard: 'Jump to Card',

@@ -1,5 +1,5 @@
 import { CloseOutlined } from '@ant-design/icons';
-import { Button, message, Spin } from 'antd';
+import { Button, message, Modal, Spin } from 'antd';
 import { debounce } from 'lodash';
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -10,6 +10,7 @@ import AIChatSidebar from '../../component/AIChat';
 import AnkiBar from '../../component/AnkiBar';
 import AnkiCard, { processBookIndex } from '../../component/AnkiCard';
 import BookTocTree from '../../component/BookTocTree';
+import VoiceAssistantChat from '../../component/VoiceAssistantChat';
 import './style.less';
 
 function Anki() {
@@ -35,6 +36,14 @@ function Anki() {
   const [aiChatLoading, setAiChatLoading] = useState(false);
   const [chunkId, setChunkId] = useState(null);
   const [useStreamingApi, setUseStreamingApi] = useState(true);
+
+  // 语音助手相关状态
+  const [voiceAssistantVisible, setVoiceAssistantVisible] = useState(false);
+  const [voiceChatMessages, setVoiceChatMessages] = useState([]);
+  const [voiceChatStatus, setVoiceChatStatus] = useState([]);
+  const [voiceAiChatLoading, setVoiceAiChatLoading] = useState(false);
+  const [voiceChunkId, setVoiceChunkId] = useState(null);
+  const [characterSelectVisible, setCharacterSelectVisible] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState(null);
 
   // 其他UI状态
@@ -42,13 +51,12 @@ function Anki() {
   const [tocDrawerVisible, setTocDrawerVisible] = useState(false);
   const [tocStructure, setTocStructure] = useState([]);
 
-  // 语音相关状态
-
   // Refs
   const cardIdRef = useRef(null);
   const processingChunkIdRef = useRef(null);
   const editorRef = useRef(null);
   const aiChatSidebarRef = useRef(null);
+  const voiceAssistantRef = useRef(null);
 
   // 防抖更新卡片
   const updateCardRef = useRef(
@@ -85,6 +93,146 @@ function Anki() {
     }
   }, [params.deckId, searchParams]);
 
+  // 语音助手相关方法
+  const handleToggleVoiceAssistant = () => {
+    // 如果还没有选择角色，先显示角色选择Modal
+    if (!selectedCharacter) {
+      setCharacterSelectVisible(true);
+      return;
+    }
+
+    // 如果已有角色，则切换语音助手显示状态
+    setVoiceAssistantVisible(!voiceAssistantVisible);
+
+    // 如果开启语音助手，清理其他聊天组件
+    if (!voiceAssistantVisible) {
+      // 清理AI聊天
+      if (aiChatSidebarRef.current && aiChatSidebarRef.current.cleanupEventSources) {
+        aiChatSidebarRef.current.cleanupEventSources();
+      }
+      setAiChatVisible(false);
+    }
+  };
+
+  const handleCharacterSelect = character => {
+    setSelectedCharacter(character);
+    setCharacterSelectVisible(false);
+    setVoiceAssistantVisible(true);
+
+    // 延迟调用，确保VoiceAssistantChat组件已经渲染
+    setTimeout(() => {
+      if (voiceAssistantRef.current && voiceAssistantRef.current.selectCharacter) {
+        voiceAssistantRef.current.selectCharacter(character);
+      }
+    }, 100);
+
+    // 清理AI聊天
+    if (aiChatSidebarRef.current && aiChatSidebarRef.current.cleanupEventSources) {
+      aiChatSidebarRef.current.cleanupEventSources();
+    }
+    setAiChatVisible(false);
+  };
+
+  const handleVoiceAssistantClose = () => {
+    setVoiceAssistantVisible(false);
+
+    // 清理语音助手资源
+    if (voiceAssistantRef.current) {
+      if (voiceAssistantRef.current.cleanupEventSources) {
+        voiceAssistantRef.current.cleanupEventSources();
+      }
+      if (voiceAssistantRef.current.disableVoice) {
+        voiceAssistantRef.current.disableVoice();
+      }
+    }
+  };
+
+  const handleDisableVoiceAssistant = () => {
+    setVoiceAssistantVisible(false);
+    setSelectedCharacter(null);
+
+    // 清理语音助手资源
+    if (voiceAssistantRef.current) {
+      if (voiceAssistantRef.current.cleanupEventSources) {
+        voiceAssistantRef.current.cleanupEventSources();
+      }
+      if (voiceAssistantRef.current.disableVoice) {
+        voiceAssistantRef.current.disableVoice();
+      }
+    }
+  };
+
+  const onInitVoiceChunkChatSession = async (promptConfig, sessionId) => {
+    const pendingMessages = [
+      { role: 'user', content: generateSimplifiedPromptDisplay(promptConfig) },
+    ];
+
+    setVoiceChunkId(promptConfig.chunkId);
+    setVoiceChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
+
+    // 清理现有的EventSource连接
+    if (voiceAssistantRef.current && voiceAssistantRef.current.cleanupEventSources) {
+      voiceAssistantRef.current.cleanupEventSources();
+    }
+
+    // 直接处理chunk会话的EventSource连接
+    if (voiceAssistantRef.current && voiceAssistantRef.current.handleChunkSession) {
+      voiceAssistantRef.current.handleChunkSession(sessionId);
+    }
+  };
+
+  const getVoiceChatMessageAndShowSidebar = chunkId => {
+    console.log(chunkId, 'voiceChunkId');
+
+    if (!voiceAssistantVisible) {
+      setVoiceAssistantVisible(true);
+    }
+
+    // 清理现有的EventSource连接
+    if (voiceAssistantRef.current && voiceAssistantRef.current.cleanupEventSources) {
+      voiceAssistantRef.current.cleanupEventSources();
+    }
+
+    setVoiceChunkId(chunkId);
+    setVoiceAiChatLoading(true);
+  };
+
+  // 目录相关方法
+  const handleGenerateIndex = async () => {
+    try {
+      if (tocDrawerVisible) {
+        setTocDrawerVisible(false);
+        return;
+      }
+
+      const response = await apiClient.get(`/anki/user-cards/front-and-uuid/${params.deckId}`);
+      console.log('Book index data:', response.data);
+
+      if (response.data && response.data.data) {
+        const processedTocStructure = processBookIndex(response.data.data);
+        console.log('Processed TOC structure:', processedTocStructure);
+
+        setTocStructure(processedTocStructure);
+        setTocDrawerVisible(true);
+      } else {
+        message.warning(t('anki.toc.noData'));
+      }
+    } catch (error) {
+      console.error('Failed to generate index:', error);
+      message.error(error?.response?.data?.message || t('anki.indexGenerateFailed'));
+    }
+  };
+
+  const handleTocCardSelect = async (uuid, nodeData) => {
+    try {
+      console.log('目录中选择的卡片:', uuid, nodeData);
+      getCardByUuid(uuid, true, false);
+    } catch (error) {
+      console.error('跳转到卡片失败:', error);
+      message.error(t('anki.getCardError'));
+    }
+  };
+
   // 卡片相关API方法
   const updateQualityForThisCard = async (deckId, quality) => {
     setLoading(true);
@@ -111,13 +259,17 @@ function Anki() {
         aiChatSidebarRef.current.cleanupEventSources();
       }
 
-      if (aiChatSidebarRef.current && aiChatSidebarRef.current.handleAudioCleanupOnNavigation) {
-        aiChatSidebarRef.current.handleAudioCleanupOnNavigation();
+      // 清理语音助手相关连接和状态
+      if (voiceAssistantRef.current && voiceAssistantRef.current.cleanupEventSources) {
+        voiceAssistantRef.current.cleanupEventSources();
       }
 
       setAiChatVisible(false);
+      setVoiceAssistantVisible(false);
       setChunkId(undefined);
+      setVoiceChunkId(undefined);
       setAiChatLoading(false);
+      setVoiceAiChatLoading(false);
       editorRef?.current?.getEditor()?.clearAiLoadingChunk();
 
       if (quality !== 0) {
@@ -183,7 +335,9 @@ function Anki() {
     setFlipped(false);
     setLoading(true);
     setAiChatVisible(false);
+    setVoiceAssistantVisible(false);
     setAiChatLoading(false);
+    setVoiceAiChatLoading(false);
     editorRef?.current?.getEditor()?.clearAiLoadingChunk();
 
     if (!isInit) {
@@ -253,11 +407,6 @@ function Anki() {
 
     processingChunkIdRef.current = chunkId;
 
-    // 中断之前的朗读（如果有）
-    if (aiChatSidebarRef.current && aiChatSidebarRef.current.handleAudioCleanupOnNavigation) {
-      aiChatSidebarRef.current.handleAudioCleanupOnNavigation();
-    }
-
     if (!aiChatVisible) {
       setAiChatVisible(true);
     }
@@ -275,12 +424,6 @@ function Anki() {
     const pendingMessages = [
       { role: 'user', content: generateSimplifiedPromptDisplay(promptConfig) },
     ];
-
-    // 中断之前的朗读（如果有）
-    if (aiChatSidebarRef.current && aiChatSidebarRef.current.handleAudioCleanupOnNavigation) {
-      aiChatSidebarRef.current.handleAudioCleanupOnNavigation();
-    }
-
     if (!aiChatVisible) {
       setAiChatVisible(true);
     }
@@ -292,50 +435,11 @@ function Anki() {
       aiChatSidebarRef.current.cleanupEventSources();
     }
 
-    setChatMessages([
-      ...pendingMessages,
-      { role: 'assistant', pending: true, content: '', sessionId: sessionId },
-    ]);
+    setChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
 
     // 直接处理chunk会话的EventSource连接，不调用getAIChat
     if (aiChatSidebarRef.current && aiChatSidebarRef.current.handleChunkSession) {
       aiChatSidebarRef.current.handleChunkSession(sessionId);
-    }
-  };
-
-  // 目录相关方法
-  const handleGenerateIndex = async () => {
-    try {
-      if (tocDrawerVisible) {
-        setTocDrawerVisible(false);
-        return;
-      }
-
-      const response = await apiClient.get(`/anki/user-cards/front-and-uuid/${params.deckId}`);
-      console.log('Book index data:', response.data);
-
-      if (response.data && response.data.data) {
-        const processedTocStructure = processBookIndex(response.data.data);
-        console.log('Processed TOC structure:', processedTocStructure);
-
-        setTocStructure(processedTocStructure);
-        setTocDrawerVisible(true);
-      } else {
-        message.warning(t('anki.toc.noData'));
-      }
-    } catch (error) {
-      console.error('Failed to generate index:', error);
-      message.error(error?.response?.data?.message || t('anki.indexGenerateFailed'));
-    }
-  };
-
-  const handleTocCardSelect = async (uuid, nodeData) => {
-    try {
-      console.log('目录中选择的卡片:', uuid, nodeData);
-      getCardByUuid(uuid, true, false);
-    } catch (error) {
-      console.error('跳转到卡片失败:', error);
-      message.error(t('anki.getCardError'));
     }
   };
 
@@ -353,18 +457,7 @@ function Anki() {
           onToggleVisualizer={() => setVisualizerVisible(!visualizerVisible)}
           aiChatEnabled={!!cardIdRef.current}
           aiChatVisible={aiChatVisible}
-          deckId={params.deckId}
-          onGenerateIndex={handleGenerateIndex}
-          tocVisible={tocDrawerVisible}
           onToggleAIChat={() => {
-            // 中断之前的朗读（如果有）
-            if (
-              aiChatSidebarRef.current &&
-              aiChatSidebarRef.current.handleAudioCleanupOnNavigation
-            ) {
-              aiChatSidebarRef.current.handleAudioCleanupOnNavigation();
-            }
-
             setChunkId(undefined);
             processingChunkIdRef.current = null;
             setAiChatVisible(!aiChatVisible);
@@ -382,6 +475,12 @@ function Anki() {
               setAiChatLoading(true);
             }
           }}
+          voiceAssistantEnabled={!!cardIdRef.current}
+          voiceAssistantVisible={voiceAssistantVisible}
+          onToggleVoiceAssistant={handleToggleVoiceAssistant}
+          deckId={params.deckId}
+          onGenerateIndex={handleGenerateIndex}
+          tocVisible={tocDrawerVisible}
           allCards={allCards}
           currentCardId={card?.['uuid']}
           currentCardState={card?.['state']}
@@ -394,8 +493,6 @@ function Anki() {
           }}
           pagination={pagination}
           onNotesReady={() => {}}
-          selectedCharacter={selectedCharacter}
-          onSelectCharacter={setSelectedCharacter}
         />
 
         <div
@@ -473,11 +570,11 @@ function Anki() {
           <div
             style={{
               width:
-                tocDrawerVisible && aiChatVisible
+                tocDrawerVisible && (aiChatVisible || voiceAssistantVisible)
                   ? '65%'
                   : tocDrawerVisible
                     ? '90%'
-                    : aiChatVisible
+                    : aiChatVisible || voiceAssistantVisible
                       ? '75%'
                       : '100%',
               transition: 'width 0.3s',
@@ -494,7 +591,6 @@ function Anki() {
               }}
             >
               <AnkiCard
-                characterId={selectedCharacter?.id}
                 ref={editorRef}
                 config={config}
                 front={card['front']}
@@ -528,38 +624,154 @@ function Anki() {
           </div>
 
           {/* AI聊天侧边栏 */}
-          <AIChatSidebar
-            ref={aiChatSidebarRef}
-            visible={aiChatVisible}
-            onClose={() => {
-              // 中断之前的朗读（如果有）
-              if (
-                aiChatSidebarRef.current &&
-                aiChatSidebarRef.current.handleAudioCleanupOnNavigation
-              ) {
-                aiChatSidebarRef.current.handleAudioCleanupOnNavigation();
-              }
-              setAiChatVisible(false);
-              processingChunkIdRef.current = null;
-              setChunkId(undefined);
-              setAiChatLoading(false);
-            }}
-            cardIdRef={cardIdRef}
-            chunkId={chunkId}
-            chatMessages={chatMessages}
-            setChatMessages={setChatMessages}
-            chatStatus={chatStatus}
-            setChatStatus={setChatStatus}
-            aiChatLoading={aiChatLoading}
-            setAiChatLoading={setAiChatLoading}
-            useStreamingApi={useStreamingApi}
-            card={card}
-            onCardClick={handleCardClick}
-            selectedCharacter={selectedCharacter}
-            onSelectCharacter={setSelectedCharacter}
-          />
+          {aiChatVisible && (
+            <AIChatSidebar
+              ref={aiChatSidebarRef}
+              visible={aiChatVisible}
+              onClose={() => {
+                setAiChatVisible(false);
+                setChunkId(undefined);
+                setAiChatLoading(false);
+              }}
+              cardIdRef={cardIdRef}
+              chunkId={chunkId}
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              chatStatus={chatStatus}
+              setChatStatus={setChatStatus}
+              aiChatLoading={aiChatLoading}
+              setAiChatLoading={setAiChatLoading}
+              useStreamingApi={useStreamingApi}
+              card={card}
+              onCardClick={handleCardClick}
+            />
+          )}
+
+          {/* 语音助手侧边栏 */}
+          {voiceAssistantVisible && selectedCharacter && (
+            <VoiceAssistantChat
+              ref={voiceAssistantRef}
+              visible={voiceAssistantVisible}
+              onClose={handleVoiceAssistantClose}
+              cardIdRef={cardIdRef}
+              chunkId={voiceChunkId}
+              chatMessages={voiceChatMessages}
+              setChatMessages={setVoiceChatMessages}
+              chatStatus={voiceChatStatus}
+              setChatStatus={setVoiceChatStatus}
+              aiChatLoading={voiceAiChatLoading}
+              setAiChatLoading={setVoiceAiChatLoading}
+              useStreamingApi={useStreamingApi}
+              card={card}
+              onCardClick={handleCardClick}
+            />
+          )}
         </div>
       </div>
+
+      {/* 角色选择Modal */}
+      <Modal
+        title="选择虚拟陪学伙伴"
+        open={characterSelectVisible}
+        onCancel={() => setCharacterSelectVisible(false)}
+        footer={null}
+        width={700}
+        styles={{
+          mask: { backgroundColor: 'rgba(0, 0, 0, 0.8)' },
+          content: {
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+          },
+        }}
+      >
+        <div style={{ padding: '20px 0' }}>
+          <p style={{ marginBottom: '20px', color: 'rgba(255, 255, 255, 0.8)' }}>
+            选择一个虚拟伙伴来陪伴你的学习之旅
+          </p>
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            {[
+              {
+                id: 'chihana',
+                name: '千花',
+                avatar: '🌸',
+                description: '温柔体贴的学习伙伴',
+                color: '#FFB6C1',
+                personality: '温柔、耐心、善解人意',
+                backgroundImage: 'linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%)',
+              },
+              {
+                id: 'yuki',
+                name: '雪音',
+                avatar: '❄️',
+                description: '冷静理智的知识导师',
+                color: '#87CEEB',
+                personality: '冷静、理智、博学',
+                backgroundImage: 'linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%)',
+              },
+              {
+                id: 'sakura',
+                name: '樱花',
+                avatar: '🌺',
+                description: '活泼开朗的学习助手',
+                color: '#FFB7DD',
+                personality: '活泼、开朗、充满活力',
+                backgroundImage: 'linear-gradient(135deg, #FFB7DD 0%, #FFC0CB 100%)',
+              },
+            ].map(character => (
+              <div
+                key={character.id}
+                onClick={() => handleCharacterSelect(character)}
+                style={{
+                  flex: '1 1 calc(33.333% - 15px)',
+                  minWidth: '180px',
+                  padding: '24px',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  transition: 'all 0.3s ease',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = character.color;
+                  e.currentTarget.style.background = character.color + '20';
+                  e.currentTarget.style.transform = 'translateY(-5px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ fontSize: '60px', marginBottom: '16px' }}>{character.avatar}</div>
+                <div
+                  style={{
+                    fontWeight: 'bold',
+                    fontSize: '20px',
+                    marginBottom: '8px',
+                    color: 'white',
+                  }}
+                >
+                  {character.name}
+                </div>
+                <div
+                  style={{
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    fontSize: '14px',
+                    marginBottom: '8px',
+                  }}
+                >
+                  {character.description}
+                </div>
+                <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '12px' }}>
+                  {character.personality}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
     </Spin>
   );
 }

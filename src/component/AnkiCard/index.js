@@ -235,6 +235,7 @@ const AnkiCard = forwardRef(
       showAIChatSidebar,
       getChatMessageAndShowSidebar,
       onInitChunkChatSession,
+      characterId,
     },
     ref
   ) => {
@@ -612,6 +613,7 @@ const AnkiCard = forwardRef(
                 >
                   <MyEditor
                     ref={editorRef}
+                    characterId={characterId}
                     getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
                     onInitChunkChatSession={onInitChunkChatSession}
                     showAIChatSidebar={showAIChatSidebar}

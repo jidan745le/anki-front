@@ -4,6 +4,7 @@ import wsClient from '../websocket/wsClient';
 const useSocket = () => {
   const [socket, setSocket] = useState(wsClient.socket);
   const [isConnected, setIsConnected] = useState(wsClient.socket?.connected);
+  const [socketId, setSocketId] = useState(wsClient.getSocketId());
 
   useEffect(() => {
     // Connect socket when component mounts
@@ -20,6 +21,8 @@ const useSocket = () => {
         console.log('Authentication successful', data);
         setSocket(wsClient.socket);
         setIsConnected(true);
+        // 更新socketId
+        setSocketId(wsClient.getSocketId());
       };
 
       const handleError = () => {
@@ -30,12 +33,23 @@ const useSocket = () => {
       const handleDisconnect = () => {
         console.log('disconnect');
         setIsConnected(false);
+        // 清除socketId
+        setSocketId(null);
+      };
+
+      const handleConnect = () => {
+        console.log('connect');
+        setSocket(wsClient.socket);
+        setIsConnected(true);
+        // 更新socketId
+        setSocketId(wsClient.getSocketId());
       };
 
       // Add event listeners
       wsClient.client.on('auth_success', handleAuthSuccess);
       wsClient.client.on('errorMessage', handleError);
       wsClient.client.on('disconnect', handleDisconnect);
+      wsClient.client.on('connect', handleConnect);
 
       // Cleanup on unmount
       return () => {
@@ -45,6 +59,7 @@ const useSocket = () => {
           wsClient.client.off('auth_success', handleAuthSuccess);
           wsClient.client.off('errorMessage', handleError);
           wsClient.client.off('disconnect', handleDisconnect);
+          wsClient.client.off('connect', handleConnect);
         }
       };
     }
@@ -69,11 +84,18 @@ const useSocket = () => {
     return () => {};
   };
 
+  // Method to get socketId
+  const getSocketId = () => {
+    return wsClient.getSocketId();
+  };
+
   return {
     socket,
     isConnected,
+    socketId,
     emit,
     on,
+    getSocketId,
   };
 };
 

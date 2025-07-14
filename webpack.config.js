@@ -269,6 +269,27 @@ module.exports = {
                         }
                     }
                 ]
+            },
+            // 处理图片等静态资源
+            {
+                test: /\.(png|jpe?g|gif|svg|ico)$/i,
+                type: 'asset',
+                parser: {
+                    dataUrlCondition: {
+                        maxSize: 8 * 1024 // 8KB以下的图片转为base64
+                    }
+                },
+                generator: {
+                    filename: 'assets/images/[name].[hash:8][ext]'
+                }
+            },
+            // 处理字体文件
+            {
+                test: /\.(woff|woff2|eot|ttf|otf)$/i,
+                type: 'asset/resource',
+                generator: {
+                    filename: 'assets/fonts/[name].[hash:8][ext]'
+                }
             }
         ].filter(Boolean),
     },

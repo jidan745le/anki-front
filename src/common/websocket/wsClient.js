@@ -10,6 +10,7 @@ class WebSocketClient {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 3;
     this.client = new EventEmitter();
+    this.socketId = null; // 添加全局socketId存储
   }
 
   async refreshToken() {
@@ -27,6 +28,22 @@ class WebSocketClient {
     }
 
     return res;
+  }
+
+  // 获取socketId的方法
+  getSocketId() {
+    return this.socketId;
+  }
+
+  // 设置socketId的方法
+  setSocketId(socketId) {
+    this.socketId = socketId;
+    // 同时保存到sessionStorage用于页面刷新后恢复
+    if (socketId) {
+      sessionStorage.setItem('socketId', socketId);
+    } else {
+      sessionStorage.removeItem('socketId');
+    }
   }
 
   async connect() {
@@ -65,12 +82,22 @@ class WebSocketClient {
       this.client.emit('connect');
       console.log('Connected to socket server');
       this.reconnectAttempts = 0; // 重置重连次数
+
+      // 获取并存储socketId
+      if (this.socket?.id) {
+        this.setSocketId(this.socket.id);
+        console.log('Socket ID saved:', this.socket.id);
+      }
     });
 
     this.socket.on('disconnect', e => {
       this.client.emit('disconnect');
       const token = localStorage.getItem('token');
       console.log('disconnect', token, 'token', e);
+
+      // 清除socketId
+      this.setSocketId(null);
+
       if (token) {
         setTimeout(() => this.connect(), 1000);
       }
@@ -81,6 +108,13 @@ class WebSocketClient {
     this.socket.on('auth_success', data => {
       console.log('Authentication successful', data);
       this.userId = data.userId;
+
+      // 如果auth_success事件中包含socketId，则使用它
+      if (data.socketId) {
+        this.setSocketId(data.socketId);
+        console.log('Socket ID from auth_success:', data.socketId);
+      }
+
       this.client.emit('auth_success', data);
     });
 
@@ -122,6 +156,8 @@ class WebSocketClient {
       this.socket.disconnect();
       this.socket = null;
     }
+    // 清除socketId
+    this.setSocketId(null);
   }
 }
 

@@ -6,9 +6,10 @@ import {
   HighlightOutlined,
   InfoCircleOutlined,
   MessageOutlined,
+  SoundOutlined,
   TagOutlined,
 } from '@ant-design/icons';
-import { Input, Popover, Tag, Tooltip, message } from 'antd';
+import { Input, Modal, Popover, Tag, Tooltip, message } from 'antd';
 import React, { useState } from 'react';
 import { useI18n } from '../../common/hooks/useI18n';
 import apiClient from '../../common/http/apiClient';
@@ -37,6 +38,8 @@ const AnkiBar = ({
   onCardUpdate,
   pagination = null,
   onNotesReady, // 可选回调，用于将笔记功能暴露给父组件
+  selectedCharacter,
+  onSelectCharacter,
 }) => {
   const { t, currentLanguage } = useI18n();
   const [tagsVisible, setTagsVisible] = useState(false);
@@ -48,6 +51,35 @@ const AnkiBar = ({
   const [updating, setUpdating] = useState(false);
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [notesModalTitle, setNotesModalTitle] = useState(null);
+  const [characterSelectVisible, setCharacterSelectVisible] = useState(false);
+
+  // 角色定义
+  const characters = [
+    {
+      id: 'chihana',
+      name: '千花',
+      avatar: '🌸',
+      description: '温柔体贴的学习伙伴',
+      color: '#FFB6C1',
+      personality: '温柔、耐心、善解人意',
+    },
+    {
+      id: 'yuki',
+      name: '雪音',
+      avatar: '❄️',
+      description: '冷静理智的知识导师',
+      color: '#87CEEB',
+      personality: '冷静、理智、博学',
+    },
+    {
+      id: 'sakura',
+      name: '樱花',
+      avatar: '🌺',
+      description: '活泼开朗的学习助手',
+      color: '#FFB7DD',
+      personality: '活泼、开朗、充满活力',
+    },
+  ];
 
   // 预设标签（英文key）
   const presetTags = ['favorite', 'important', 'difficult', 'error_prone', 'review'];
@@ -478,6 +510,25 @@ const AnkiBar = ({
     </div>
   );
 
+  // 角色选择处理
+  const handleCharacterSelect = character => {
+    onSelectCharacter?.(character);
+    setCharacterSelectVisible(false);
+    console.log('选择角色:', character);
+  };
+
+  // 打开角色选择弹窗
+  const handleVoiceButtonClick = () => {
+    console.log('handleVoiceButtonClick', selectedCharacter);
+    if (selectedCharacter) {
+      // 如果已选择角色，直接禁用语音
+      onSelectCharacter?.(null);
+    } else {
+      // 如果未选择角色，打开选择弹窗
+      setCharacterSelectVisible(true);
+    }
+  };
+
   return (
     <div
       className="anki-bar-container"
@@ -527,6 +578,21 @@ const AnkiBar = ({
             </span>
           </Tooltip>
         )}
+
+        {/* 角色选择按钮 */}
+        <Tooltip
+          title={
+            selectedCharacter ? `${selectedCharacter.name} (点击切换)` : t('anki.selectCharacter')
+          }
+        >
+          <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={handleVoiceButtonClick}>
+            {selectedCharacter ? (
+              <span style={{ fontSize: '16px' }}>{selectedCharacter.avatar}</span>
+            ) : (
+              <SoundOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
+            )}
+          </span>
+        </Tooltip>
 
         {aiChatEnabled && (
           <Tooltip title={t('anki.toggleAiChat')}>
@@ -656,6 +722,57 @@ const AnkiBar = ({
           console.log('笔记删除成功:', deletedNote);
         }}
       />
+
+      {/* 角色选择弹窗 */}
+      <Modal
+        title={t('anki.selectCharacter')}
+        open={characterSelectVisible}
+        onCancel={() => setCharacterSelectVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <div style={{ padding: '20px 0' }}>
+          <p style={{ marginBottom: '20px', color: '#666' }}>
+            {t('anki.selectCharacterDescription')}
+          </p>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            {characters.map(character => (
+              <div
+                key={character.id}
+                onClick={() => handleCharacterSelect(character)}
+                style={{
+                  flex: '1 1 calc(33.333% - 12px)',
+                  minWidth: '160px',
+                  padding: '20px',
+                  border: '2px solid #f0f0f0',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  transition: 'all 0.3s ease',
+                  backgroundColor: '#fff',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = character.color;
+                  e.currentTarget.style.backgroundColor = character.color + '10';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = '#f0f0f0';
+                  e.currentTarget.style.backgroundColor = '#fff';
+                }}
+              >
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}>{character.avatar}</div>
+                <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '8px' }}>
+                  {character.name}
+                </div>
+                <div style={{ color: '#666', fontSize: '14px', marginBottom: '8px' }}>
+                  {character.description}
+                </div>
+                <div style={{ color: '#999', fontSize: '12px' }}>{character.personality}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

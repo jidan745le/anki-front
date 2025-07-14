@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import useSocket from '../../common/hooks/useSocket';
 import { API_BASE_URL } from '../../common/util/env';
 import { aiExplain, aiGlobalExplain } from './Plugins/aiExplainMenu';
 import { chatChunkModule } from './Plugins/chatChunk';
@@ -168,6 +169,7 @@ const CardEditor = forwardRef(
       showAIChatSidebar,
       getChatMessageAndShowSidebar,
       onInitChunkChatSession,
+      characterId,
       config = {},
     },
     ref
@@ -184,6 +186,7 @@ const CardEditor = forwardRef(
     const houdiniSupportRef = useRef(false);
     const titleHighlightTimeoutRef = useRef(null);
     const resizeObserverRef = useRef(null);
+    const { socketId } = useSocket();
 
     // 模拟userCard数据，实际使用时应该从props传入
     const userCard = {
@@ -492,12 +495,12 @@ const CardEditor = forwardRef(
     // 监听编辑器内容变化，重新计算标题位置
     const handleEditorChange = useCallback(
       editor => {
-        console.log(
-          editor,
-          JSON.stringify(editor.selection),
-          'editor.selection',
-          new Error().stack
-        );
+        // console.log(
+        //   editor,
+        //   JSON.stringify(editor.selection),
+        //   'editor.selection',
+        //   new Error().stack
+        // );
 
         if (initialFlag.current) {
           preHtmlStr.current = editor.getHtml();
@@ -511,6 +514,9 @@ const CardEditor = forwardRef(
           //第一次有意义赋值
           if (isNew) {
             console.log(html, editor, editor.marks, editor.getHtml(), 'initial3');
+            if (editor.getHtml() === '<p><br></p>') {
+              return;
+            }
             editor.selectAll();
             editor.addMark('fontSize', '24px');
             //每一个段落居中
@@ -544,6 +550,7 @@ const CardEditor = forwardRef(
           return;
         } else {
           let curHtmlStr = editor.getHtml();
+          console.log(curHtmlStr, 'curHtmlStr');
           if (preHtmlStr.current && curHtmlStr !== preHtmlStr.current) {
             preHtmlStr.current = curHtmlStr;
             onChange && onChange(curHtmlStr);
@@ -784,7 +791,9 @@ const CardEditor = forwardRef(
     // 及时销毁 editor
     useEffect(() => {
       if (editor) {
+        editor.socketId = socketId;
         editor.cardId = cardUUID;
+        editor.characterId = characterId;
         editor.showAIChatSidebar = showAIChatSidebar;
         editor.getChatMessageAndShowSidebar = getChatMessageAndShowSidebar;
         editor.onInitChunkChatSession = onInitChunkChatSession;
@@ -804,7 +813,7 @@ const CardEditor = forwardRef(
         console.log('destroy');
         setEditor(null);
       };
-    }, [editor]);
+    }, [editor, socketId, characterId]);
 
     const insertTextBelow = (editor, text) => {
       const { selection } = editor;

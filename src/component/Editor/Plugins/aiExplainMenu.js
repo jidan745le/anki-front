@@ -98,6 +98,9 @@ class AiExplain {
         chattype: 'Explain',
         model: 'deepseek-chat',
         cardId: editor.cardId,
+        // 添加角色支持
+        character: editor.characterId || undefined,
+        socketId: editor.socketId || undefined,
       };
 
       SlateTransforms.wrapNodes(
@@ -216,6 +219,9 @@ class AiGlobalExplain {
         chattype: 'Explain',
         model: 'deepseek-chat',
         cardId: editor.cardId,
+        // 添加角色支持
+        character: editor.characterId || undefined,
+        socketId: editor.socketId || undefined,
       };
 
       SlateTransforms.wrapNodes(

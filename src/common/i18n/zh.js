@@ -252,6 +252,17 @@ export const zh = {
     loading: '加载中...',
     askAiPlaceholder: '问AI任何问题...',
 
+    // 语音助手
+    enableVoice: '开启语音助手',
+    disableVoice: '关闭语音助手',
+    selectCharacter: '选择AI角色',
+    selectCharacterDescription: '选择您的AI语音学习伙伴：',
+    interruptAndSend: '打断并发送新消息',
+    interruptStream: '打断输出',
+    sendMessage: '发送消息',
+    interruptVoice: '中断语音',
+    interrupt: '中断',
+
     // 引用卡片
     referenceCard: '引用卡片',
     jumpToCard: '跳转到卡片',
