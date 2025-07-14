@@ -292,12 +292,10 @@ function Anki() {
       aiChatSidebarRef.current.cleanupEventSources();
     }
 
-    setChatMessages([
-      ...pendingMessages,
-      { role: 'assistant', pending: true, content: '', sessionId: sessionId },
-    ]);
+    // 关键修改：不设置sessionId，避免触发状态监听effect
+    setChatMessages([...pendingMessages, { role: 'assistant', pending: true, content: '' }]);
 
-    // 直接处理chunk会话的EventSource连接，不调用getAIChat
+    // 直接处理chunk会话的EventSource连接
     if (aiChatSidebarRef.current && aiChatSidebarRef.current.handleChunkSession) {
       aiChatSidebarRef.current.handleChunkSession(sessionId);
     }

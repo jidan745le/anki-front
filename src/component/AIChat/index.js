@@ -17,7 +17,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import animeBgImage from '../../assets/anime-bg.png';
 import { useI18n } from '../../common/hooks/useI18n';
 import useSocket from '../../common/hooks/useSocket';
 import apiClient from '../../common/http/apiClient';
@@ -672,6 +671,7 @@ const AIChatSidebar = forwardRef(
 
     // 清理EventSource连接
     const cleanupEventSources = useCallback(() => {
+      console.log('清理EventSource连接');
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -871,7 +871,8 @@ const AIChatSidebar = forwardRef(
 
     // 当组件显示时加载聊天历史 - 但如果正在处理chunk会话则跳过
     useEffect(() => {
-      if (visible && cardIdRef.current && !isHandlingChunkSession) {
+      // 跳过chunk会话：chunk会话有自己的消息管理逻辑
+      if (visible && cardIdRef.current && !isHandlingChunkSession && !chunkId) {
         getAIChat(cardIdRef.current, chunkId);
       }
     }, [visible, cardIdRef.current, chunkId, getAIChat, isHandlingChunkSession]);
@@ -1612,11 +1613,11 @@ const AIChatSidebar = forwardRef(
 
     // 暴露清理函数给父组件
     useEffect(() => {
-      if (visible) {
-        // 当组件变为可见时，清理可能存在的连接
+      if (visible && !isHandlingChunkSession) {
+        // 当组件变为可见时，清理可能存在的连接（但不在chunk会话期间）
         cleanupEventSources();
       }
-    }, [visible, cleanupEventSources]);
+    }, [visible, cleanupEventSources, isHandlingChunkSession]);
 
     if (!visible) return null;
 
@@ -1625,8 +1626,8 @@ const AIChatSidebar = forwardRef(
         <div
           className="side-chat-container"
           style={{
-            backgroundColor: selectedCharacter ? 'transparent' : 'white',
-            backgroundImage: selectedCharacter ? `url(${animeBgImage})` : 'none',
+            backgroundColor: selectedCharacter ? 'rgba(0, 0, 0, 0.5)' : 'white',
+            // backgroundImage: selectedCharacter ? `url(${animeBgImage})` : 'none',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
