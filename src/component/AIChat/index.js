@@ -807,6 +807,7 @@ const AIChatSidebar = forwardRef(
         cleanupEventSources,
         handleChunkSession,
         handleAudioCleanupOnNavigation,
+        getAIChat, // 暴露getAIChat方法
       }),
       [cleanupEventSources, handleChunkSession, handleAudioCleanupOnNavigation]
     );

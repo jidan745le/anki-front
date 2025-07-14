@@ -813,7 +813,14 @@ const CardEditor = forwardRef(
         console.log('destroy');
         setEditor(null);
       };
-    }, [editor, socketId, characterId]);
+    }, [editor, socketId]);
+
+    // 单独的useEffect来更新characterId，避免重新创建编辑器
+    useEffect(() => {
+      if (editor) {
+        editor.characterId = characterId;
+      }
+    }, [editor, characterId]);
 
     const insertTextBelow = (editor, text) => {
       const { selection } = editor;

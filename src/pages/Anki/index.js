@@ -268,7 +268,16 @@ function Anki() {
     }
 
     setChunkId(chunkId);
+
+    // 设置loading状态，让useEffect处理消息加载
     setAiChatLoading(true);
+
+    // 延迟调用getAIChat，避免初始化顺序问题
+    setTimeout(() => {
+      if (aiChatSidebarRef.current && aiChatSidebarRef.current.getAIChat) {
+        aiChatSidebarRef.current.getAIChat(cardIdRef.current, chunkId);
+      }
+    }, 100);
   };
 
   const onInitChunkChatSession = async (promptConfig, sessionId) => {
