@@ -235,6 +235,7 @@ const AnkiCard = forwardRef(
       showAIChatSidebar,
       getChatMessageAndShowSidebar,
       onInitChunkChatSession,
+      cleanupOnNavigation,
       characterId,
     },
     ref
@@ -616,6 +617,7 @@ const AnkiCard = forwardRef(
                     characterId={characterId}
                     getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
                     onInitChunkChatSession={onInitChunkChatSession}
+                    cleanupOnNavigation={cleanupOnNavigation}
                     showAIChatSidebar={showAIChatSidebar}
                     cardUUID={cardUUID}
                     config={config}

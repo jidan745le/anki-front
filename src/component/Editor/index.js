@@ -169,6 +169,7 @@ const CardEditor = forwardRef(
       showAIChatSidebar,
       getChatMessageAndShowSidebar,
       onInitChunkChatSession,
+      cleanupOnNavigation,
       characterId,
       config = {},
     },
@@ -797,6 +798,7 @@ const CardEditor = forwardRef(
         editor.showAIChatSidebar = showAIChatSidebar;
         editor.getChatMessageAndShowSidebar = getChatMessageAndShowSidebar;
         editor.onInitChunkChatSession = onInitChunkChatSession;
+        editor.cleanupOnNavigation = cleanupOnNavigation;
         console.log(
           editor.getConfig(),
           editor.getConfig().hoverbarKeys,

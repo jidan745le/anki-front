@@ -6,11 +6,12 @@ import {
   HighlightOutlined,
   InfoCircleOutlined,
   MessageOutlined,
+  PlusOutlined,
   SoundOutlined,
   TagOutlined,
 } from '@ant-design/icons';
-import { Input, Modal, Popover, Tag, Tooltip, message } from 'antd';
-import React, { useState } from 'react';
+import { Avatar, Button, Card, Input, Modal, Popover, Spin, Tag, Tooltip, message } from 'antd';
+import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../common/hooks/useI18n';
 import apiClient from '../../common/http/apiClient';
 import CardVisualizer from '../CardVisualizer';
@@ -53,36 +54,73 @@ const AnkiBar = ({
   const [notesModalTitle, setNotesModalTitle] = useState(null);
   const [characterSelectVisible, setCharacterSelectVisible] = useState(false);
 
-  // 角色定义
-  const characters = [
-    {
-      id: 'chihana',
-      name: '千花',
-      avatar: '🌸',
-      description: '温柔体贴的学习伙伴',
-      color: '#FFB6C1',
-      personality: '温柔、耐心、善解人意',
-    },
-    {
-      id: 'yuki',
-      name: '雪音',
-      avatar: '❄️',
-      description: '冷静理智的知识导师',
-      color: '#87CEEB',
-      personality: '冷静、理智、博学',
-    },
-    {
-      id: 'sakura',
-      name: '樱花',
-      avatar: '🌺',
-      description: '活泼开朗的学习助手',
-      color: '#FFB7DD',
-      personality: '活泼、开朗、充满活力',
-    },
-  ];
+  // 人物相关状态
+  const [availableCharacters, setAvailableCharacters] = useState([]);
+  const [activatedCharacters, setActivatedCharacters] = useState([]);
+  const [loadingCharacters, setLoadingCharacters] = useState(false);
+  const [activatingCharacter, setActivatingCharacter] = useState(null);
 
   // 预设标签（英文key）
   const presetTags = ['favorite', 'important', 'difficult', 'error_prone', 'review'];
+
+  // 获取可用人物列表
+  const fetchAvailableCharacters = async () => {
+    try {
+      const response = await apiClient.get('/aichat/characters/available');
+      console.log('Available characters response:', response.data);
+      if (response.data.success && response.data.data?.success) {
+        setAvailableCharacters(response.data.data.data || []);
+      }
+    } catch (error) {
+      console.error('获取可用人物列表失败:', error);
+      message.error('获取可用人物列表失败');
+    }
+  };
+
+  // 获取已激活人物列表
+  const fetchActivatedCharacters = async () => {
+    try {
+      setLoadingCharacters(true);
+      const response = await apiClient.get('/aichat/characters/activated');
+      console.log('Activated characters response:', response.data);
+      if (response.data.success && response.data.data?.success) {
+        setActivatedCharacters(response.data.data.data || []);
+      }
+    } catch (error) {
+      console.error('获取已激活人物列表失败:', error);
+      message.error('获取已激活人物列表失败');
+    } finally {
+      setLoadingCharacters(false);
+    }
+  };
+
+  // 激活人物
+  const activateCharacter = async characterCode => {
+    try {
+      setActivatingCharacter(characterCode);
+      const response = await apiClient.post(`/aichat/characters/${characterCode}/activate`);
+      if (response.data.success) {
+        message.success(response.data.data.isNewActivation ? '人物激活成功！' : '人物已激活');
+        // 重新获取已激活人物列表
+        await fetchActivatedCharacters();
+        // 如果是新激活的，自动选中这个人物
+        if (response.data.data.isNewActivation) {
+          onSelectCharacter?.(response.data.data.character);
+        }
+      }
+    } catch (error) {
+      console.error('激活人物失败:', error);
+      message.error('激活人物失败: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setActivatingCharacter(null);
+    }
+  };
+
+  // 组件初始化时获取人物数据
+  useEffect(() => {
+    fetchActivatedCharacters();
+    fetchAvailableCharacters();
+  }, []);
 
   // CardVisualizer相关函数，MAX_VISIBLE_CARDS已不再需要，后端计算可见卡片
 
@@ -510,6 +548,33 @@ const AnkiBar = ({
     </div>
   );
 
+  // 获取角色默认头像
+  const getCharacterAvatar = character => {
+    if (character.avatar) {
+      return character.avatar;
+    }
+    // 根据角色代码提供默认头像
+    const defaultAvatars = {
+      chihana: <Avatar src={require('../../assets/images/avatar/chihana.png')} size={24} />,
+      yuki: <Avatar src={require('../../assets/images/avatar/yuki.png')} size={24} />,
+    };
+    return defaultAvatars[character.code] || '🎭';
+  };
+
+  // 获取角色描述
+  const getCharacterDescription = character => {
+    if (character.description) {
+      return character.description;
+    }
+    // 根据角色代码提供默认描述
+    const defaultDescriptions = {
+      chihana: '温柔体贴的学习伙伴',
+      yuki: '冷静理智的知识导师',
+      sakura: '活泼开朗的学习助手',
+    };
+    return defaultDescriptions[character.code] || '智能学习助手';
+  };
+
   // 角色选择处理
   const handleCharacterSelect = character => {
     onSelectCharacter?.(character);
@@ -527,6 +592,138 @@ const AnkiBar = ({
       // 如果未选择角色，打开选择弹窗
       setCharacterSelectVisible(true);
     }
+  };
+
+  // 渲染角色选择弹窗内容
+  const renderCharacterSelectionModal = () => {
+    return (
+      <div style={{ padding: '20px 0' }}>
+        <p style={{ marginBottom: '20px', color: '#666' }}>
+          {t('anki.selectCharacterDescription') || '选择一个陪学虚拟人物来获得个性化的学习体验'}
+        </p>
+
+        {loadingCharacters ? (
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: '16px' }}>加载中...</div>
+          </div>
+        ) : (
+          <>
+            {/* 已激活的人物 */}
+            {activatedCharacters.length > 0 && (
+              <div style={{ marginBottom: '32px' }}>
+                <h4 style={{ marginBottom: '16px', color: '#333' }}>已激活的人物</h4>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  {activatedCharacters.map(character => (
+                    <Card
+                      key={character.id}
+                      hoverable
+                      style={{
+                        flex: '1 1 calc(33.333% - 12px)',
+                        minWidth: '160px',
+                        cursor: 'pointer',
+                        border: '2px solid #f0f0f0',
+                        borderRadius: '12px',
+                      }}
+                      bodyStyle={{ padding: '20px', textAlign: 'center' }}
+                      onClick={() => handleCharacterSelect(character)}
+                    >
+                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>
+                        {getCharacterAvatar(character)}
+                      </div>
+                      <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '8px' }}>
+                        {character.name}
+                      </div>
+                      <div style={{ color: '#666', fontSize: '14px', marginBottom: '8px' }}>
+                        {getCharacterDescription(character)}
+                      </div>
+                      <div style={{ color: '#999', fontSize: '12px' }}>
+                        使用次数: {character.usageCount || 0}
+                      </div>
+                      {character.emotionPatterns && character.emotionPatterns.length > 0 && (
+                        <div style={{ color: '#999', fontSize: '11px', marginTop: '4px' }}>
+                          表情: {character.emotionPatterns.slice(0, 3).join('、')}
+                          {character.emotionPatterns.length > 3 ? '等' : ''}
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 可激活的人物 */}
+            {availableCharacters.length > 0 && (
+              <div>
+                <h4 style={{ marginBottom: '16px', color: '#333' }}>
+                  可激活的人物
+                  <span style={{ fontSize: '12px', color: '#999', marginLeft: '8px' }}>
+                    (点击激活后可使用)
+                  </span>
+                </h4>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  {availableCharacters
+                    .filter(
+                      char => !activatedCharacters.some(activated => activated.id === char.id)
+                    )
+                    .map(character => (
+                      <Card
+                        key={character.id}
+                        hoverable
+                        style={{
+                          flex: '1 1 calc(33.333% - 12px)',
+                          minWidth: '160px',
+                          border: '2px solid #f0f0f0',
+                          borderRadius: '12px',
+                          opacity: activatingCharacter === character.code ? 0.7 : 1,
+                        }}
+                        bodyStyle={{ padding: '20px', textAlign: 'center' }}
+                        actions={[
+                          <Button
+                            key="activate"
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            loading={activatingCharacter === character.code}
+                            onClick={e => {
+                              e.stopPropagation();
+                              activateCharacter(character.code);
+                            }}
+                            style={{ margin: '0 auto' }}
+                          >
+                            激活
+                          </Button>,
+                        ]}
+                      >
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>
+                          {getCharacterAvatar(character)}
+                        </div>
+                        <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '8px' }}>
+                          {character.name}
+                        </div>
+                        <div style={{ color: '#666', fontSize: '14px', marginBottom: '8px' }}>
+                          {getCharacterDescription(character)}
+                        </div>
+                        {character.emotionPatterns && character.emotionPatterns.length > 0 && (
+                          <div style={{ color: '#999', fontSize: '11px' }}>
+                            表情: {character.emotionPatterns.slice(0, 3).join('、')}
+                            {character.emotionPatterns.length > 3 ? '等' : ''}
+                          </div>
+                        )}
+                      </Card>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {activatedCharacters.length === 0 && availableCharacters.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                暂无可用的虚拟人物
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -582,12 +779,14 @@ const AnkiBar = ({
         {/* 角色选择按钮 */}
         <Tooltip
           title={
-            selectedCharacter ? `${selectedCharacter.name} (点击切换)` : t('anki.selectCharacter')
+            selectedCharacter
+              ? `${selectedCharacter.name} (点击切换)`
+              : t('anki.selectCharacter') || '选择虚拟人物'
           }
         >
           <span style={{ cursor: 'pointer', marginRight: '8px' }} onClick={handleVoiceButtonClick}>
             {selectedCharacter ? (
-              <span style={{ fontSize: '16px' }}>{selectedCharacter.avatar}</span>
+              <span style={{ fontSize: '16px' }}>{getCharacterAvatar(selectedCharacter)}</span>
             ) : (
               <SoundOutlined style={{ fontSize: '16px', color: '#d9d9d9' }} />
             )}
@@ -725,53 +924,14 @@ const AnkiBar = ({
 
       {/* 角色选择弹窗 */}
       <Modal
-        title={t('anki.selectCharacter')}
+        title={t('anki.selectCharacter') || '选择虚拟人物'}
         open={characterSelectVisible}
         onCancel={() => setCharacterSelectVisible(false)}
         footer={null}
-        width={600}
+        width={800}
+        style={{ top: 20 }}
       >
-        <div style={{ padding: '20px 0' }}>
-          <p style={{ marginBottom: '20px', color: '#666' }}>
-            {t('anki.selectCharacterDescription')}
-          </p>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            {characters.map(character => (
-              <div
-                key={character.id}
-                onClick={() => handleCharacterSelect(character)}
-                style={{
-                  flex: '1 1 calc(33.333% - 12px)',
-                  minWidth: '160px',
-                  padding: '20px',
-                  border: '2px solid #f0f0f0',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.3s ease',
-                  backgroundColor: '#fff',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = character.color;
-                  e.currentTarget.style.backgroundColor = character.color + '10';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#f0f0f0';
-                  e.currentTarget.style.backgroundColor = '#fff';
-                }}
-              >
-                <div style={{ fontSize: '48px', marginBottom: '12px' }}>{character.avatar}</div>
-                <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '8px' }}>
-                  {character.name}
-                </div>
-                <div style={{ color: '#666', fontSize: '14px', marginBottom: '8px' }}>
-                  {character.description}
-                </div>
-                <div style={{ color: '#999', fontSize: '12px' }}>{character.personality}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {renderCharacterSelectionModal()}
       </Modal>
     </div>
   );

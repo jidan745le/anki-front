@@ -4,8 +4,14 @@ import { omit } from 'lodash';
 import apiClient from 'src/common/http/apiClient';
 import { getStoredLanguage, translate } from 'src/common/i18n';
 
-const initChunkSession = async requestData => {
+const initChunkSession = async (requestData, handleAudioCleanupOnNavigation) => {
   try {
+    let isInterrupt;
+    handleAudioCleanupOnNavigation &&
+      (isInterrupt = await handleAudioCleanupOnNavigation.current.handleAudioCleanupOnNavigation());
+    if (isInterrupt) {
+      await new Promise(resolve => setTimeout(resolve, 400));
+    }
     const response = await apiClient.post('/aichat/initSession', requestData);
     console.log(response, 'response');
 
@@ -111,7 +117,7 @@ class AiExplain {
 
       editor.deselect();
 
-      const data = await initChunkSession(requestData);
+      const data = await initChunkSession(requestData, editor.cleanupOnNavigation);
       const sessionId = data.sessionId;
 
       SlateTransforms.setNodes(
@@ -124,6 +130,7 @@ class AiExplain {
             SlateElement.isElement(n) && n.type === 'ailoadingchunk' && n.chunkId === chunkId,
         }
       );
+      console.log('editor.onInitChunkChatSession', editor.onInitChunkChatSession);
       // editor.getChatMessageAndShowSidebar && editor.getChatMessageAndShowSidebar(chunkId);
       editor.onInitChunkChatSession && editor.onInitChunkChatSession(requestData, sessionId);
     } catch (error) {
@@ -232,7 +239,7 @@ class AiGlobalExplain {
 
       editor.deselect();
 
-      const data = await initChunkSession(requestData);
+      const data = await initChunkSession(requestData, editor.cleanupOnNavigation); // 调用cleanupOnNavigation方法，清理之前的语音播放和朗读
       const sessionId = data.sessionId;
 
       SlateTransforms.setNodes(
@@ -245,6 +252,7 @@ class AiGlobalExplain {
             SlateElement.isElement(n) && n.type === 'ailoadingchunk' && n.chunkId === chunkId,
         }
       );
+      console.log('editor.onInitChunkChatSession', editor.onInitChunkChatSession);
       // editor.getChatMessageAndShowSidebar && editor.getChatMessageAndShowSidebar(chunkId);
       editor.onInitChunkChatSession && editor.onInitChunkChatSession(requestData, sessionId);
     } catch (error) {

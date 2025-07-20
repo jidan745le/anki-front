@@ -1022,7 +1022,7 @@ function Anki() {
       contextContent: contextContent,
       model: 'deepseek-chat',
       // 添加语音相关参数
-      character: voiceEnabled && selectedCharacter ? selectedCharacter.id : undefined,
+      character: voiceEnabled && selectedCharacter ? selectedCharacter.code : undefined,
       socketId: voiceEnabled ? getSocketId() : undefined,
     };
 

@@ -20,7 +20,7 @@ import React, {
 import { useI18n } from '../../common/hooks/useI18n';
 import useSocket from '../../common/hooks/useSocket';
 import apiClient from '../../common/http/apiClient';
-// 导入背景图片
+import { characterEmotionMap, defaultEmotion } from './util/emotions';
 
 const AIChatSidebar = forwardRef(
   (
@@ -54,13 +54,17 @@ const AIChatSidebar = forwardRef(
     // 语音相关状态
     const [voiceEnabled, setVoiceEnabled] = useState(false);
     const [voiceConnected, setVoiceConnected] = useState(false);
-    const [voiceStatus, setVoiceStatus] = useState('idle'); // idle, connecting, connected, playing, error
-    const [currentEmotion, setCurrentEmotion] = useState('😊');
-    const [emotionText, setEmotionText] = useState('待机中');
+    const [voiceBufferStatus, setVoiceBufferStatus] = useState('idle'); // idle, connecting, connected, buffering, buffer-ended
+    // const [currentEmotion, setCurrentEmotion] = useState('😊');
+    // const [emotionText, setEmotionText] = useState('待机中');
     const [voiceSessionId, setVoiceSessionId] = useState(null);
     const [audioPlaying, setAudioPlaying] = useState(false);
     const [voiceSynthesisCompleted, setVoiceSynthesisCompleted] = useState(false);
     const [sendDisabled, setSendDisabled] = useState(false);
+
+    // 角色表情相关状态
+    const [currentEmotionKey, setCurrentEmotionKey] = useState(defaultEmotion);
+    const [characterImage, setCharacterImage] = useState(null);
 
     // 音频播放相关 - 使用MediaSource + Web Audio混合架构
     const audioSystemRef = useRef({
@@ -80,28 +84,58 @@ const AIChatSidebar = forwardRef(
     const aiChatInputRef = useRef(null);
     const eventSourceRef = useRef(null);
     const pendingEventSourcesRef = useRef(new Map());
+    const lastEmotionKeyRef = useRef(null);
 
     const { t } = useI18n();
     const { socket, isConnected, on, emit, getSocketId } = useSocket();
+
+    // 动态加载角色立绘图片
+    const loadCharacterImage = useCallback(async emotionKey => {
+      try {
+        if (!emotionKey || !characterEmotionMap[emotionKey]) {
+          return null;
+        }
+        const config = characterEmotionMap[emotionKey];
+        const imagePath = config.imagePath;
+        // 动态导入图片
+        const imageModule = await import(`../../assets/${imagePath}`);
+        return imageModule.default;
+      } catch (error) {
+        console.warn('Failed to load character image:', error);
+        return null;
+      }
+    }, []);
 
     // 监听character prop变化，启用或禁用语音功能
     useEffect(() => {
       if (selectedCharacter) {
         setVoiceEnabled(true);
-        setVoiceStatus('connecting');
-        setCurrentEmotion(selectedCharacter.avatar);
-        setEmotionText(`${selectedCharacter.name}已连接`);
+        if (isConnected) {
+          setVoiceBufferStatus('connected');
+        } else {
+          setVoiceBufferStatus('connecting');
+        }
+
+        // setCurrentEmotion(selectedCharacter.avatar);
+        // setEmotionText(`${selectedCharacter.name}已连接`);
         ensureAudioContextActivated();
+        // 加载默认表情立绘
+        loadCharacterImage(defaultEmotion).then(image => {
+          if (image) {
+            setCharacterImage(image);
+          }
+        });
       } else {
         setVoiceEnabled(false);
         setVoiceConnected(false);
-        setVoiceStatus('idle');
-        setCurrentEmotion('😊');
-        setEmotionText('待机中');
+        setVoiceBufferStatus('idle');
+        // setCurrentEmotion('😊');
+        // setEmotionText('待机中');
         setVoiceSynthesisCompleted(false);
+        setCharacterImage(null);
         interruptAudioPlayback();
       }
-    }, [selectedCharacter]);
+    }, [selectedCharacter, loadCharacterImage]);
 
     // 初始化语音相关功能
     useEffect(() => {
@@ -145,7 +179,7 @@ const AIChatSidebar = forwardRef(
         on('auth_success', data => {
           console.log('收到auth_success事件:', data);
           setVoiceConnected(true);
-          setVoiceStatus('connected');
+          setVoiceBufferStatus('connected');
         }),
         on('emotion_change', message => handleVoiceMessage({ type: 'emotion_change', message })),
         on('voice_audio', handleAudioData),
@@ -163,10 +197,13 @@ const AIChatSidebar = forwardRef(
         ),
       ];
 
-      if (isConnected) {
-        setVoiceConnected(true);
-        setVoiceStatus('connected');
-      }
+      // if (isConnected) {
+      //   setVoiceConnected(true);
+      //   setVoiceBufferStatus('connected');
+      // }
+      // if(lastIsConnectedRef.current == false && isConnected){
+      //   setVoiceBufferStatus('connected');
+      // }
 
       return () => {
         cleanupFunctions.forEach(cleanup => cleanup && cleanup());
@@ -177,8 +214,9 @@ const AIChatSidebar = forwardRef(
 
     // 音频清理函数
     const handleAudioCleanupOnNavigation = async () => {
-      if (!voiceEnabled || !audioPlaying) {
-        return;
+      // 修复：只要有语音会话ID或者音频正在播放，就需要进行清理
+      if (!voiceEnabled || (!audioPlaying && !voiceSessionId)) {
+        return false;
       }
 
       console.log('导航时处理音频清理，当前状态:', {
@@ -187,42 +225,52 @@ const AIChatSidebar = forwardRef(
         voiceSessionId,
       });
 
-      if (!voiceSynthesisCompleted) {
+      // 如果有语音会话ID但语音合成未完成，发送打断指令
+      if (voiceSessionId && !voiceSynthesisCompleted) {
         console.log('语音合成未完成，发送打断指令');
-        if (voiceSessionId) {
-          try {
-            await apiClient.post(`/aichat/interrupt/${voiceSessionId}`);
-            console.log('已发送打断指令');
-          } catch (error) {
-            console.error('发送打断指令失败:', error);
-          }
+        try {
+          await apiClient.post(`/aichat/interrupt-session/${voiceSessionId}`);
+          console.log('已发送打断指令');
+        } catch (error) {
+          console.error('发送打断指令失败:', error);
         }
         interruptAudioPlayback();
-        setVoiceSynthesisCompleted(false);
-      } else {
+        setVoiceSynthesisCompleted(true);
+        setVoiceSessionId(null); // 清除会话ID
+        return true;
+      } else if (audioPlaying && voiceSynthesisCompleted) {
         console.log('语音合成已完成但音频活跃，直接清除音频资源');
         cleanupAudioResources();
         setAudioPlaying(false);
         isPlayingRef.current = false;
+        return true;
+      } else if (audioPlaying) {
+        // 音频正在播放但没有会话ID的情况（可能是其他原因导致的播放）
+        console.log('音频正在播放，清理音频资源');
+        interruptAudioPlayback();
+        return true;
       }
     };
 
     // 处理音频数据
     const handleAudioData = async audioData => {
+      if (voiceBufferStatus !== 'buffering') {
+        return;
+      }
       try {
         console.log('🎵 收到音频数据:', audioData, '类型:', typeof audioData);
 
         if (audioData instanceof ArrayBuffer) {
           receivedBytesCount.current += audioData.byteLength;
           audioBufferQueue.current.push(new Uint8Array(audioData));
-          console.log(
-            '🎵 接收到音频数据:',
-            audioData.byteLength,
-            '字节，缓冲区大小:',
-            audioBufferQueue.current.length,
-            '总接收字节数:',
-            receivedBytesCount.current
-          );
+          // console.log(
+          //   '🎵 接收到音频数据:',
+          //   audioData.byteLength,
+          //   '字节，缓冲区大小:',
+          //   audioBufferQueue.current.length,
+          //   '总接收字节数:',
+          //   receivedBytesCount.current
+          // );
 
           if (!isPlayingRef.current && audioBufferQueue.current.length > 0) {
             console.log('🎵 首次音频数据，开始播放...');
@@ -564,32 +612,34 @@ const AIChatSidebar = forwardRef(
 
       switch (message.type) {
         case 'emotion_change':
-          updateCharacterEmotion(message?.message?.emotion);
+          updateCharacterEmotionAccordingToDescription(message?.message?.emotion);
           break;
-
+        //服务器的cosyvoice开始接受文字流，实时生成音频buffer开始往前端推流
         case 'voice_task_started':
-          setVoiceStatus('playing');
-          setEmotionText('开始朗读');
+          setVoiceBufferStatus('buffering');
+          // setEmotionText('开始朗读');
           setVoiceSynthesisCompleted(false);
           break;
 
+        //服务器的cosyvoice生成音频buffer推流结束
         case 'voice_task_finished':
-          setVoiceStatus('connected');
-          setEmotionText('朗读完成');
+          setVoiceBufferStatus('connected');
+          // setEmotionText('朗读完成');
           setVoiceSynthesisCompleted(true);
           console.log('语音合成完成，现在只能暂停/恢复');
           break;
 
         case 'voice_task_failed':
-          setVoiceStatus('error');
-          setEmotionText('朗读失败');
+          setVoiceBufferStatus('error');
+          // setEmotionText('朗读失败');
           console.error('语音任务失败:', message?.message?.error);
           break;
 
         case 'voice_interrupted':
-          setVoiceStatus('connected');
-          setEmotionText('已中断');
-          setVoiceSynthesisCompleted(false);
+          console.log('voice_interrupted');
+          setVoiceBufferStatus('connected');
+          // setEmotionText('已中断');
+          setVoiceSynthesisCompleted(true);
           interruptAudioPlayback();
           break;
 
@@ -599,32 +649,39 @@ const AIChatSidebar = forwardRef(
     };
 
     // 更新角色表情
-    const updateCharacterEmotion = emotionDescription => {
+    const updateCharacterEmotionAccordingToDescription = async emotionDescription => {
       console.log('更新角色表情:', emotionDescription);
-      const emotionMap = {
-        傲娇: { icon: '😤', text: '傲娇' },
-        害羞: { icon: '😳', text: '害羞' },
-        生气: { icon: '😠', text: '生气' },
-        开心: { icon: '😊', text: '开心' },
-        担心: { icon: '😟', text: '担心' },
-        惊讶: { icon: '😲', text: '惊讶' },
-        冷淡: { icon: '😐', text: '冷淡' },
-        得意: { icon: '😏', text: '得意' },
-        思考: { icon: '🤔', text: '思考' },
-        疑惑: { icon: '🤨', text: '疑惑' },
-      };
 
       let matchedEmotion = null;
-      for (const [key, value] of Object.entries(emotionMap)) {
-        if (emotionDescription.includes(key)) {
+      let matchdEmotionKey = null;
+      for (const [key, value] of Object.entries(characterEmotionMap)) {
+        if (emotionDescription.includes(value?.name)) {
           matchedEmotion = value;
+          matchdEmotionKey = key;
           break;
         }
       }
 
+      console.log('dasd', matchedEmotion, matchedEmotion);
+
       if (matchedEmotion) {
-        setCurrentEmotion(matchedEmotion.icon);
-        setEmotionText(matchedEmotion.text);
+        updateCharacterEmotion(matchdEmotionKey);
+      }
+    };
+
+    const updateCharacterEmotion = async emotionKey => {
+      if (selectedCharacter && emotionKey && emotionKey !== currentEmotionKey) {
+        setCurrentEmotionKey(emotionKey);
+
+        // 动态加载新的角色立绘图片
+        try {
+          const newImage = await loadCharacterImage(emotionKey);
+          if (newImage) {
+            setCharacterImage(newImage);
+          }
+        } catch (error) {
+          console.warn('加载角色立绘失败:', error);
+        }
       }
     };
 
@@ -634,16 +691,17 @@ const AIChatSidebar = forwardRef(
 
       if (voiceSynthesisCompleted) {
         if (audioSystemRef.current.element && !audioSystemRef.current.element.paused) {
+          lastEmotionKeyRef.current = currentEmotionKey;
+          updateCharacterEmotion('angry');
           pauseAudioPlayback();
-          setEmotionText('已暂停');
         } else {
+          updateCharacterEmotion(lastEmotionKeyRef.current);
           resumeAudioPlayback();
-          setEmotionText('继续播放');
         }
       } else {
         if (voiceSessionId) {
           try {
-            const res = await apiClient.post(`/aichat/interrupt/${voiceSessionId}`);
+            const res = await apiClient.post(`/aichat/interrupt-session/${voiceSessionId}`);
             console.log('已发送打断指令', res);
           } catch (error) {
             console.error('发送打断指令失败:', error);
@@ -651,8 +709,8 @@ const AIChatSidebar = forwardRef(
           }
         }
         interruptAudioPlayback();
-        setVoiceStatus('connected');
-        setEmotionText('已中断');
+        setVoiceBufferStatus('connected');
+        // setEmotionText('已中断');
         setVoiceSynthesisCompleted(false);
       }
     };
@@ -663,9 +721,9 @@ const AIChatSidebar = forwardRef(
 
       if (voiceSynthesisCompleted) {
         const isPaused = audioSystemRef.current.element && audioSystemRef.current.element.paused;
-        return isPaused ? '▶️ 恢复' : '⏸️ 暂停';
+        return isPaused ? '恢复' : ' 暂停';
       } else {
-        return '🛑 打断';
+        return '打断';
       }
     };
 
@@ -797,7 +855,7 @@ const AIChatSidebar = forwardRef(
           setIsHandlingChunkSession(false);
         };
       },
-      [setChatMessages, voiceEnabled, selectedCharacter?.id]
+      [setChatMessages, voiceEnabled, selectedCharacter?.code]
     );
 
     // 暴露方法给父组件
@@ -1148,31 +1206,34 @@ const AIChatSidebar = forwardRef(
       if (voiceEnabled) {
         await ensureAudioContextActivated();
 
-        // 根据语音合成状态决定处理方式
-        if (audioPlaying) {
-          if (voiceSynthesisCompleted) {
+        // 根据语音合成状态决定处理方式 - 修复：也要考虑有会话ID但还没开始播放的情况
+        if (audioPlaying || voiceSessionId) {
+          if (audioPlaying && voiceSynthesisCompleted) {
             // 推流已完成，清理所有音频信息
             console.log('语音合成已完成，清理音频信息开始新对话');
             cleanupAudioResources();
             setAudioPlaying(false);
             isPlayingRef.current = false;
-          } else {
-            // 推流还没完成，执行打断操作
+          } else if (voiceSessionId && !voiceSynthesisCompleted) {
+            // 有会话ID且推流还没完成，执行打断操作
             console.log('语音合成未完成，执行打断操作');
-            if (voiceSessionId) {
-              try {
-                await apiClient.post(`/aichat/interrupt/${voiceSessionId}`);
-                console.log('已发送打断指令');
-              } catch (error) {
-                console.error('发送打断指令失败:', error);
-              }
+            try {
+              await apiClient.post(`/aichat/interrupt-session/${voiceSessionId}`);
+              console.log('已发送打断指令');
+            } catch (error) {
+              console.error('发送打断指令失败:', error);
             }
+            interruptAudioPlayback();
+          } else if (audioPlaying) {
+            // 音频正在播放但没有会话ID的情况
+            console.log('音频正在播放，执行中断操作');
             interruptAudioPlayback();
           }
         }
 
         // 重置语音合成状态，准备新对话
         setVoiceSynthesisCompleted(false);
+        setVoiceSessionId(null); // 清除旧的会话ID
       }
 
       // 清理现有的EventSource连接
@@ -1210,7 +1271,7 @@ const AIChatSidebar = forwardRef(
         contextContent: contextContent,
         model: 'deepseek-chat',
         // 添加语音相关参数
-        character: voiceEnabled && selectedCharacter ? selectedCharacter.id : undefined,
+        character: voiceEnabled && selectedCharacter ? selectedCharacter.code : undefined,
         socketId: voiceEnabled ? getSocketId() : undefined,
       };
 
@@ -1367,22 +1428,6 @@ const AIChatSidebar = forwardRef(
             return updatedMessages;
           });
         }
-      } else {
-        try {
-          const response = await apiClient.post('/aichat/message', requestParams);
-
-          if (response.data.success) {
-            const aiData = response.data.data;
-            setChatMessages([...pendingMessages, aiData.aiMessage]);
-          } else {
-            message.error(response.data.message || 'Request failed');
-            setChatMessages(pendingMessages);
-          }
-        } catch (error) {
-          console.error('Error sending message:', error);
-          message.error(error.message || 'Failed to send message');
-          setChatMessages(pendingMessages);
-        }
       }
     };
 
@@ -1461,7 +1506,7 @@ const AIChatSidebar = forwardRef(
       },
     ];
 
-    const handleQuickAction = action => {
+    const handleQuickAction = async action => {
       if (action.key === 'translate' && action.hasSubmenu) {
         setShowTranslateSelect(!showTranslateSelect);
         return;
@@ -1482,7 +1527,10 @@ const AIChatSidebar = forwardRef(
       setShowTranslateSelect(false);
 
       if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].pending) {
-        message.warning(t('anki.pleaseWait'));
+        await interruptTextStream();
+        setTimeout(() => {
+          sendAiChatMessage(prompt, contextMode);
+        }, 300);
         return;
       }
 
@@ -1496,14 +1544,17 @@ const AIChatSidebar = forwardRef(
       }
     };
 
-    const handleTranslateAction = language => {
+    const handleTranslateAction = async language => {
       const prompt = `Please translate this card content to ${language.code}`;
       setChatContext('Card');
       setQuickActionsVisible(false);
       setShowTranslateSelect(false);
 
       if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].pending) {
-        message.warning(t('anki.pleaseWait'));
+        await interruptTextStream();
+        setTimeout(() => {
+          sendAiChatMessage(prompt, 'Card');
+        }, 300);
         return;
       }
 
@@ -1620,6 +1671,42 @@ const AIChatSidebar = forwardRef(
       }
     }, [visible, cleanupEventSources, isHandlingChunkSession]);
 
+    // 添加动画样式
+    useEffect(() => {
+      if (!document.getElementById('character-loading-animations')) {
+        const style = document.createElement('style');
+        style.id = 'character-loading-animations';
+        style.textContent = `
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          
+          @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+              transform: translateX(-50%) translateY(0);
+            }
+            40% {
+              transform: translateX(-50%) translateY(-5px);
+            }
+            60% {
+              transform: translateX(-50%) translateY(-3px);
+            }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }, []);
+
+    console.log(
+      voiceBufferStatus,
+      'dasdasdasd',
+      voiceBufferStatus === 'buffering',
+      voiceEnabled,
+      audioPlaying,
+      voiceSessionId
+    );
+
     if (!visible) return null;
 
     return (
@@ -1627,10 +1714,10 @@ const AIChatSidebar = forwardRef(
         <div
           className="side-chat-container"
           style={{
-            backgroundColor: selectedCharacter ? 'rgba(0, 0, 0, 0.5)' : 'white',
-            // backgroundImage: selectedCharacter ? `url(${animeBgImage})` : 'none',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundColor: 'white',
+            backgroundImage: 'none', // selectedCharacter && characterImage ? `url(${characterImage})`
+            backgroundSize: 'contain',
+            backgroundPosition: 'bottom right',
             backgroundRepeat: 'no-repeat',
             width: '25%',
             borderLeft: '1px solid #f0f0f0',
@@ -1666,10 +1753,9 @@ const AIChatSidebar = forwardRef(
               {/* 语音状态指示器 */}
               {voiceEnabled && selectedCharacter && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontSize: '16px' }}>{currentEmotion}</span>
-                  <span style={{ fontSize: '10px', color: '#666' }}>{emotionText}</span>
-                  {/* 音频调试信息
-                  <div style={{ fontSize: '8px', color: '#999', marginLeft: '4px' }}>
+                  {/* <span style={{ fontSize: '16px' }}>{currentEmotion}</span> */}
+                  {/* <span style={{ fontSize: '10px', color: '#666' }}>{emotionText}</span> */}
+                  {/* <div style={{ fontSize: '8px', color: '#999', marginLeft: '4px' }}>
                     {audioPlaying ? '🔊播放中' : '⏸️待机'}
                     {audioSystemRef.current.context && ` | ${audioSystemRef.current.context.state}`}
                   </div> */}
@@ -1677,42 +1763,6 @@ const AIChatSidebar = forwardRef(
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* 语音状态显示（不再提供角色选择，由AnkiBar控制） */}
-              {voiceEnabled && selectedCharacter && (
-                <Tooltip title={`当前角色: ${selectedCharacter.name}`}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '16px' }}>{selectedCharacter.avatar}</span>
-                    <span style={{ fontSize: '12px', color: '#666' }}>
-                      {selectedCharacter.name}
-                    </span>
-                  </span>
-                </Tooltip>
-              )}
-
-              {/* 语音控制按钮（打断/暂停/恢复） */}
-              {voiceEnabled && audioPlaying && (
-                <Tooltip
-                  title={
-                    voiceSynthesisCompleted
-                      ? audioSystemRef.current.element && audioSystemRef.current.element.paused
-                        ? '恢复播放'
-                        : '暂停播放'
-                      : '打断语音合成'
-                  }
-                >
-                  <Button
-                    type="text"
-                    size="small"
-                    onClick={handleVoiceControlButton}
-                    style={{
-                      color: voiceSynthesisCompleted ? '#1890ff' : '#ff4d4f',
-                      fontSize: '12px',
-                    }}
-                  >
-                    {getVoiceControlButtonContent()}
-                  </Button>
-                </Tooltip>
-              )}
               <Button
                 type="text"
                 icon={<CloseOutlined />}
@@ -1723,6 +1773,100 @@ const AIChatSidebar = forwardRef(
               />
             </div>
           </div>
+
+          {/* 角色立绘显示区域 */}
+          {selectedCharacter && characterImage && (
+            <div
+              className="character-portrait"
+              style={{
+                position: 'fixed',
+                right: '25%',
+                bottom: '0',
+                width: '180px',
+                height: '320px',
+                zIndex: 1000,
+                pointerEvents: 'none',
+                opacity: 0.9,
+              }}
+            >
+              <img
+                src={characterImage}
+                alt={`${selectedCharacter.name} - ${characterEmotionMap[currentEmotionKey]?.name || '默认'}`}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
+                }}
+              />
+
+              {/* Buffering状态的可爱loading指示器 */}
+              {voiceEnabled && audioPlaying && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '20px',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    fontSize: '12px',
+                    color: '#666',
+                    animation: 'bounce 1s infinite',
+                    pointerEvents: 'visible',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      border: '2px solid #f3f3f3',
+                      borderTop: '2px solid #1890ff',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                    }}
+                  />
+
+                  {voiceEnabled && audioPlaying && (
+                    <div>
+                      <Tooltip
+                        title={
+                          voiceSynthesisCompleted
+                            ? audioSystemRef.current.element &&
+                              audioSystemRef.current.element.paused
+                              ? '恢复播放'
+                              : '暂停播放'
+                            : '打断语音合成'
+                        }
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          onClick={handleVoiceControlButton}
+                          style={{
+                            color: voiceSynthesisCompleted ? '#1890ff' : '#ff4d4f',
+                            fontSize: '12px',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            borderRadius: '16px',
+                            padding: '4px 8px',
+                          }}
+                        >
+                          {getVoiceControlButtonContent()}
+                        </Button>
+                      </Tooltip>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 语音控制按钮 */}
+            </div>
+          )}
 
           <div
             className="ai-chat-container"
@@ -1745,7 +1889,11 @@ const AIChatSidebar = forwardRef(
                   position: 'relative',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: 'rgba(255, 255, 255, 0.8) ',
+                  backgroundColor:
+                    selectedCharacter && characterImage
+                      ? 'rgba(255, 255, 255, 0.9)'
+                      : 'rgba(255, 255, 255, 0.8)',
+                  backdropFilter: selectedCharacter && characterImage ? 'blur(2px)' : 'none',
                 }}
               >
                 <LoadingOutlined style={{ fontSize: '32px' }} />
@@ -1782,18 +1930,8 @@ const AIChatSidebar = forwardRef(
                         fontSize: '14px',
                         lineHeight: '1.5',
                         wordBreak: 'break-word',
-                        backgroundColor: selectedCharacter
-                          ? message.role === 'user'
-                            ? 'rgba(255, 165, 0, 0.5)'
-                            : 'rgba(0, 0, 0, 0.5)'
-                          : message.role === 'user'
-                            ? '#1890ff'
-                            : '#f5f5f5',
-                        color: selectedCharacter
-                          ? 'white'
-                          : message.role === 'user'
-                            ? 'white'
-                            : 'rgba(0, 0, 0, 0.85)',
+                        backgroundColor: message.role === 'user' ? '#1890ff' : '#f5f5f5',
+                        color: message.role === 'user' ? 'white' : 'rgba(0, 0, 0, 0.85)',
                         minHeight: message.pending && message.role !== 'user' ? '480px' : 'auto',
                         border: selectedCharacter ? '1px solid rgba(255, 255, 255, 0.2)' : 'none',
                         // backdropFilter: selectedCharacter ? 'blur(5px)' : 'none',
@@ -1818,7 +1956,9 @@ const AIChatSidebar = forwardRef(
                 padding: '16px',
                 borderTop: '1px solid #f0f0f0',
                 borderBottom: '1px solid #f0f0f0',
-                background: 'white',
+                background:
+                  selectedCharacter && characterImage ? 'rgba(255, 255, 255, 0.95)' : 'white',
+                backdropFilter: selectedCharacter && characterImage ? 'blur(2px)' : 'none',
                 position: 'relative',
               }}
             >
@@ -1953,7 +2093,7 @@ const AIChatSidebar = forwardRef(
                   autoSize={{ minRows: 1, maxRows: 4 }}
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
-                  onPressEnter={e => {
+                  onPressEnter={async e => {
                     if (e.shiftKey) {
                       return;
                     }
@@ -1961,7 +2101,11 @@ const AIChatSidebar = forwardRef(
                     e.preventDefault();
 
                     if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].pending) {
-                      message.warning(t('anki.pleaseWait'));
+                      await interruptTextStream();
+                      setTimeout(() => {
+                        sendAiChatMessage(aiChatPrompt);
+                        setAiChatPrompt('');
+                      }, 500);
                       return;
                     }
 

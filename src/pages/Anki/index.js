@@ -285,11 +285,6 @@ function Anki() {
       { role: 'user', content: generateSimplifiedPromptDisplay(promptConfig) },
     ];
 
-    // 中断之前的朗读（如果有）
-    if (aiChatSidebarRef.current && aiChatSidebarRef.current.handleAudioCleanupOnNavigation) {
-      aiChatSidebarRef.current.handleAudioCleanupOnNavigation();
-    }
-
     if (!aiChatVisible) {
       setAiChatVisible(true);
     }
@@ -501,7 +496,7 @@ function Anki() {
               }}
             >
               <AnkiCard
-                characterId={selectedCharacter?.id}
+                characterId={selectedCharacter?.code}
                 ref={editorRef}
                 config={config}
                 front={card['front']}
@@ -527,6 +522,7 @@ function Anki() {
                 onRefreshCard={cardUuid => {
                   getCardByUuid(cardUuid, false, false);
                 }}
+                cleanupOnNavigation={aiChatSidebarRef}
                 getChatMessageAndShowSidebar={getChatMessageAndShowSidebar}
                 showAIChatSidebar={aiChatVisible}
                 onFlip={action => setFlipped(action)}
