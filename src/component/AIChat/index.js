@@ -632,32 +632,49 @@ const AIChatSidebar = forwardRef(
           // setEmotionText('朗读完成');
           setVoiceSynthesisCompleted(true);
           console.log('语音合成完成，现在只能暂停/恢复');
-          // 调用 endOfStream 来指示音频流结束，从而获取总时长
-          if (
-            audioSystemRef.current.mediaSource &&
-            audioSystemRef.current.mediaSource.readyState === 'open'
-          ) {
-            try {
-              audioSystemRef.current.mediaSource.endOfStream();
-              console.log('已调用 endOfStream，等待获取音频总时长');
 
-              // 等待一小段时间让浏览器计算时长
-              setTimeout(() => {
-                if (
-                  audioSystemRef.current.element &&
-                  !isNaN(audioSystemRef.current.element.duration) &&
-                  audioSystemRef.current.element.duration > 0
-                ) {
-                  const totalSeconds = Math.ceil(audioSystemRef.current.element.duration);
-                  console.log('获取到音频总时长:', totalSeconds, '秒');
-                  // 可以在这里做其他处理，但不再存储到状态中
-                }
-              }, 100);
-            } catch (error) {
-              console.error('调用 endOfStream 失败:', error);
+          // 安全地调用 endOfStream 来指示音频流结束，从而获取总时长
+          const safeEndOfStream = () => {
+            if (
+              audioSystemRef.current.mediaSource &&
+              audioSystemRef.current.mediaSource.readyState === 'open'
+            ) {
+              const sourceBuffer = audioSystemRef.current.sourceBuffer;
+
+              if (sourceBuffer && sourceBuffer.updating) {
+                // 如果SourceBuffer正在更新，等待更新完成再调用endOfStream
+                console.log('SourceBuffer正在更新，等待完成后调用endOfStream');
+                const handleUpdateEnd = () => {
+                  sourceBuffer.removeEventListener('updateend', handleUpdateEnd);
+                  safeEndOfStream(); // 递归调用直到可以安全执行
+                };
+                sourceBuffer.addEventListener('updateend', handleUpdateEnd);
+                return;
+              }
+
+              try {
+                audioSystemRef.current.mediaSource.endOfStream();
+                console.log('已调用 endOfStream，等待获取音频总时长');
+
+                // 等待一小段时间让浏览器计算时长
+                setTimeout(() => {
+                  if (
+                    audioSystemRef.current.element &&
+                    !isNaN(audioSystemRef.current.element.duration) &&
+                    audioSystemRef.current.element.duration > 0
+                  ) {
+                    const totalSeconds = Math.ceil(audioSystemRef.current.element.duration);
+                    console.log('获取到音频总时长:', totalSeconds, '秒');
+                    // 可以在这里做其他处理，但不再存储到状态中
+                  }
+                }, 100);
+              } catch (error) {
+                console.error('调用 endOfStream 失败:', error);
+              }
             }
-          }
+          };
 
+          safeEndOfStream();
           break;
 
         case 'voice_task_failed':
