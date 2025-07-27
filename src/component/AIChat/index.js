@@ -379,6 +379,10 @@ const AIChatSidebar = forwardRef(
           onAudioPlaybackComplete();
         };
 
+        audioElement.ontimeupdate = () => {
+          console.log('音频播放时间更新', audioElement.currentTime);
+        };
+
         audioElement.onerror = e => {
           console.error('音频播放错误:', e);
           if (isPlayingRef.current) {
@@ -501,6 +505,7 @@ const AIChatSidebar = forwardRef(
           audioSystemRef.current.element.currentTime = 0;
           audioSystemRef.current.element.onended = null;
           audioSystemRef.current.element.onerror = null;
+          audioSystemRef.current.element.ontimeupdate = null;
 
           if (audioSystemRef.current.element.parentNode) {
             audioSystemRef.current.element.parentNode.removeChild(audioSystemRef.current.element);

@@ -46,6 +46,16 @@ const characterEmotionMap = {
     name: '开心',
     keywords: ['开心', '高兴', '愉快', '开心', '笑', '好', '棒', '成功'],
   },
+  thinking: {
+    imagePath: 'character/girl/思考.png',
+    name: '思考',
+    keywords: ['思考', '思考', '思考', '思考', '思考', '思考', '思考'],
+  },
+  serious: {
+    imagePath: 'character/girl/思考.png',
+    name: '认真',
+    keywords: ['认真', '专注', '认真', '认真', '认真', '认真', '认真'],
+  },
 };
 
 // 根据文本内容分析情感并返回对应的表情配置
@@ -65,4 +75,4 @@ const analyzeEmotionFromText = text => {
   return characterEmotionMap[defaultEmotion];
 };
 
-export { characterEmotionMap, defaultEmotion, analyzeEmotionFromText };
+export { analyzeEmotionFromText, characterEmotionMap, defaultEmotion };
