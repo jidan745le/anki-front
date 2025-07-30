@@ -17,9 +17,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { LIVE2D_CONFIG } from '../../common/constants/live2d';
 import { useI18n } from '../../common/hooks/useI18n';
 import useSocket from '../../common/hooks/useSocket';
 import apiClient from '../../common/http/apiClient';
+import Live2DController from '../Live2DController';
 import { characterEmotionMap, defaultEmotion } from './util/emotions';
 
 const AIChatSidebar = forwardRef(
@@ -66,6 +68,10 @@ const AIChatSidebar = forwardRef(
     const [currentEmotionKey, setCurrentEmotionKey] = useState(defaultEmotion);
     const [characterImage, setCharacterImage] = useState(null);
 
+    // Live2D相关状态
+    const [live2dEnabled, setLive2dEnabled] = useState(true); // 是否启用Live2D
+    const [live2dVisible, setLive2dVisible] = useState(false); // 是否显示Live2D
+
     // 音频播放相关 - 使用MediaSource + Web Audio混合架构
     const audioSystemRef = useRef({
       element: null,
@@ -79,6 +85,9 @@ const AIChatSidebar = forwardRef(
     const audioBufferQueue = useRef([]);
     const isPlayingRef = useRef(false);
     const receivedBytesCount = useRef(0);
+
+    // Live2D控制器引用
+    const live2dControllerRef = useRef(null);
 
     const aiChatMessagesRef = useRef(null);
     const aiChatInputRef = useRef(null);
@@ -110,6 +119,7 @@ const AIChatSidebar = forwardRef(
     useEffect(() => {
       if (selectedCharacter) {
         setVoiceEnabled(true);
+        setLive2dVisible(true); // 默认启用Live2D显示
         if (isConnected) {
           setVoiceBufferStatus('connected');
         } else {
@@ -127,6 +137,7 @@ const AIChatSidebar = forwardRef(
         });
       } else {
         setVoiceEnabled(false);
+        setLive2dVisible(false);
         setVoiceConnected(false);
         setVoiceBufferStatus('idle');
         // setCurrentEmotion('😊');
@@ -425,6 +436,12 @@ const AIChatSidebar = forwardRef(
         audioSystemRef.current.gainNode.connect(audioSystemRef.current.analyser);
         audioSystemRef.current.analyser.connect(ctx.destination);
 
+        // 连接Live2D控制器音频分析器
+        if (live2dControllerRef.current && live2dEnabled) {
+          live2dControllerRef.current.connectAudioAnalyser(audioSystemRef.current.analyser);
+          console.log('✅ Live2D音频分析器已连接');
+        }
+
         console.log('✅ Web Audio分析链设置完成');
       } catch (error) {
         console.error('💥 Web Audio链设置失败:', error);
@@ -536,6 +553,12 @@ const AIChatSidebar = forwardRef(
           audioSystemRef.current.gainNode = null;
         }
         if (audioSystemRef.current.analyser) {
+          // 断开Live2D控制器音频分析器连接
+          if (live2dControllerRef.current) {
+            live2dControllerRef.current.disconnectAudioAnalyser();
+            console.log('🔇 Live2D音频分析器已断开');
+          }
+
           try {
             audioSystemRef.current.analyser.disconnect();
           } catch (e) {
@@ -720,6 +743,13 @@ const AIChatSidebar = forwardRef(
     const updateCharacterEmotion = async emotionKey => {
       if (selectedCharacter && emotionKey && emotionKey !== currentEmotionKey) {
         setCurrentEmotionKey(emotionKey);
+
+        // 同步Live2D表情
+        if (live2dControllerRef.current && live2dEnabled) {
+          const live2dExpression = LIVE2D_CONFIG.EXPRESSIONS[emotionKey] || 'neutral';
+          live2dControllerRef.current.setExpression(live2dExpression);
+          console.log(`🎭 Live2D表情已更新: ${emotionKey} -> ${live2dExpression}`);
+        }
 
         // 动态加载新的角色立绘图片
         try {
@@ -1823,7 +1853,7 @@ const AIChatSidebar = forwardRef(
           </div>
 
           {/* 角色立绘显示区域 */}
-          {selectedCharacter && characterImage && (
+          {/* {selectedCharacter && characterImage && !live2dVisible && (
             <div
               className="character-portrait"
               style={{
@@ -1849,7 +1879,7 @@ const AIChatSidebar = forwardRef(
               />
 
               {/* Buffering状态的可爱loading指示器 */}
-              {voiceEnabled && audioPlaying && (
+          {/* {voiceEnabled && audioPlaying && (
                 <div
                   style={{
                     position: 'absolute',
@@ -1911,10 +1941,181 @@ const AIChatSidebar = forwardRef(
                   )}
                 </div>
               )}
+            </div>
+          )}  */}
 
-              {/* 语音控制按钮 */}
+          {/* Live2D角色显示区域 */}
+          {selectedCharacter && live2dEnabled && live2dVisible && (
+            <div
+              className="live2d-character-area"
+              style={{
+                position: 'fixed',
+                right: '15%',
+                bottom: '0',
+                width: '600px',
+                height: '600px',
+                zIndex: 1000,
+                pointerEvents: 'none',
+              }}
+            >
+              <Live2DController
+                ref={live2dControllerRef}
+                visible={true}
+                width={600}
+                height={600}
+                scale={0.15}
+                position={{ x: 0, y: -150 }}
+                onModelLoaded={() => {
+                  console.log('🎭 Live2D模型加载完成');
+                  // 设置初始表情
+                  if (currentEmotionKey) {
+                    const initialExpression =
+                      LIVE2D_CONFIG.EXPRESSION_MAP[currentEmotionKey] || 'neutral';
+                    live2dControllerRef.current?.setExpression(initialExpression);
+                  }
+                }}
+                onError={error => {
+                  console.error('🎭 Live2D加载失败:', error);
+                }}
+                style={{
+                  filter: 'drop-shadow(2px 2px 8px rgba(0,0,0,0.2))',
+                  background: 'transparent',
+                }}
+              />
+
+              {voiceEnabled && audioPlaying && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '240px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '20px',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    fontSize: '12px',
+                    color: '#666',
+                    animation: 'bounce 1s infinite',
+                    pointerEvents: 'visible',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      border: '2px solid #f3f3f3',
+                      borderTop: '2px solid #1890ff',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                    }}
+                  />
+
+                  {voiceEnabled && audioPlaying && (
+                    <div>
+                      <Tooltip
+                        title={
+                          voiceSynthesisCompleted
+                            ? audioSystemRef.current.element &&
+                              audioSystemRef.current.element.paused
+                              ? '恢复播放'
+                              : '暂停播放'
+                            : '打断语音合成'
+                        }
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          onClick={handleVoiceControlButton}
+                          style={{
+                            color: voiceSynthesisCompleted ? '#1890ff' : '#ff4d4f',
+                            fontSize: '12px',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            borderRadius: '16px',
+                            padding: '4px 8px',
+                          }}
+                        >
+                          {getVoiceControlButtonContent()}
+                        </Button>
+                      </Tooltip>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Live2D控制面板
+              {voiceEnabled && audioPlaying && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '20px',
+                    right: '20px',
+                    background: 'rgba(0, 0, 0, 0.8)',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    fontSize: '11px',
+                    color: 'white',
+                    pointerEvents: 'visible',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  <div>🎭 Live2D同步中</div>
+                  <div style={{ color: '#4caf50' }}>表情: {currentEmotionKey}</div>
+
+                  <Tooltip title={voiceSynthesisCompleted ? '暂停/恢复' : '停止合成'}>
+                    <Button
+                      type="text"
+                      size="small"
+                      onClick={handleVoiceControlButton}
+                      style={{
+                        color: voiceSynthesisCompleted ? '#1890ff' : '#ff4d4f',
+                        fontSize: '10px',
+                        height: '24px',
+                        padding: '0 6px',
+                      }}
+                    >
+                      {getVoiceControlButtonContent()}
+                    </Button>
+                  </Tooltip>
+                </div>
+              )} */}
             </div>
           )}
+
+          {/* Live2D切换按钮 */}
+          {/* {selectedCharacter && live2dEnabled && (
+            <div
+              style={{
+                position: 'fixed',
+                right: '26%',
+                bottom: '420px',
+                zIndex: 1001,
+                pointerEvents: 'visible',
+              }}
+            >
+              <Tooltip title={live2dVisible ? '切换到立绘模式' : '切换到Live2D模式'}>
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={() => setLive2dVisible(!live2dVisible)}
+                  style={{
+                    borderRadius: '20px',
+                    background: live2dVisible ? '#667eea' : '#52c41a',
+                    borderColor: live2dVisible ? '#667eea' : '#52c41a',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                  }}
+                >
+                  {live2dVisible ? '🎭 Live2D' : '🖼️ 立绘'}
+                </Button>
+              </Tooltip>
+            </div>
+          )} */}
 
           <div
             className="ai-chat-container"

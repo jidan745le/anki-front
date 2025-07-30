@@ -316,6 +316,12 @@ module.exports = {
             'process.env.DEBUG': JSON.stringify(isDevelopment),
             'process.env.ENABLE_AI_CHAT': JSON.stringify(true),
             'process.env.ENABLE_STREAMING': JSON.stringify(true),
+            
+            // Live2D 全局常量注入
+            '__PIXI__': 'window.PIXI',
+            '__LIVE2D_CUBISM_CORE__': 'window.Live2DCubismCore',
+            '__LIVE2D_MODEL__': 'window.PIXI?.live2d?.Live2DModel',
+            '__LIVE2D_AVAILABLE__': 'typeof window !== "undefined" && window.PIXI && window.PIXI.live2d && window.Live2DCubismCore'
         }),
         process.env.ANALYZE && new BundleAnalyzerPlugin(),
         !isDevelopment && new MiniCssExtractPlugin({

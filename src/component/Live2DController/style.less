@@ -1,0 +1,302 @@
+.live2d-controller {
+  position: relative;
+  display: inline-block;
+  border: 2px solid #e1e5e9;
+  border-radius: 15px;
+  background: #f8f9fa;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  }
+
+  &.compact {
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  &.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000;
+    border: none;
+    border-radius: 0;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+  }
+
+  .loading-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+    .loading-text {
+      font-size: 14px;
+      color: #333;
+      margin-top: 10px;
+    }
+
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  .debug-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    min-width: 160px;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    .debug-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #64b5f6;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      padding-bottom: 4px;
+    }
+
+    .debug-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+
+      .debug-label {
+        color: #ccc;
+      }
+
+      .debug-value {
+        color: #a5d6a7;
+        font-weight: 500;
+      }
+
+      &.status-ready .debug-value {
+        color: #4caf50;
+      }
+      &.status-loading .debug-value {
+        color: #ff9800;
+      }
+      &.status-error .debug-value {
+        color: #f44336;
+      }
+      &.status-syncing .debug-value {
+        color: #2196f3;
+      }
+    }
+
+    .volume-bar {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 4px 0;
+
+      .volume-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4caf50, #ff9800, #f44336);
+        width: 0%;
+        transition: width 0.1s ease;
+        border-radius: 2px;
+      }
+    }
+  }
+
+  .control-overlay {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+
+    .control-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(4px);
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.9);
+        transform: scale(1.1);
+      }
+
+      &.active {
+        background: #667eea;
+        color: white;
+      }
+    }
+  }
+
+  &:hover .control-overlay {
+    opacity: 1;
+  }
+
+  .expression-selector {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+
+    .expression-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+
+      .expression-btn {
+        width: 32px;
+        height: 32px;
+        border: 1px solid #e1e5e9;
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #f5f5f5;
+          transform: scale(1.1);
+        }
+
+        &.active {
+          background: #667eea;
+          color: white;
+          border-color: #667eea;
+        }
+      }
+    }
+  }
+
+  &.show-expressions .expression-selector {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+// 响应式适配
+@media (max-width: 768px) {
+  .live2d-controller {
+    .debug-panel {
+      font-size: 10px;
+      padding: 8px;
+      min-width: 140px;
+    }
+
+    .control-overlay {
+      bottom: 5px;
+
+      .control-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+      }
+    }
+
+    .expression-selector {
+      .expression-grid {
+        grid-template-columns: repeat(2, 1fr);
+
+        .expression-btn {
+          width: 28px;
+          height: 28px;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+}
+
+// 主题适配
+.dark-theme .live2d-controller {
+  border-color: #404040;
+  background: #2a2a2a;
+
+  .debug-panel {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .expression-selector {
+    background: rgba(40, 40, 40, 0.95);
+
+    .expression-btn {
+      background: #353535;
+      border-color: #505050;
+      color: #ccc;
+
+      &:hover {
+        background: #404040;
+      }
+    }
+  }
+}
