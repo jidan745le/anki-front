@@ -60,10 +60,20 @@ const Decks = () => {
   // useEffect(() => {
 
   // }, []);
-  console.log('Decks.js socket', socket, emit, on, isConnected);
+  console.log(
+    'Decks.js socket',
+    'socket',
+    socket,
+    'emit',
+    emit,
+    'on',
+    on,
+    'isConnected',
+    isConnected
+  );
 
   useEffect(() => {
-    console.log('Decks.js useEffect', isConnected);
+    console.log('Decks.js useEffect', 'isConnected', isConnected);
     if (!isConnected) {
       return;
     }

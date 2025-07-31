@@ -58,9 +58,10 @@ class WebSocketClient {
     //   }
     //   return;
     // }
-    console.log(new Error().stack, 'stack');
+    // console.log(new Error().stack, 'stack');
     if (this.socket) {
-      console.log('connect 1', token, this.socket, 'token');
+      // console.log('connect 1', token, this.socket, 'token');
+      console.log('connected and conect return', this.socket, 'socket');
       return;
     }
     console.log('start connect', token, this.socket, 'token');
@@ -69,6 +70,7 @@ class WebSocketClient {
       auth: {
         token: token,
       },
+      transports: ['websocket', 'polling'],
       extraHeaders: {
         Authorization: `Bearer ${token}`,
         'X-User-Id': localStorage.getItem('userId'),
@@ -150,9 +152,9 @@ class WebSocketClient {
   }
 
   disconnect() {
-    console.log('disconnect fn', this.socket, 'socket');
+    console.log('disconnect', this.socket, 'socket');
     if (this.socket) {
-      console.log('disconnect fn 2', this.socket, 'socket');
+      console.log('disconnect 2', this.socket, 'socket');
       this.socket.disconnect();
       this.socket = null;
     }

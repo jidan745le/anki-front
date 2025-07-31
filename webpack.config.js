@@ -309,7 +309,7 @@ module.exports = {
                 isDevelopment ? 'http://localhost:3007/api' : 'https://api.myanki.cc'
             ),
             'process.env.WS_BASE_URL': JSON.stringify(
-                isDevelopment ? 'http://localhost:3007' : 'https://ws.myanki.cc'
+                isDevelopment ? 'ws://localhost:3007' : 'wss://ws.myanki.cc'
             ),
             'process.env.APP_NAME': JSON.stringify('MyWar'),
             'process.env.VERSION': JSON.stringify('1.0.0'),
