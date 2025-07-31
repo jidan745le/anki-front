@@ -48,7 +48,7 @@ class WebSocketClient {
 
   async connect() {
     const token = localStorage.getItem('token');
-    console.log('connect', token, this.socket, 'token');
+    const userId = localStorage.getItem('userId');
 
     // if (!token || this.socket) {
     //   console.log('connect !token || this.socket', token, this.socket, 'token');
@@ -65,15 +65,17 @@ class WebSocketClient {
       return;
     }
     console.log('start connect', token, this.socket, 'token');
+    const socketUrl = `${this.url}?userId=${encodeURIComponent(userId)}`;
 
-    this.socket = io(this.url, {
+    this.socket = io(socketUrl, {
       auth: {
         token: token,
+        userId: localStorage.getItem('userId'), // 添加userId到auth对象
       },
       transports: ['websocket', 'polling'],
       extraHeaders: {
         Authorization: `Bearer ${token}`,
-        'X-User-Id': localStorage.getItem('userId'),
+        'X-User-ID': localStorage.getItem('userId'),
       },
       reconnection: false, // 禁用自动重连，我们自己处理
       timeout: 5000,
