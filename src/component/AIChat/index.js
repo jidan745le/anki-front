@@ -148,6 +148,7 @@ const AIChatSidebar = forwardRef(
           handleAudioCleanupOnNavigationRef.current().catch(error => {
             console.error('组件卸载时音频清理失败:', error);
           });
+        live2dControllerRef.current?.stopRandomMotion();
 
         if (audioSystemRef.current.context) {
           audioSystemRef.current.context.close();
