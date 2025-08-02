@@ -12,16 +12,18 @@ const initChunkSession = async (requestData, handleAudioCleanupOnNavigation) => 
     if (isInterrupt) {
       await new Promise(resolve => setTimeout(resolve, 400));
     }
-    const response = await apiClient.post('/aichat/initSession', requestData);
-    console.log(response, 'response');
+    const response = await apiClient.post('/aichat/initSession', requestData, {
+      timeout: 10000,
+    });
 
-    if (response.data.success) {
+    if (response?.data?.success) {
       return response.data?.data;
     } else {
     }
   } catch (err) {
-    console.error('转换文本到对话块时出错:', err);
-    message.error(err.response.data.message);
+    console.error('转换文本到对话块时出错222:', err);
+    message.error(err?.message || err?.response?.data?.message);
+    return Promise.reject(err);
   } finally {
   }
 };
@@ -88,9 +90,10 @@ class AiExplain {
     const textNode = node[0];
     console.log(textNode, 'textNode');
     const properties = omit(textNode, ['children', 'text']);
+    let chunkId = '';
 
     try {
-      const chunkId = 'chunk_' + Date.now();
+      chunkId = 'chunk_' + Date.now();
 
       const promptData = {
         localContextHtml: editor.getHtml(),
@@ -134,6 +137,13 @@ class AiExplain {
       // editor.getChatMessageAndShowSidebar && editor.getChatMessageAndShowSidebar(chunkId);
       editor.onInitChunkChatSession && editor.onInitChunkChatSession(requestData, sessionId);
     } catch (error) {
+      SlateTransforms.unwrapNodes(editor, {
+        at: [],
+        match: n => {
+          const node = n;
+          return node && node.type === 'ailoadingchunk' && node.chunkId === chunkId;
+        },
+      });
       console.error('转换文本到对话块时出错:', error);
     }
   }

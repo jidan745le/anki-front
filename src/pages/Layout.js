@@ -42,6 +42,25 @@ const Layout = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     console.log('token', token, 'token');
+    const handleStorageChange = event => {
+      if (event.key === 'token') {
+        if (!event.newValue) {
+          wsClient.disconnect();
+          setUserInfo(null);
+          navigate('/login');
+        }
+      }
+    };
+    // 监听LocaLSTORAGE变化实现
+    window.addEventListener('storage', handleStorageChange);
+
+    if (!token) {
+      wsClient.disconnect();
+      setUserInfo(null);
+      navigate('/login');
+      return;
+    }
+
     if (token && !['/login', '/signup', '/'].includes(location.pathname)) {
       fetchUserInfo()
         .then(() => {
@@ -51,6 +70,9 @@ const Layout = ({ children }) => {
           console.log('fetchUserInfo error', e);
         });
     }
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, [location.pathname]);
 
   const logout = async () => {
@@ -71,7 +93,7 @@ const Layout = ({ children }) => {
         }
       })
       .catch(err => {
-        message.error(err.message);
+        message.error(err?.message);
       });
     setTimeout(() => {
       localStorage.removeItem('token');

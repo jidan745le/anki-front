@@ -45,6 +45,9 @@ apiClient.interceptors.response.use(
     return response; // 返回响应数据以继续请求
   },
   async error => {
+    if (error.code === 'ECONNABORTED') {
+      return Promise.reject(error);
+    }
     // 处理请求错误
     console.log('config', error);
     let { data, config } = error.response;

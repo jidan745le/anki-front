@@ -183,6 +183,7 @@ class WebSocketClient {
 
     // 每3秒检查一次连接状态
     this.heartbeatCheckInterval = setInterval(() => {
+      console.log('heartbeatCheckInterval', this.socket, 'socket');
       // 如果socket存在但未连接，触发重连
       if (this.socket && !this.socket.connected) {
         console.log('🚨 Disconnection detected, cleaning up and reconnecting...');
@@ -210,7 +211,7 @@ class WebSocketClient {
           }
         }, 1000);
       }
-    }, 3000);
+    }, 5000);
   }
 }
 

@@ -66,7 +66,6 @@ const AIChatSidebar = forwardRef(
 
     // 角色表情相关状态
     const [currentEmotionKey, setCurrentEmotionKey] = useState(defaultEmotion);
-    const [characterImage, setCharacterImage] = useState(null);
 
     // Live2D相关状态
     const [live2dEnabled, setLive2dEnabled] = useState(true); // 是否启用Live2D
@@ -99,23 +98,6 @@ const AIChatSidebar = forwardRef(
     const { socket, isConnected, on, emit, getSocketId } = useSocket();
     const handleAudioCleanupOnNavigationRef = useRef(null);
 
-    // 动态加载角色立绘图片
-    const loadCharacterImage = useCallback(async emotionKey => {
-      try {
-        if (!emotionKey || !characterEmotionMap[emotionKey]) {
-          return null;
-        }
-        const config = characterEmotionMap[emotionKey];
-        const imagePath = config.imagePath;
-        // 动态导入图片
-        const imageModule = await import(`../../assets/${imagePath}`);
-        return imageModule.default;
-      } catch (error) {
-        console.warn('Failed to load character image:', error);
-        return null;
-      }
-    }, []);
-
     // 监听character prop变化，启用或禁用语音功能
     useEffect(() => {
       if (selectedCharacter) {
@@ -131,11 +113,6 @@ const AIChatSidebar = forwardRef(
         // setEmotionText(`${selectedCharacter.name}已连接`);
         ensureAudioContextActivated();
         // 加载默认表情立绘
-        loadCharacterImage(defaultEmotion).then(image => {
-          if (image) {
-            setCharacterImage(image);
-          }
-        });
       } else {
         setVoiceEnabled(false);
         setLive2dVisible(false);
@@ -144,10 +121,9 @@ const AIChatSidebar = forwardRef(
         // setCurrentEmotion('😊');
         // setEmotionText('待机中');
         setVoiceSynthesisCompleted(false);
-        setCharacterImage(null);
         interruptAudioPlayback();
       }
-    }, [selectedCharacter, loadCharacterImage]);
+    }, [selectedCharacter]);
 
     // 初始化语音相关功能
     useEffect(() => {
@@ -476,6 +452,7 @@ const AIChatSidebar = forwardRef(
           flushAudioBuffer();
           console.log('readyState', audioSystemRef.current.element.readyState);
           audioSystemRef.current.element.play();
+          live2dControllerRef.current.stopRandomMotion();
 
           audioSystemRef.current.sourceBuffer.addEventListener('updateend', () => {
             if (audioBufferQueue.current.length > 0) {
@@ -590,6 +567,9 @@ const AIChatSidebar = forwardRef(
     const onAudioPlaybackComplete = () => {
       console.log('🎉 语音播放自然结束');
       resetAudioPlayback();
+      setTimeout(() => {
+        live2dControllerRef.current?.startRandomMotion();
+      }, 400);
     };
 
     // 暂停音频播放
@@ -759,16 +739,6 @@ const AIChatSidebar = forwardRef(
           live2dControllerRef.current.setExpression(live2dExpression);
           console.log(`🎭 Live2D表情已更新: ${emotionKey} -> ${live2dExpression}`);
         }
-
-        // 动态加载新的角色立绘图片
-        try {
-          const newImage = await loadCharacterImage(emotionKey);
-          if (newImage) {
-            setCharacterImage(newImage);
-          }
-        } catch (error) {
-          console.warn('加载角色立绘失败:', error);
-        }
       }
     };
 
@@ -789,6 +759,9 @@ const AIChatSidebar = forwardRef(
         if (voiceSessionId) {
           try {
             const res = await apiClient.post(`/aichat/interrupt-session/${voiceSessionId}`);
+            setTimeout(() => {
+              live2dControllerRef.current?.startRandomMotion();
+            }, 400);
             console.log('已发送打断指令', res);
           } catch (error) {
             console.error('发送打断指令失败:', error);
@@ -1802,7 +1775,7 @@ const AIChatSidebar = forwardRef(
           className="side-chat-container"
           style={{
             backgroundColor: 'white',
-            backgroundImage: 'none', // selectedCharacter && characterImage ? `url(${characterImage})`
+            backgroundImage: 'none',
             backgroundSize: 'contain',
             backgroundPosition: 'bottom right',
             backgroundRepeat: 'no-repeat',
@@ -1861,98 +1834,6 @@ const AIChatSidebar = forwardRef(
             </div>
           </div>
 
-          {/* 角色立绘显示区域 */}
-          {/* {selectedCharacter && characterImage && !live2dVisible && (
-            <div
-              className="character-portrait"
-              style={{
-                position: 'fixed',
-                right: '25%',
-                bottom: '0',
-                width: '180px',
-                height: '320px',
-                zIndex: 1000,
-                pointerEvents: 'none',
-                opacity: 0.9,
-              }}
-            >
-              <img
-                src={characterImage}
-                alt={`${selectedCharacter.name} - ${characterEmotionMap[currentEmotionKey]?.name || '默认'}`}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
-                }}
-              />
-
-              {/* Buffering状态的可爱loading指示器 */}
-          {/* {voiceEnabled && audioPlaying && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '20px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'rgba(255, 255, 255, 0.95)',
-                    borderRadius: '20px',
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                    fontSize: '12px',
-                    color: '#666',
-                    animation: 'bounce 1s infinite',
-                    pointerEvents: 'visible',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '12px',
-                      height: '12px',
-                      border: '2px solid #f3f3f3',
-                      borderTop: '2px solid #1890ff',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite',
-                    }}
-                  />
-
-                  {voiceEnabled && audioPlaying && (
-                    <div>
-                      <Tooltip
-                        title={
-                          voiceSynthesisCompleted
-                            ? audioSystemRef.current.element &&
-                              audioSystemRef.current.element.paused
-                              ? '恢复播放'
-                              : '暂停播放'
-                            : '打断语音合成'
-                        }
-                      >
-                        <Button
-                          type="text"
-                          size="small"
-                          onClick={handleVoiceControlButton}
-                          style={{
-                            color: voiceSynthesisCompleted ? '#1890ff' : '#ff4d4f',
-                            fontSize: '12px',
-                            background: 'rgba(255, 255, 255, 0.9)',
-                            borderRadius: '16px',
-                            padding: '4px 8px',
-                          }}
-                        >
-                          {getVoiceControlButtonContent()}
-                        </Button>
-                      </Tooltip>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}  */}
-
           {/* Live2D角色显示区域 */}
           {selectedCharacter && live2dEnabled && live2dVisible && (
             <div
@@ -1980,7 +1861,11 @@ const AIChatSidebar = forwardRef(
                   if (currentEmotionKey) {
                     const initialExpression =
                       LIVE2D_CONFIG.EXPRESSION_MAP[currentEmotionKey] || 'neutral';
-                    live2dControllerRef.current?.setExpression(initialExpression);
+                    setTimeout(() => {
+                      live2dControllerRef.current?.setExpression(initialExpression);
+                      live2dControllerRef.current.startRandomMotion();
+                    }, 200);
+                    // live2dControllerRef.current?.setExpression(initialExpression);
                   }
                 }}
                 onError={error => {
@@ -2054,77 +1939,8 @@ const AIChatSidebar = forwardRef(
                   )}
                 </div>
               )}
-
-              {/* Live2D控制面板
-              {voiceEnabled && audioPlaying && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '20px',
-                    right: '20px',
-                    background: 'rgba(0, 0, 0, 0.8)',
-                    borderRadius: '8px',
-                    padding: '8px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                    fontSize: '11px',
-                    color: 'white',
-                    pointerEvents: 'visible',
-                    backdropFilter: 'blur(4px)',
-                  }}
-                >
-                  <div>🎭 Live2D同步中</div>
-                  <div style={{ color: '#4caf50' }}>表情: {currentEmotionKey}</div>
-
-                  <Tooltip title={voiceSynthesisCompleted ? '暂停/恢复' : '停止合成'}>
-                    <Button
-                      type="text"
-                      size="small"
-                      onClick={handleVoiceControlButton}
-                      style={{
-                        color: voiceSynthesisCompleted ? '#1890ff' : '#ff4d4f',
-                        fontSize: '10px',
-                        height: '24px',
-                        padding: '0 6px',
-                      }}
-                    >
-                      {getVoiceControlButtonContent()}
-                    </Button>
-                  </Tooltip>
-                </div>
-              )} */}
             </div>
           )}
-
-          {/* Live2D切换按钮 */}
-          {/* {selectedCharacter && live2dEnabled && (
-            <div
-              style={{
-                position: 'fixed',
-                right: '26%',
-                bottom: '420px',
-                zIndex: 1001,
-                pointerEvents: 'visible',
-              }}
-            >
-              <Tooltip title={live2dVisible ? '切换到立绘模式' : '切换到Live2D模式'}>
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={() => setLive2dVisible(!live2dVisible)}
-                  style={{
-                    borderRadius: '20px',
-                    background: live2dVisible ? '#667eea' : '#52c41a',
-                    borderColor: live2dVisible ? '#667eea' : '#52c41a',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                  }}
-                >
-                  {live2dVisible ? '🎭 Live2D' : '🖼️ 立绘'}
-                </Button>
-              </Tooltip>
-            </div>
-          )} */}
 
           <div
             className="ai-chat-container"
@@ -2147,11 +1963,8 @@ const AIChatSidebar = forwardRef(
                   position: 'relative',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor:
-                    selectedCharacter && characterImage
-                      ? 'rgba(255, 255, 255, 0.9)'
-                      : 'rgba(255, 255, 255, 0.8)',
-                  backdropFilter: selectedCharacter && characterImage ? 'blur(2px)' : 'none',
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(2px)',
                 }}
               >
                 <LoadingOutlined style={{ fontSize: '32px' }} />
@@ -2214,9 +2027,8 @@ const AIChatSidebar = forwardRef(
                 padding: '16px',
                 borderTop: '1px solid #f0f0f0',
                 borderBottom: '1px solid #f0f0f0',
-                background:
-                  selectedCharacter && characterImage ? 'rgba(255, 255, 255, 0.95)' : 'white',
-                backdropFilter: selectedCharacter && characterImage ? 'blur(2px)' : 'none',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(2px)',
                 position: 'relative',
               }}
             >
@@ -2459,6 +2271,9 @@ const AIChatSidebar = forwardRef(
                         onClick={() => {
                           // 无内容：直接打断
                           interruptTextStream();
+                          setTimeout(() => {
+                            live2dControllerRef.current?.startRandomMotion();
+                          }, 400);
                         }}
                       />
                     )}

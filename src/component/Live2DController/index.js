@@ -64,6 +64,10 @@ const Live2DController = forwardRef(
       syncStatus: '待机',
     });
 
+    // 随机动作系统
+    const randomMotionTimerRef = useRef(null);
+    const isRandomMotionEnabledRef = useRef(false);
+
     // 引用
     const canvasRef = useRef(null);
     const appRef = useRef(null);
@@ -103,6 +107,61 @@ const Live2DController = forwardRef(
 
         // 获取支持的表情列表
         getSupportedExpressions: () => Object.keys(LIVE2D_CONFIG.EXPRESSIONS),
+
+        // 设置动作和表情
+        setMotion: (options = {}) => {
+          if (!modelRef.current) return;
+
+          const {
+            motion,
+            motionIndex = 0,
+            expression,
+            duration,
+            resetExpression = 'neutral',
+          } = options;
+
+          try {
+            // 开始动作
+            if (motion) {
+              modelRef.current.internalModel.motionManager.startMotion(motion, motionIndex);
+            }
+
+            // 设置表情
+            if (expression) {
+              modelRef.current.expression(expression);
+            }
+
+            // 如果设置了持续时间，则自动恢复
+            if (duration && duration > 0) {
+              setTimeout(() => {
+                modelRef.current.internalModel.motionManager.stopAllMotions();
+                modelRef.current.internalModel.motionManager.startMotion(
+                  'Idle',
+                  0,
+                  window.PIXI?.live2d?.MotionPriority?.FORCE
+                );
+                modelRef.current.expression(resetExpression);
+              }, duration);
+            }
+          } catch (error) {
+            console.error('设置动作失败:', error);
+          }
+        },
+
+        // 启动随机动作
+        startRandomMotion: () => {
+          isRandomMotionEnabledRef.current = true;
+          startRandomMotionSystem();
+        },
+
+        // 停止随机动作
+        stopRandomMotion: () => {
+          isRandomMotionEnabledRef.current = false;
+          stopRandomMotionSystem();
+        },
+
+        // 获取随机动作状态
+        getRandomMotionEnabled: () => isRandomMotionEnabledRef.current,
 
         // 口型控制（手动设置）
         setMouthParameters: (openY, form = 0) => {
@@ -224,6 +283,13 @@ const Live2DController = forwardRef(
         console.log('🎉 Live2D控制器初始化完成');
 
         onModelLoaded?.(modelRef.current);
+
+        // 启动随机动作系统（延迟5秒后开始）
+        // setTimeout(() => {
+        //   if (isRandomMotionEnabled) {
+        //     startRandomMotionSystem();
+        //   }
+        // }, 5000);
       } catch (error) {
         console.error('❌ Live2D模型加载失败:', error);
         throw error;
@@ -396,10 +462,115 @@ const Live2DController = forwardRef(
       }
     };
 
+    // 随机动作系统配置
+    const randomMotionConfig = {
+      expressions: [
+        'neutral',
+        'hideear',
+        'surprised',
+        'angry',
+        'happy',
+        'sparkle',
+        'panic',
+        'sad',
+        'upset',
+        'sick',
+        'pale',
+        'embarrassed',
+      ],
+      motions: {
+        Idle: [0, 1, 2], // 3个Idle动作
+        Tap: [0, 1], // 2个Tap动作
+      },
+      intervalMin: 8000, // 最小间隔10秒
+      intervalMax: 15000, // 最大间隔30秒
+      durationMin: 2000, // 最短持续2秒
+      durationMax: 5000, // 最长持续5秒
+    };
+
+    // 获取随机项
+    const getRandomItem = array => array[Math.floor(Math.random() * array.length)];
+
+    // 获取随机数值
+    const getRandomBetween = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+    // 执行随机动作
+    const executeRandomMotion = () => {
+      if (!modelRef.current || !isRandomMotionEnabledRef.current) return;
+
+      try {
+        // 80%概率是Idle动作，20%概率是Tap动作
+        const motionType = Math.random() < 0.8 ? 'Idle' : 'Tap';
+        const motionIndex = getRandomItem(randomMotionConfig.motions[motionType]);
+        const expression = getRandomItem(randomMotionConfig.expressions);
+        const duration = getRandomBetween(
+          randomMotionConfig.durationMin,
+          randomMotionConfig.durationMax
+        );
+
+        console.log(`🎲 随机动作: ${motionType}[${motionIndex}] + ${expression} (${duration}ms)`);
+
+        // 执行动作
+        modelRef.current.internalModel.motionManager.startMotion(motionType, motionIndex);
+        modelRef.current.expression(expression);
+
+        // 设置恢复定时器
+        setTimeout(() => {
+          if (modelRef.current) {
+            modelRef.current.internalModel.motionManager.stopAllMotions();
+            modelRef.current.internalModel.motionManager.startMotion(
+              'Idle',
+              0,
+              window.PIXI?.live2d?.MotionPriority?.FORCE
+            );
+            modelRef.current.expression('neutral');
+          }
+        }, duration);
+      } catch (error) {
+        console.error('执行随机动作失败:', error);
+      }
+    };
+
+    // 启动随机动作系统
+    const startRandomMotionSystem = () => {
+      if (randomMotionTimerRef.current) return; // 防止重复启动
+
+      const scheduleNext = () => {
+        if (!isRandomMotionEnabledRef.current) return;
+
+        const interval = getRandomBetween(
+          randomMotionConfig.intervalMin,
+          randomMotionConfig.intervalMax
+        );
+        console.log(`⏰ 下次随机动作将在 ${interval / 1000} 秒后执行`);
+
+        randomMotionTimerRef.current = setTimeout(() => {
+          executeRandomMotion();
+          scheduleNext(); // 调度下一次
+        }, interval);
+      };
+
+      console.log('🎮 启动随机动作系统');
+      scheduleNext();
+    };
+
+    // 停止随机动作系统
+    const stopRandomMotionSystem = () => {
+      if (randomMotionTimerRef.current) {
+        clearTimeout(randomMotionTimerRef.current);
+        randomMotionTimerRef.current = null;
+        console.log('⏹️ 停止随机动作系统');
+      }
+      modelRef.current.internalModel.motionManager.stopAllMotions();
+    };
+
     // 清理资源
     const cleanup = () => {
       // 停止动画循环
       stopVolumeMonitoring();
+
+      // 停止随机动作系统
+      stopRandomMotionSystem();
 
       // 断开音频分析器
       disconnectAudioAnalyserInternal();
@@ -443,7 +614,7 @@ const Live2DController = forwardRef(
             background: 'transparent',
           }}
         />
-        {/* {!isReady && (
+        {!isReady && (
           <div
             style={{
               position: 'absolute',
@@ -456,9 +627,9 @@ const Live2DController = forwardRef(
               textAlign: 'center',
             }}
           >
-            <div>🎭 正在加载Live2D模型...</div>
+            <div>正在加载Live2D模型...</div>
           </div>
-        )} */}
+        )}
       </div>
     );
   }

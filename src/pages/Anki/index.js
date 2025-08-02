@@ -114,11 +114,13 @@ function Anki() {
       if (aiChatSidebarRef.current && aiChatSidebarRef.current.handleAudioCleanupOnNavigation) {
         aiChatSidebarRef.current.handleAudioCleanupOnNavigation();
       }
-
-      setAiChatVisible(false);
+      if (!selectedCharacter) {
+        setAiChatVisible(false);
+      }
       setChunkId(undefined);
       setAiChatLoading(false);
       editorRef?.current?.getEditor()?.clearAiLoadingChunk();
+      processingChunkIdRef.current = null;
 
       if (quality !== 0) {
         await updateQualityForThisCard(deckId, quality);
@@ -244,7 +246,7 @@ function Anki() {
 
   // AI Chat 相关方法
   const getChatMessageAndShowSidebar = chunkId => {
-    console.log(chunkId, 'chunkId111');
+    console.log(chunkId, processingChunkIdRef.current, 'chunkId111');
 
     if (processingChunkIdRef.current === chunkId) {
       console.log('Already processing the same chunkId, skipping getChatMessageAndShowSidebar...');
@@ -397,7 +399,10 @@ function Anki() {
           pagination={pagination}
           onNotesReady={() => {}}
           selectedCharacter={selectedCharacter}
-          onSelectCharacter={setSelectedCharacter}
+          onSelectCharacter={character => {
+            setSelectedCharacter(character);
+            setAiChatVisible(true);
+          }}
         />
 
         <div
@@ -559,7 +564,6 @@ function Anki() {
             card={card}
             onCardClick={handleCardClick}
             selectedCharacter={selectedCharacter}
-            onSelectCharacter={setSelectedCharacter}
           />
         </div>
       </div>

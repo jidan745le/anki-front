@@ -138,7 +138,7 @@ function renderChatChunk(elem, children, editor) {
     'span',
     {
       attrs: { 'data-chunk-id': chunkId },
-      props: { contentEditable: true },
+      props: { contentEditable: true, title: '点击查看ai解释' },
       class: { 'chat-chunk-container': true }, // Add class for hover targeting
       on: {
         click: () => {
@@ -175,8 +175,11 @@ function renderChatChunk(elem, children, editor) {
         position: 'relative', // Needed for absolute positioning of children
         display: 'inline-flex',
         alignItems: 'center',
-        backgroundColor: '#e3f2f9', // 舒适的青色背景
-        border: '1px solid #c5e0ed', // 配套边框
+        textDecoration: 'underline',
+        textDecorationStyle: 'wavy',
+        textDecorationColor: '#ec4899',
+        textDecorationThickness: '2px',
+        textUnderlineOffset: '6px',
         lineHeight: '1.5',
       },
     },
