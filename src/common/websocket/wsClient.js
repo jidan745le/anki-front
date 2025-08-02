@@ -11,6 +11,7 @@ class WebSocketClient {
     this.maxReconnectAttempts = 3;
     this.client = new EventEmitter();
     this.socketId = null; // 添加全局socketId存储
+    this.heartbeatCheckInterval = null; // ✅ 添加定时器变量
   }
 
   async refreshToken() {
@@ -91,6 +92,9 @@ class WebSocketClient {
         this.setSocketId(this.socket.id);
         console.log('Socket ID saved:', this.socket.id);
       }
+
+      // ✅ 启动连接状态检查
+      this.setupHeartbeatListeners();
     });
 
     this.socket.on('disconnect', e => {
@@ -154,6 +158,13 @@ class WebSocketClient {
 
   disconnect() {
     console.log('disconnect', this.socket, 'socket');
+
+    // ✅ 清理定时器
+    if (this.heartbeatCheckInterval) {
+      clearInterval(this.heartbeatCheckInterval);
+      this.heartbeatCheckInterval = null;
+    }
+
     if (this.socket) {
       console.log('disconnect 2', this.socket, 'socket');
       this.socket.disconnect();
@@ -161,6 +172,45 @@ class WebSocketClient {
     }
     // 清除socketId
     this.setSocketId(null);
+  }
+
+  // ✅ 心跳监听方法 - 最小化实现
+  setupHeartbeatListeners() {
+    // 清理旧的定时器
+    if (this.heartbeatCheckInterval) {
+      clearInterval(this.heartbeatCheckInterval);
+    }
+
+    // 每3秒检查一次连接状态
+    this.heartbeatCheckInterval = setInterval(() => {
+      // 如果socket存在但未连接，触发重连
+      if (this.socket && !this.socket.connected) {
+        console.log('🚨 Disconnection detected, cleaning up and reconnecting...');
+
+        // 停止检查
+        clearInterval(this.heartbeatCheckInterval);
+        this.heartbeatCheckInterval = null;
+
+        // 清理socket
+        this.socket.removeAllListeners();
+        if (this.socket.io?.engine) {
+          this.socket.io.engine.removeAllListeners();
+        }
+        this.socket = null;
+        this.setSocketId(null);
+
+        // 通知应用层
+        this.client.emit('disconnect');
+
+        // 1秒后重连
+        setTimeout(() => {
+          const token = localStorage.getItem('token');
+          if (token) {
+            this.connect();
+          }
+        }, 1000);
+      }
+    }, 3000);
   }
 }
 
