@@ -97,6 +97,7 @@ const AIChatSidebar = forwardRef(
 
     const { t } = useI18n();
     const { socket, isConnected, on, emit, getSocketId } = useSocket();
+    const handleAudioCleanupOnNavigationRef = useRef(null);
 
     // 动态加载角色立绘图片
     const loadCharacterImage = useCallback(async emotionKey => {
@@ -167,9 +168,10 @@ const AIChatSidebar = forwardRef(
       initAudioContext();
 
       return () => {
-        handleAudioCleanupOnNavigation().catch(error => {
-          console.error('组件卸载时音频清理失败:', error);
-        });
+        handleAudioCleanupOnNavigationRef.current &&
+          handleAudioCleanupOnNavigationRef.current().catch(error => {
+            console.error('组件卸载时音频清理失败:', error);
+          });
 
         if (audioSystemRef.current.context) {
           audioSystemRef.current.context.close();
@@ -225,6 +227,11 @@ const AIChatSidebar = forwardRef(
 
     // 音频清理函数
     const handleAudioCleanupOnNavigation = async () => {
+      console.log('handleAudioCleanupOnNavigation', {
+        voiceEnabled,
+        audioPlaying,
+        voiceSessionId,
+      });
       // 修复：只要有语音会话ID或者音频正在播放，就需要进行清理
       if (!voiceEnabled || (!audioPlaying && !voiceSessionId)) {
         return false;
@@ -262,6 +269,8 @@ const AIChatSidebar = forwardRef(
         return true;
       }
     };
+
+    handleAudioCleanupOnNavigationRef.current = handleAudioCleanupOnNavigation;
 
     // 处理音频数据
     const handleAudioData = async audioData => {
