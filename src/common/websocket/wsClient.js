@@ -11,8 +11,6 @@ class WebSocketClient {
     this.maxReconnectAttempts = 3;
     this.client = new EventEmitter();
     this.socketId = null; // 添加全局socketId存储
-    this.lastActivityTime = null;
-    this.heartbeatCheckInterval = null;
   }
 
   async refreshToken() {
@@ -93,26 +91,12 @@ class WebSocketClient {
         this.setSocketId(this.socket.id);
         console.log('Socket ID saved:', this.socket.id);
       }
-
-      // ✅ 设置心跳监听
-      this.setupHeartbeatListeners();
     });
 
-    this.socket.on('disconnect', reason => {
-      console.log('✅ disconnect event triggered!', reason);
-
-      // ✅ 这里就能看到心跳是否工作
-      if (reason === 'ping timeout') {
-        console.log('🚨 Heartbeat detected network issue - disconnected due to ping timeout');
-      } else if (reason === 'transport close') {
-        console.log('🌐 Network connection closed');
-      } else {
-        console.log('🔌 Disconnected for other reason:', reason);
-      }
-
+    this.socket.on('disconnect', e => {
       this.client.emit('disconnect');
       const token = localStorage.getItem('token');
-      console.log('disconnect', token, 'token', reason);
+      console.log('disconnect', token, 'token', e);
 
       // 清除socketId
       this.setSocketId(null);
@@ -123,9 +107,6 @@ class WebSocketClient {
 
       console.log('Disconnected from socket server');
     });
-
-    // 添加调试信息确认监听器注册
-    console.log('disconnect listener registered for socket:', this.socket.id);
 
     this.socket.on('auth_success', data => {
       console.log('Authentication successful', data);
@@ -178,42 +159,8 @@ class WebSocketClient {
       this.socket.disconnect();
       this.socket = null;
     }
-    // 清理心跳检查
-    if (this.heartbeatCheckInterval) {
-      clearInterval(this.heartbeatCheckInterval);
-      this.heartbeatCheckInterval = null;
-    }
     // 清除socketId
     this.setSocketId(null);
-  }
-
-  // ✅ 心跳监听方法
-  setupHeartbeatListeners() {
-    // ✅ 通过io.engine监听Engine.IO事件
-    const engine = this.socket?.io?.engine;
-
-    if (!engine) {
-      console.warn('⚠️ No Engine.IO engine available');
-      return;
-    }
-
-    engine.on('ping', () => {
-      console.log('📡 Server PING received at', new Date().toISOString());
-    });
-
-    engine.on('pong', () => {
-      console.log('🔄 Client PONG sent at', new Date().toISOString());
-    });
-
-    // engine.on('disconnect', () => {
-    //   console.log('⏰ Ping timeout!');
-    // });
-
-    // // 显示配置信息
-    // console.log('💡 Engine.IO config:', {
-    //   pingInterval: engine.pingInterval,
-    //   pingTimeout: engine.pingTimeout,
-    // });
   }
 }
 
