@@ -50,20 +50,19 @@ class WebSocketClient {
     const token = localStorage.getItem('token');
     const userId = localStorage.getItem('userId');
 
-    // if (!token || this.socket) {
-    //   console.log('connect !token || this.socket', token, this.socket, 'token');
-    //   if (!token && !['/login', '/signup'].includes(window.location.pathname)) {
-    //     localStorage.removeItem('token');
-    //     window.location.href = '/login';
-    //   }
-    //   return;
-    // }
-    // console.log(new Error().stack, 'stack');
-    if (this.socket) {
-      // console.log('connect 1', token, this.socket, 'token');
-      console.log('connected and conect return', this.socket, 'socket');
+    // 修改检查逻辑：只有当socket存在且已连接时才返回
+    if (this.socket && this.socket.connected) {
+      console.log('connected and connect return', this.socket, 'socket');
       return;
     }
+
+    // 如果socket存在但未连接，先清理
+    if (this.socket && !this.socket.connected) {
+      this.socket.removeAllListeners();
+      this.socket.io.engine.removeAllListeners();
+      this.socket = null;
+    }
+
     console.log('start connect', token, this.socket, 'token');
     const socketUrl = `${this.url}?userId=${encodeURIComponent(userId)}`;
 
